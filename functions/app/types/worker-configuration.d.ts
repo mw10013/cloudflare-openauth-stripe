@@ -2,8 +2,9 @@
 
 interface Env {
 	ENVIRONMENT: "local" | "staging" | "production";
-	OPENAUTH_ISSUER: "http://localhost:8788" | "https://openauth-wrangler-worker-staging.devxo.workers.dev" | "https://openauth-wrangler-worker-production.devxo.workers.dev";
+	OPENAUTH_ISSUER: "http://localhost:8788" | "https://cloudflare-openauth-stripe-worker-staging.devxo.workers.dev" | "https://cloudflare-openauth-stripe-worker-production.devxo.workers.dev";
 	COOKIE_SECRET: string;
+	D1: D1Database;
 	WORKER: Fetcher;
 	ASSETS: Fetcher;
 }

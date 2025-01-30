@@ -32,7 +32,7 @@ const config = {
 			// https://github.com/un-ts/prettier/tree/master/packages/sql#parser-options
 			options: {
 				language: 'sqlite',
-				keywordCase: 'lower'
+				keywordCase: 'upper'
 			}
 		}
 	]
