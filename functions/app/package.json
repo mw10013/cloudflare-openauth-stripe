@@ -1,5 +1,6 @@
 {
 	"name": "app",
+	"type": "module",
 	"private": true,
 	"scripts": {
 		"dev": "wrangler dev",
@@ -14,7 +15,10 @@
 		"d1:migrate:list:staging": "wrangler d1 migrations list cloudflare-openauth-stripe-d1-staging --env staging --remote",
 		"d1:migrate:apply:staging": "wrangler d1 migrations apply cloudflare-openauth-stripe-d1-staging --env staging --remote",
 		"d1:migrate:list:PRODUCTION": "wrangler d1 migrations list cloudflare-openauth-stripe-d1-production --env production --remote",
-		"d1:migrate:apply:PRODUCTION": "wrangler d1 migrations apply cloudflare-openauth-stripe-d1-production --env production --remote"
+		"d1:migrate:apply:PRODUCTION": "wrangler d1 migrations apply cloudflare-openauth-stripe-d1-production --env production --remote",
+		"d1:reset": "node scripts/d1-reset.ts",
+		"d1:reset:preview": "node scripts/d1-reset-preview.ts",
+		"d1:reset:PRODUCTION": "node scripts/d1-reset-PRODUCTION.ts"
 	},
 	"devDependencies": {
 		"@tailwindcss/cli": "^4.0.0",
