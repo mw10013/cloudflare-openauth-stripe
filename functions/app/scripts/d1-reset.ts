@@ -5,8 +5,6 @@ import 'zx/globals'
 const wranglerJsoncPaths = ['wrangler.jsonc', '../worker/wrangler.jsonc']
 
 const env = argv.env || 'local'
-console.log({ argv: argv, env })
-
 const wranglerJsonc = await fs.readFile(wranglerJsoncPaths[0], 'utf-8')
 const wranglerJsoncTree = jsonc.parseTree(wranglerJsonc)
 if (!wranglerJsoncTree) {
@@ -20,7 +18,7 @@ const databaseName = nodeDatabaseName?.value && typeof nodeDatabaseName.value ==
 if (!databaseName) {
 	throw new Error(`Failed to find database name in wrangler.jsonc: ${wranglerJsoncPaths[0]} for env: ${env}`)
 }
-console.log({ databaseName })
+console.log({ env, databaseName })
 
 if (env === 'local') {
 	// Reset the local d1 database violently, run any migrations, and seed.
@@ -65,20 +63,21 @@ if (!match) throw new Error('database_id not matched in output of create databas
 const databaseId = match[1]
 console.log({ databaseId })
 
-for (const path of wranglerJsoncPaths) {
-	const wranglerJsonc = await fs.readFile(path, 'utf-8')
+for (const wranglerJsoncPath of wranglerJsoncPaths) {
+	console.log({ wranglerJsoncPath })
+	const wranglerJsonc = await fs.readFile(wranglerJsoncPath, 'utf-8')
 	const wranglerJsoncTree = jsonc.parseTree(wranglerJsonc)
 	if (!wranglerJsoncTree) {
-		throw new Error(`Failed to parse jsonc: ${path}`)
+		throw new Error(`Failed to parse jsonc: ${wranglerJsoncPath}`)
 	}
 	const nodePath = ['env', env, 'd1_databases', 0, 'database_id']
 	const nodeDatabaseId = jsonc.findNodeAtLocation(wranglerJsoncTree, nodePath)
 	if (!nodeDatabaseId) {
-		throw new Error(`Failed to find database_id in jsonc: ${path}`)
+		throw new Error(`Failed to find database_id in jsonc: ${wranglerJsoncPath}`)
 	}
 	const edit = jsonc.modify(wranglerJsonc, nodePath, databaseId, {})
 	if (!edit) {
-		throw new Error(`Failed to modify jsonc: ${path}`)
+		throw new Error(`Failed to modify jsonc: ${wranglerJsoncPath}`)
 	}
-	await fs.writeFile(path, jsonc.applyEdits(wranglerJsonc, edit))
+	await fs.writeFile(wranglerJsoncPath, jsonc.applyEdits(wranglerJsonc, edit))
 }
