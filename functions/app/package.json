@@ -8,7 +8,13 @@
 		"build": "tailwindcss -i src/tailwind.css -o public/tailwind.css",
 		"clean": "rm -rf node_modules && rm -rf .wrangler",
 		"typecheck": "tsc --noEmit",
-		"typegen": "wrangler types ./types/worker-configuration.d.ts --experimental-include-runtime ./types/runtime.d.ts"
+		"typegen": "wrangler types ./types/worker-configuration.d.ts --experimental-include-runtime ./types/runtime.d.ts",
+		"d1:migrate:list": "wrangler d1 migrations list d1-local --local",
+		"d1:migrate:apply": "wrangler d1 migrations apply d1-local --local",
+		"d1:migrate:list:staging": "wrangler d1 migrations list cloudflare-openauth-stripe-d1-staging --env staging --remote",
+		"d1:migrate:apply:staging": "wrangler d1 migrations apply cloudflare-openauth-stripe-d1-staging --env staging --remote",
+		"d1:migrate:list:PRODUCTION": "wrangler d1 migrations list cloudflare-openauth-stripe-d1-production --env production --remote",
+		"d1:migrate:apply:PRODUCTION": "wrangler d1 migrations apply cloudflare-openauth-stripe-d1-production --env production --remote"
 	},
 	"devDependencies": {
 		"@tailwindcss/cli": "^4.0.0",

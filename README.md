@@ -37,6 +37,10 @@
 - Workers & Pages Settings: cloudflare-openauth-stripe-worker-staging/cloudflare-openauth-stripe-app-production
   - Branch control: staging
 
+## D1
+
+- pnpm -F app exec wrangler d1 migrations create d1-local <MIGRATION-NAME>
+
 ## Node version for build
 
 - See .node-version in root.
