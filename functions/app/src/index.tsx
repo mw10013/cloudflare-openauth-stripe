@@ -103,7 +103,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 				<meta charset="UTF-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 				<link href="/tailwind.css" rel="stylesheet" />
-				<title>OpenAUTH Client</title>
+				<title>COS App</title>
 			</head>
 			<body>
 				<div className="navbar bg-base-100 shadow-sm">
@@ -119,7 +119,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 							</ul>
 						</div>
 						<a href="/" className="btn btn-ghost text-xl">
-							OpenAUTH Client
+							Cloudflare-OpenAUTH-Stripe
 						</a>
 					</div>
 					<div className="navbar-center hidden lg:flex">
