@@ -81,3 +81,7 @@ for (const wranglerJsoncPath of wranglerJsoncPaths) {
 	}
 	await fs.writeFile(wranglerJsoncPath, jsonc.applyEdits(wranglerJsonc, edit))
 }
+
+// Run migrations and seed the new database.
+await $`pnpm d1:migrate:apply:${env === 'production' ? 'PRODUCTION' : env}`
+// await $`pnpm d1:seed:PRODUCTION`
