@@ -3,10 +3,11 @@
  * @type {import("prettier").Config}
  */
 const config = {
+	// bracketSameLine: true,
 	printWidth: 140,
 	semi: false,
 	singleQuote: true,
-	// bracketSameLine: true,
+	trailingComma: 'none', // None needed for .jsonc
 	useTabs: true,
 
 	// https://github.com/IanVS/prettier-plugin-sort-imports
@@ -22,8 +23,8 @@ const config = {
 	plugins: [
 		'@ianvs/prettier-plugin-sort-imports',
 		// https://github.com/tailwindlabs/prettier-plugin-tailwindcss?tab=readme-ov-file#compatibility-with-other-prettier-plugins
-		'prettier-plugin-tailwindcss', // MUST come last
-	],
+		'prettier-plugin-tailwindcss' // MUST come last
+	]
 }
 
 export default config

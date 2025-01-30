@@ -10,53 +10,52 @@
 	"compatibility_flags": ["nodejs_compat"],
 	"assets": {
 		"binding": "ASSETS",
-		"directory": "./public",
+		"directory": "./public"
 	},
 	"observability": {
-		"enabled": true,
+		"enabled": true
 	},
 	"vars": {
 		"ENVIRONMENT": "local",
-		"OPENAUTH_ISSUER": "http://localhost:8788",
+		"OPENAUTH_ISSUER": "http://localhost:8788"
 	},
 	"d1_databases": [
 		{
 			"binding": "D1",
 			"database_name": "d1-local",
-			"database_id": "d1-local",
-			"migrations_dir": ""
-		},
+			"database_id": "d1-local"
+		}
 	],
 	"services": [
 		{
 			"binding": "WORKER",
-			"service": "cloudflare-openauth-stripe-worker",
-		},
+			"service": "cloudflare-openauth-stripe-worker"
+		}
 	],
 	"env": {
 		"staging": {
 			"vars": {
 				"ENVIRONMENT": "staging",
-				"OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-staging.devxo.workers.dev",
+				"OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-staging.devxo.workers.dev"
 			},
 			"services": [
 				{
 					"binding": "WORKER",
-					"service": "cloudflare-openauth-stripe-worker-staging",
-				},
-			],
+					"service": "cloudflare-openauth-stripe-worker-staging"
+				}
+			]
 		},
 		"production": {
 			"vars": {
 				"ENVIRONMENT": "production",
-				"OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-production.devxo.workers.dev",
+				"OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-production.devxo.workers.dev"
 			},
 			"services": [
 				{
 					"binding": "WORKER",
-					"service": "cloudflare-openauth-stripe-worker-production",
-				},
-			],
-		},
-	},
+					"service": "cloudflare-openauth-stripe-worker-production"
+				}
+			]
+		}
+	}
 }
