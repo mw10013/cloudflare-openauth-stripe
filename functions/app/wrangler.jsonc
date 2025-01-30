@@ -3,52 +3,52 @@
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  */
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "cloudflare-openauth-stripe-app",
-  "main": "src/index.tsx",
-  "compatibility_date": "2025-01-21",
-  "compatibility_flags": ["nodejs_compat"],
-  "assets": {
-    "binding": "ASSETS",
-    "directory": "./public"
-  },
-  "observability": {
-    "enabled": true
-  },
-  "vars": {
-    "ENVIRONMENT": "local",
-    "OPENAUTH_ISSUER": "http://localhost:8788"
-  },
-  "services": [
-    {
-      "binding": "WORKER",
-      "service": "cloudflare-openauth-stripe-worker"
-    }
-  ],
-  "env": {
-    "staging": {
-      "vars": {
-        "ENVIRONMENT": "staging",
-        "OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-staging.devxo.workers.dev"
-      },
-      "services": [
-        {
-          "binding": "WORKER",
-          "service": "cloudflare-openauth-stripe-worker-staging"
-        }
-      ]
-    },
-    "production": {
-      "vars": {
-        "ENVIRONMENT": "production",
-        "OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-production.devxo.workers.dev"
-      },
-      "services": [
-        {
-          "binding": "WORKER",
-          "service": "cloudflare-openauth-stripe-worker-production"
-        }
-      ]
-    }
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "cloudflare-openauth-stripe-app",
+	"main": "src/index.tsx",
+	"compatibility_date": "2025-01-21",
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": "./public",
+	},
+	"observability": {
+		"enabled": true,
+	},
+	"vars": {
+		"ENVIRONMENT": "local",
+		"OPENAUTH_ISSUER": "http://localhost:8788",
+	},
+	"services": [
+		{
+			"binding": "WORKER",
+			"service": "cloudflare-openauth-stripe-worker",
+		},
+	],
+	"env": {
+		"staging": {
+			"vars": {
+				"ENVIRONMENT": "staging",
+				"OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-staging.devxo.workers.dev",
+			},
+			"services": [
+				{
+					"binding": "WORKER",
+					"service": "cloudflare-openauth-stripe-worker-staging",
+				},
+			],
+		},
+		"production": {
+			"vars": {
+				"ENVIRONMENT": "production",
+				"OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-production.devxo.workers.dev",
+			},
+			"services": [
+				{
+					"binding": "WORKER",
+					"service": "cloudflare-openauth-stripe-worker-production",
+				},
+			],
+		},
+	},
 }
