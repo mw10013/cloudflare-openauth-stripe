@@ -1,7 +1,5 @@
 # cloudflare-openauth-stripe
 
-OpenAuth server and app example using wrangler for local dev and deployment.
-
 ## Local Dev
 
 - cp functions/app/.dev.vars.example functions/app/.dev.vars
