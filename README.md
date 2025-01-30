@@ -9,6 +9,9 @@
 
 ## Deploy (production)
 
+- pnpm -F app exec wrangler d1 create cloudflare-openauth-stripe-d1-production
+- Update app/wrangler.jsonc and worker/wrangler.jsonc with production d1 id
+- pnpm -F app d1:migrate:apply:PRODUCTION
 - pnpm -F worker exec wrangler kv namespace create kv-production
 - Update worker/wrangler.jsonc with production kv id
 - pnpm -F worker exec wrangler deploy --env production

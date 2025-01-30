@@ -38,6 +38,13 @@
 				"ENVIRONMENT": "staging",
 				"OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-staging.devxo.workers.dev"
 			},
+			"d1_databases": [
+				{
+					"binding": "D1",
+					"database_name": "cloudflare-openauth-stripe-d1-staging",
+					"database_id": "<DATABASE-ID>"
+				}
+			],
 			"services": [
 				{
 					"binding": "WORKER",
@@ -50,6 +57,13 @@
 				"ENVIRONMENT": "production",
 				"OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-production.devxo.workers.dev"
 			},
+			"d1_databases": [
+				{
+					"binding": "D1",
+					"database_name": "cloudflare-openauth-stripe-d1-production",
+					"database_id": "5d3f38a7-a921-4c0c-8f9f-3e69aca58c35"
+				}
+			],
 			"services": [
 				{
 					"binding": "WORKER",
