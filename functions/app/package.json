@@ -33,6 +33,7 @@
 	"dependencies": {
 		"@openauthjs/openauth": "catalog:",
 		"@repo/shared": "workspace:*",
-		"hono": "catalog:"
+		"hono": "catalog:",
+		"stripe": "catalog:"
 	}
 }

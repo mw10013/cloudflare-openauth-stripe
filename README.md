@@ -25,6 +25,7 @@
 - pnpm -F app build
 - pnpm -F app exec wrangler deploy --env production
 - pnpm -F app exec wrangler secret put COOKIE_SECRET --env production
+- pnpm -F app exec wrangler secret put STRIPE_SECRET_KEY --env production
 - Workers & Pages Settings: cloudflare-openauth-stripe-app-production
   - Git repository: connect to git repo
   - Build configuration
