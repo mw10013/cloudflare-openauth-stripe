@@ -56,3 +56,15 @@
 - https://prettier.io/docs/en/ignore
   - Prettier will also follow rules specified in the ".gitignore" file if it exists in the same directory from which it is run.
 - pnpm prettier . --check
+
+## Stripe
+
+- limit 1 subscription
+- https://github.com/stripe/stripe-node
+- https://docs.stripe.com/api?lang=node
+- https://github.com/nextjs/saas-starter
+- https://www.youtube.com/watch?v=Wdyndb17K58&t=173s
+
+```
+Double subscriptions are not an issue when you create a customer first, then create a payment intent for that customer and then load your checkout forms using that intent. It won't matter whether the user goes back, forward, refreshes or whatever. As long as the payment intent doesn't change, it won't be a double subscription. Also a lot of projects actually do allow multiple subscriptions, so they can't just make such a critical option on by default (limit to 1). On the price IDs between environments - use price lookup keys instead.
+```

@@ -4,10 +4,12 @@ import { subjects } from '@repo/shared/subjects'
 import { Context, Hono } from 'hono'
 import { deleteCookie, getCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
+import Stripe from 'stripe'
 
 type HonoEnv = {
 	Bindings: Env
 	Variables: {
+		stripe: Stripe
 		client: Client
 		redirectUri: string
 		verifyResult?: VerifyResult<typeof subjects>
@@ -18,10 +20,11 @@ export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const app = new Hono<HonoEnv>()
 		app.use(async (c, next) => {
+			c.set('stripe', new Stripe(c.env.STRIPE_SECRET_KEY))
 			const client = createClient({
 				clientID: 'client',
 				issuer: c.env.OPENAUTH_ISSUER,
-				fetch: (input, init) => c.env.WORKER.fetch(input, init),
+				fetch: (input, init) => c.env.WORKER.fetch(input, init)
 			})
 			c.set('client', client)
 			c.set('redirectUri', new URL(c.req.url).origin + '/callback')
@@ -29,7 +32,7 @@ export default {
 			if (accessToken && refreshToken) {
 				const verified = await client.verify(subjects, accessToken, {
 					refresh: refreshToken,
-					fetch: (input, init) => c.env.WORKER.fetch(input, init),
+					fetch: (input, init) => c.env.WORKER.fetch(input, init)
 				})
 				if (verified.err) {
 					deleteTokenCookies(c)
@@ -50,11 +53,11 @@ export default {
 		})
 		app.use(
 			'/*',
-			jsxRenderer(({ children }) => <Layout>{children}</Layout>),
+			jsxRenderer(({ children }) => <Layout>{children}</Layout>)
 		)
 
 		app.get('/', (c) => c.render(<Home />))
-		app.get('/public', (c) => c.render('Public'))
+		app.get('/public', (c) => c.render(<Public />))
 		app.get('/protected', (c) => c.render('Protected'))
 		app.get('/authorize', async (c) => {
 			if (c.var.verifyResult) {
@@ -82,7 +85,7 @@ export default {
 			}
 		})
 		return app.fetch(request, env, ctx)
-	},
+	}
 } satisfies ExportedHandler<Env>
 
 const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
@@ -154,6 +157,19 @@ const Home: FC = () => (
 	</div>
 )
 
+const Public: FC = async () => {
+	const c = useRequestContext<HonoEnv>()
+	const stripe = c.var.stripe
+	const products = await stripe.products.list({ expand: ['data.price'] })
+	const prices = await stripe.prices.list({ lookup_keys: ['basic', 'pro'], expand: ['data.product'] })
+	return (
+		<div>
+			Public
+			<pre>{JSON.stringify({ prices, products }, null, 2)}</pre>
+		</div>
+	)
+}
+
 const VerifyResultCard: FC = () => {
 	const ctx = useRequestContext<HonoEnv>()
 	const verifyResult = ctx.get('verifyResult')
@@ -168,8 +184,8 @@ const VerifyResultCard: FC = () => {
 }
 
 const CookiesCard: FC = () => {
-	const ctx = useRequestContext<HonoEnv>()
-	const cookies = getCookie(ctx)
+	const c = useRequestContext<HonoEnv>()
+	const cookies = getCookie(c)
 	return (
 		<div className="card bg-base-100 w-96 shadow-sm">
 			<div className="card-body">
@@ -191,7 +207,7 @@ const CookiesCard: FC = () => {
 async function getTokenCookies(c: Context<HonoEnv>) {
 	return {
 		accessToken: await getSignedCookie(c, c.env.COOKIE_SECRET, 'accessToken'),
-		refreshToken: await getSignedCookie(c, c.env.COOKIE_SECRET, 'refreshToken'),
+		refreshToken: await getSignedCookie(c, c.env.COOKIE_SECRET, 'refreshToken')
 	}
 }
 
@@ -201,7 +217,7 @@ async function setTokenCookies(c: Context<HonoEnv>, accessToken: string, refresh
 		secure: true,
 		httpOnly: true,
 		maxAge: 60 * 5,
-		sameSite: 'Strict',
+		sameSite: 'Strict'
 	} as const
 	await setSignedCookie(c, 'accessToken', accessToken, c.env.COOKIE_SECRET, options)
 	await setSignedCookie(c, 'refreshToken', refreshToken, c.env.COOKIE_SECRET, options)
@@ -209,7 +225,7 @@ async function setTokenCookies(c: Context<HonoEnv>, accessToken: string, refresh
 
 function deleteTokenCookies(c: Context<HonoEnv>) {
 	const options = {
-		secure: true,
+		secure: true
 	}
 	deleteCookie(c, 'accessToken', options)
 	deleteCookie(c, 'refreshToken', options)
