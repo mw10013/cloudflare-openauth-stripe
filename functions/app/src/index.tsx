@@ -10,6 +10,7 @@ import Stripe from 'stripe'
 type HonoEnv = {
 	Bindings: Env
 	Variables: {
+		sessionData: SessionData
 		stripe: Stripe
 		client: Client
 		redirectUri: string
@@ -19,6 +20,7 @@ type HonoEnv = {
 
 type SessionData = {
 	email?: string
+	foo?: string
 }
 
 export default {
@@ -26,7 +28,17 @@ export default {
 		const app = new Hono<HonoEnv>()
 		app.use(async (c, next) => {
 			const cookieSessionId = await getSignedCookie(c, c.env.COOKIE_SECRET, 'sessionId')
-			const sessionId = cookieSessionId || createId()
+			const sessionId = cookieSessionId || `session:${createId()}`
+			await setSignedCookie(c, 'sessionId', sessionId, c.env.COOKIE_SECRET, {
+				secure: true,
+				httpOnly: true,
+				maxAge: 60 * 5,
+				sameSite: 'Strict'
+			})
+			const kvSessionData = await env.KV.get<SessionData>(sessionId, { type: 'json' })
+			const sessionData = kvSessionData || {}
+			c.set('sessionData', sessionData)
+			console.log({ log: 'session', sessionId, sessionData, cookieSessionId })
 
 			c.set('stripe', new Stripe(c.env.STRIPE_SECRET_KEY))
 			const client = createClient({
@@ -49,6 +61,10 @@ export default {
 				}
 			}
 			await next()
+			if (c.var.sessionData !== sessionData) {
+				console.log({ log: 'sessionData changed', sessionData, sessionDataChanged: c.var.sessionData })
+				await env.KV.put(sessionId, JSON.stringify(c.var.sessionData), { expirationTtl: 60 * 5 })
+			}
 			if (c.var.verifyResult?.tokens) {
 				await setTokenCookies(c, c.var.verifyResult.tokens.access, c.var.verifyResult.tokens.refresh)
 			}
@@ -66,6 +82,16 @@ export default {
 
 		app.get('/', (c) => c.render(<Home />))
 		app.get('/public', (c) => c.render(<Public />))
+		app.post('/public', async (c) => {
+			const formData = await c.req.formData()
+
+			const value = formData.get('value')
+			if (typeof value === 'string' && value) {
+				c.set('sessionData', { ...c.var.sessionData, foo: value })
+			}
+			return c.redirect('/public')
+		})
+
 		app.get('/protected', (c) => c.render('Protected'))
 		app.get('/authorize', async (c) => {
 			if (c.var.verifyResult) {
@@ -173,7 +199,23 @@ const Public: FC = async () => {
 	return (
 		<div>
 			Public
-			<pre>{JSON.stringify({ prices, products }, null, 2)}</pre>
+			<div className="card bg-base-100 w-96 shadow-sm">
+				<form action="/public" method="post">
+					<div className="card-body">
+						<h2 className="card-title">Foo</h2>
+						<fieldset className="fieldset">
+							<legend className="fieldset-legend">Value</legend>
+							<input type="text" name="value" className="input" />
+						</fieldset>
+						<div className="card-actions justify-end">
+							<button type="submit" className="btn btn-primary">
+								Set
+							</button>
+						</div>
+					</div>
+				</form>
+			</div>
+			<pre>{JSON.stringify({ sessionData: c.var.sessionData, prices, products }, null, 2)}</pre>
 		</div>
 	)
 }
