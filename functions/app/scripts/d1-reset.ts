@@ -2,6 +2,16 @@ import * as jsonc from 'jsonc-parser'
 import { $, fs, glob } from 'zx'
 import 'zx/globals'
 
+/* Script to reset the D1 database either locally or in an environment on Cloudflare.
+- Delete existing database
+- Create new database
+- Update wrangler.toml files with new database id as necessary
+- Runs migrations and seed
+
+Command line args:
+--env local|staging|production
+*/
+
 const wranglerJsoncPaths = ['wrangler.jsonc', '../worker/wrangler.jsonc']
 
 const env = argv.env || 'local'
