@@ -12,8 +12,8 @@
 - pnpm -F app exec wrangler d1 create cloudflare-openauth-stripe-d1-production
 - Update app/wrangler.jsonc and worker/wrangler.jsonc with production d1 id
 - pnpm -F app d1:migrate:apply:PRODUCTION
-- pnpm -F worker exec wrangler kv namespace create kv-production
-- Update worker/wrangler.jsonc with production kv id
+- pnpm -F app exec wrangler kv namespace create kv-production
+- Update app/wrangler.jsonc and worker/wrangler.jsonc with production kv id
 - pnpm -F worker exec wrangler deploy --env production
 - Workers & Pages Settings: cloudflare-openauth-stripe-worker-production
   - Git repository: connect to git repo
@@ -59,7 +59,7 @@
 
 ## Stripe
 
-- limit 1 subscription
+- limit 1 subscription  
 - https://github.com/stripe/stripe-node
 - https://docs.stripe.com/api?lang=node
 - https://github.com/nextjs/saas-starter

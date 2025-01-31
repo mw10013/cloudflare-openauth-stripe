@@ -14,17 +14,17 @@
 	"vars": {
 		"ENVIRONMENT": "local"
 	},
-	"kv_namespaces": [
-		{
-			"binding": "KV",
-			"id": "<NAMESPACE_ID1>"
-		}
-	],
 	"d1_databases": [
 		{
 			"binding": "D1",
 			"database_name": "d1-local",
 			"database_id": "d1-local"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "KV",
+			"id": "kv-local"
 		}
 	],
 	"env": {
@@ -42,7 +42,7 @@
 			"kv_namespaces": [
 				{
 					"binding": "KV",
-					"id": "e04ef1bfdd06484da42362681e16bc42" // cloudflare-openauth-stripe-worker-kv-staging
+					"id": "e04ef1bfdd06484da42362681e16bc42" // cloudflare-openauth-stripe-app-kv-staging
 				}
 			]
 		},
@@ -60,7 +60,7 @@
 			"kv_namespaces": [
 				{
 					"binding": "KV",
-					"id": "28d89dbc36224f7d9fc6092ba5bbef00" // cloudflare-openauth-stripe-worker-kv-production
+					"id": "6b25aa052065450cb71054f84fd0df84" // cloudflare-openauth-stripe-app-kv-production
 				}
 			]
 		}

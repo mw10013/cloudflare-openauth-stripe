@@ -26,6 +26,12 @@
 			"database_id": "d1-local"
 		}
 	],
+	"kv_namespaces": [
+		{
+			"binding": "KV",
+			"id": "kv-local"
+		}
+	],
 	"services": [
 		{
 			"binding": "WORKER",
@@ -45,6 +51,12 @@
 					"database_id": "<DATABASE-ID>"
 				}
 			],
+			"kv_namespaces": [
+				{
+					"binding": "KV",
+					"id": "e04ef1bfdd06484da42362681e16bc42" // cloudflare-openauth-stripe-app-kv-staging
+				}
+			],
 			"services": [
 				{
 					"binding": "WORKER",
@@ -62,6 +74,12 @@
 					"binding": "D1",
 					"database_name": "cloudflare-openauth-stripe-d1-production",
 					"database_id": "9dcc838d-4a42-4db0-bdd0-beb0e92bce2d"
+				}
+			],
+			"kv_namespaces": [
+				{
+					"binding": "KV",
+					"id": "6b25aa052065450cb71054f84fd0df84" // cloudflare-openauth-stripe-app-kv-production
 				}
 			],
 			"services": [

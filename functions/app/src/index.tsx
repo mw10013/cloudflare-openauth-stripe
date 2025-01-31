@@ -1,5 +1,6 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
 import { Client, createClient, VerifyResult } from '@openauthjs/openauth/client'
+import { createId } from '@paralleldrive/cuid2'
 import { subjects } from '@repo/shared/subjects'
 import { Context, Hono } from 'hono'
 import { deleteCookie, getCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
@@ -16,10 +17,17 @@ type HonoEnv = {
 	}
 }
 
+type SessionData = {
+	email?: string
+}
+
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const app = new Hono<HonoEnv>()
 		app.use(async (c, next) => {
+			const cookieSessionId = await getSignedCookie(c, c.env.COOKIE_SECRET, 'sessionId')
+			const sessionId = cookieSessionId || createId()
+
 			c.set('stripe', new Stripe(c.env.STRIPE_SECRET_KEY))
 			const client = createClient({
 				clientID: 'client',

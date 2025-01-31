@@ -32,6 +32,7 @@
 	},
 	"dependencies": {
 		"@openauthjs/openauth": "catalog:",
+		"@paralleldrive/cuid2": "catalog:",
 		"@repo/shared": "workspace:*",
 		"hono": "catalog:",
 		"stripe": "catalog:"
