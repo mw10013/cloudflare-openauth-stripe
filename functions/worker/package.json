@@ -4,7 +4,8 @@
 		"dev": "wrangler dev --port 8788 --persist-to=../app/.wrangler/state",
 		"clean": "rm -rf node_modules && rm -rf .wrangler",
 		"typecheck": "tsc --noEmit",
-		"typegen": "wrangler types ./types/worker-configuration.d.ts --experimental-include-runtime ./types/runtime.d.ts "
+		"typegen": "wrangler types ./types/worker-configuration.d.ts --experimental-include-runtime ./types/runtime.d.ts",
+		"stripe:listen": "stripe listen --load-from-webhooks-api --forward-to localhost:8788"
 	},
 	"dependencies": {
 		"@openauthjs/openauth": "catalog:",
