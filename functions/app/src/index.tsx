@@ -98,7 +98,7 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 		const kvSessionData = await env.KV.get<SessionData>(sessionId, { type: 'json' })
 		const sessionData = kvSessionData || {}
 		c.set('sessionData', sessionData)
-		console.log({ log: 'session', sessionId, sessionData, cookieSessionId })
+		console.log({ sessionData })
 
 		c.set('stripe', new Stripe(c.env.STRIPE_SECRET_KEY))
 
@@ -108,16 +108,13 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 			// issuer: c.env.OPENAUTH_ISSUER,
 			// fetch: (input, init) => c.env.WORKER.fetch(input, init)
 			issuer: origin,
-			fetch: async (input, init) => {
-				const request = new Request(input, init)
-				return openAuth.fetch(request, env, ctx)
-			}
+			fetch: async (input, init) => openAuth.fetch(new Request(input, init), env, ctx)
 		})
 		c.set('client', client)
 		c.set('redirectUri', `${origin}/callback`)
 		await next()
 		if (c.var.sessionData !== sessionData) {
-			console.log({ log: 'sessionData changed', sessionData, sessionDataChanged: c.var.sessionData })
+			console.log({ changedSessionData: c.var.sessionData })
 			await env.KV.put(sessionId, JSON.stringify(c.var.sessionData), { expirationTtl: 60 * 5 })
 		}
 	})
@@ -170,10 +167,7 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 			const verified = await c.var.client.verify(subjects, exchanged.tokens.access, {
 				refresh: exchanged.tokens.refresh,
 				// fetch: (input, init) => c.env.WORKER.fetch(input, init)
-				fetch: async (input, init) => {
-					const request = new Request(input, init)
-					return openAuth.fetch(request, env, ctx)
-				}
+				fetch: async (input, init) => openAuth.fetch(new Request(input, init), env, ctx)
 			})
 			if (verified.err) throw verified.err
 			// c.set('sessionData', { ...c.var.sessionData, userId: verified.subject.properties.userId, email: verified.subject.properties.email })
