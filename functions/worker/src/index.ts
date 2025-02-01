@@ -1,9 +1,7 @@
 import { issuer } from '@openauthjs/openauth'
 import { CodeProvider } from '@openauthjs/openauth/provider/code'
-import { PasswordProvider } from '@openauthjs/openauth/provider/password'
 import { CloudflareStorage } from '@openauthjs/openauth/storage/cloudflare'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
-import { PasswordUI } from '@openauthjs/openauth/ui/password'
 import { subjects } from '@repo/shared/subjects'
 
 export default {
@@ -39,12 +37,6 @@ export default {
 				const user = await stmt.first<{ userId: number; email: string }>()
 				console.log({ user, email })
 				if (!user) throw new Error('Unable to create user. Try again.')
-
-				const foo = await ctx.subject('user', {
-					// userId: user.userId,
-					email
-				})
-				console.log({ foo: await foo.text() })
 
 				return ctx.subject('user', {
 					// userId: user.userId,

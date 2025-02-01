@@ -1,5 +1,9 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
+import { issuer } from '@openauthjs/openauth'
 import { Client, createClient } from '@openauthjs/openauth/client'
+import { CodeProvider } from '@openauthjs/openauth/provider/code'
+import { CloudflareStorage } from '@openauthjs/openauth/storage/cloudflare'
+import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { createId } from '@paralleldrive/cuid2'
 import { subjects } from '@repo/shared/subjects'
 import { Context, Hono } from 'hono'
@@ -25,95 +29,162 @@ type SessionData = {
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
-		const app = new Hono<HonoEnv>()
-		app.use(async (c, next) => {
-			const cookieSessionId = await getSignedCookie(c, c.env.COOKIE_SECRET, 'sessionId')
-			const sessionId = cookieSessionId || `session:${createId()}`
-			await setSignedCookie(c, 'sessionId', sessionId, c.env.COOKIE_SECRET, {
-				secure: true,
-				httpOnly: true,
-				maxAge: 60 * 5,
-				sameSite: 'Strict'
-			})
-			const kvSessionData = await env.KV.get<SessionData>(sessionId, { type: 'json' })
-			const sessionData = kvSessionData || {}
-			c.set('sessionData', sessionData)
-			console.log({ log: 'session', sessionId, sessionData, cookieSessionId })
-
-			c.set('stripe', new Stripe(c.env.STRIPE_SECRET_KEY))
-			const client = createClient({
-				clientID: 'client',
-				issuer: c.env.OPENAUTH_ISSUER,
-				fetch: (input, init) => c.env.WORKER.fetch(input, init)
-			})
-			c.set('client', client)
-			c.set('redirectUri', new URL(c.req.url).origin + '/callback')
-			await next()
-			if (c.var.sessionData !== sessionData) {
-				console.log({ log: 'sessionData changed', sessionData, sessionDataChanged: c.var.sessionData })
-				await env.KV.put(sessionId, JSON.stringify(c.var.sessionData), { expirationTtl: 60 * 5 })
-			}
-		})
-		app.use('/protected/*', async (c, next) => {
-			if (!c.var.sessionData.email) {
-				return c.redirect('/authorize')
-			}
-			await next()
-		})
-		app.use(
-			'/*',
-			jsxRenderer(({ children }) => <Layout>{children}</Layout>)
-		)
-
-		app.get('/', (c) => c.render(<Home />))
-		app.get('/public', (c) => c.render(<Public />))
-		app.post('/public', async (c) => {
-			const formData = await c.req.formData()
-
-			const value = formData.get('value')
-			if (typeof value === 'string' && value) {
-				c.set('sessionData', { ...c.var.sessionData, foo: value })
-			}
-			return c.redirect('/public')
-		})
-
-		app.get('/protected', (c) => c.render('Protected'))
-		app.get('/authorize', async (c) => {
-			if (c.var.sessionData.email) {
-				return c.redirect('/')
-			}
-			const { url } = await c.var.client.authorize(c.var.redirectUri, 'code')
-			return c.redirect(url)
-		})
-		app.post('/signout', async (c) => {
-			const sessionId = await getSignedCookie(c, c.env.COOKIE_SECRET, 'sessionId')
-			if (sessionId) await env.KV.delete(sessionId)
-			deleteCookie(c, 'sessionId')
-			return c.redirect('/')
-		})
-		app.get('/callback', async (c) => {
-			try {
-				// http://localhost:8787/callback?error=server_error&error_description=D1_ERROR%3A+NOT+NULL+constraint+failed%3A+users.passwordHash%3A+SQLITE_CONSTRAINT
-				if (c.req.query('error')) throw new Error(c.req.query('error_description') || c.req.query('error'))
-				const code = c.req.query('code')
-				if (!code) throw new Error('Missing code')
-				const exchanged = await c.var.client.exchange(code, c.var.redirectUri)
-				if (exchanged.err) throw exchanged.err
-				const verified = await c.var.client.verify(subjects, exchanged.tokens.access, {
-					refresh: exchanged.tokens.refresh,
-					fetch: (input, init) => c.env.WORKER.fetch(input, init)
-				})
-				if (verified.err) throw verified.err
-				// c.set('sessionData', { ...c.var.sessionData, userId: verified.subject.properties.userId, email: verified.subject.properties.email })
-				c.set('sessionData', { ...c.var.sessionData, email: verified.subject.properties.email })
-				return c.redirect('/')
-			} catch (e: any) {
-				return new Response(e.toString())
-			}
-		})
+		const openAuth = createOpenAuth(env)
+		const app = new Hono()
+		app.route('/', openAuth) // Before frontend so we don't get its middleware
+		app.route('/', createFrontend({ env, ctx, openAuth }))
 		return app.fetch(request, env, ctx)
 	}
 } satisfies ExportedHandler<Env>
+
+function createOpenAuth(env: Env) {
+	return issuer({
+		ttl: {
+			access: 60 * 30,
+			refresh: 60 * 30
+		},
+		storage: CloudflareStorage({
+			namespace: env.KV
+		}),
+		subjects,
+		providers: {
+			code: CodeProvider(
+				CodeUI({
+					copy: {
+						code_placeholder: 'Code (check Worker logs)'
+					},
+					sendCode: async (claims, code) => console.log(claims.email, code)
+				})
+			)
+		},
+		success: async (ctx, value) => {
+			const email = value.claims.email
+			const stmt = env.D1.prepare(
+				`
+				insert into users (email) values (?)
+				on conflict (email) do update set email = email
+				returning *
+			`
+			).bind(email)
+			const user = await stmt.first<{ userId: number; email: string }>()
+			console.log({ user, email })
+			if (!user) throw new Error('Unable to create user. Try again.')
+
+			const foo = await ctx.subject('user', {
+				// userId: user.userId,
+				email
+			})
+			console.log({ foo: await foo.text() })
+
+			return ctx.subject('user', {
+				// userId: user.userId,
+				email
+			})
+		}
+	})
+}
+
+function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContext; openAuth: ReturnType<typeof createOpenAuth> }) {
+	const app = new Hono<HonoEnv>()
+	app.use(async (c, next) => {
+		const cookieSessionId = await getSignedCookie(c, c.env.COOKIE_SECRET, 'sessionId')
+		const sessionId = cookieSessionId || `session:${createId()}`
+		await setSignedCookie(c, 'sessionId', sessionId, c.env.COOKIE_SECRET, {
+			secure: true,
+			httpOnly: true,
+			maxAge: 60 * 5,
+			sameSite: 'Strict'
+		})
+		const kvSessionData = await env.KV.get<SessionData>(sessionId, { type: 'json' })
+		const sessionData = kvSessionData || {}
+		c.set('sessionData', sessionData)
+		console.log({ log: 'session', sessionId, sessionData, cookieSessionId })
+
+		c.set('stripe', new Stripe(c.env.STRIPE_SECRET_KEY))
+
+		const { origin } = new URL(c.req.url)
+		const client = createClient({
+			clientID: 'client',
+			// issuer: c.env.OPENAUTH_ISSUER,
+			// fetch: (input, init) => c.env.WORKER.fetch(input, init)
+			issuer: origin,
+			fetch: async (input, init) => {
+				const request = new Request(input, init)
+				return openAuth.fetch(request, env, ctx)
+			}
+		})
+		c.set('client', client)
+		c.set('redirectUri', `${origin}/callback`)
+		await next()
+		if (c.var.sessionData !== sessionData) {
+			console.log({ log: 'sessionData changed', sessionData, sessionDataChanged: c.var.sessionData })
+			await env.KV.put(sessionId, JSON.stringify(c.var.sessionData), { expirationTtl: 60 * 5 })
+		}
+	})
+	app.use('/protected/*', async (c, next) => {
+		if (!c.var.sessionData.email) {
+			return c.redirect('/authenticate')
+		}
+		await next()
+	})
+	app.use(
+		'/*',
+		jsxRenderer(({ children }) => <Layout>{children}</Layout>)
+	)
+
+	app.get('/', (c) => c.render(<Home />))
+	app.get('/public', (c) => c.render(<Public />))
+	app.post('/public', async (c) => {
+		const formData = await c.req.formData()
+
+		const value = formData.get('value')
+		if (typeof value === 'string' && value) {
+			c.set('sessionData', { ...c.var.sessionData, foo: value })
+		}
+		return c.redirect('/public')
+	})
+
+	app.get('/protected', (c) => c.render('Protected'))
+	app.get('/authenticate', async (c) => {
+		// /authorize is taken by openauth
+		if (c.var.sessionData.email) {
+			return c.redirect('/')
+		}
+		const { url } = await c.var.client.authorize(c.var.redirectUri, 'code')
+		return c.redirect(url)
+	})
+	app.post('/signout', async (c) => {
+		const sessionId = await getSignedCookie(c, c.env.COOKIE_SECRET, 'sessionId')
+		if (sessionId) await env.KV.delete(sessionId)
+		deleteCookie(c, 'sessionId')
+		return c.redirect('/')
+	})
+	app.get('/callback', async (c) => {
+		try {
+			// http://localhost:8787/callback?error=server_error&error_description=D1_ERROR%3A+NOT+NULL+constraint+failed%3A+users.passwordHash%3A+SQLITE_CONSTRAINT
+			if (c.req.query('error')) throw new Error(c.req.query('error_description') || c.req.query('error'))
+			const code = c.req.query('code')
+			if (!code) throw new Error('Missing code')
+			const exchanged = await c.var.client.exchange(code, c.var.redirectUri)
+			if (exchanged.err) throw exchanged.err
+			const verified = await c.var.client.verify(subjects, exchanged.tokens.access, {
+				refresh: exchanged.tokens.refresh,
+				// fetch: (input, init) => c.env.WORKER.fetch(input, init)
+				fetch: async (input, init) => {
+					const request = new Request(input, init)
+					return openAuth.fetch(request, env, ctx)
+				}
+			})
+			if (verified.err) throw verified.err
+			// c.set('sessionData', { ...c.var.sessionData, userId: verified.subject.properties.userId, email: verified.subject.properties.email })
+			c.set('sessionData', { ...c.var.sessionData, email: verified.subject.properties.email })
+			return c.redirect('/')
+		} catch (e: any) {
+			return new Response(e.toString())
+		}
+	})
+	return app
+}
 
 const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 	const ctx = useRequestContext<HonoEnv>()
@@ -165,7 +236,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 								</button>
 							</form>
 						) : (
-							<a href="/authorize" className="btn">
+							<a href="/authenticate" className="btn">
 								Sign In / Up
 							</a>
 						)}
@@ -237,31 +308,4 @@ const CookiesCard: FC = () => {
 			</div>
 		</div>
 	)
-}
-
-async function getTokenCookies(c: Context<HonoEnv>) {
-	return {
-		accessToken: await getSignedCookie(c, c.env.COOKIE_SECRET, 'accessToken'),
-		refreshToken: await getSignedCookie(c, c.env.COOKIE_SECRET, 'refreshToken')
-	}
-}
-
-async function setTokenCookies(c: Context<HonoEnv>, accessToken: string, refreshToken: string) {
-	const options = {
-		path: '/',
-		secure: true,
-		httpOnly: true,
-		maxAge: 60 * 5,
-		sameSite: 'Strict'
-	} as const
-	await setSignedCookie(c, 'accessToken', accessToken, c.env.COOKIE_SECRET, options)
-	await setSignedCookie(c, 'refreshToken', refreshToken, c.env.COOKIE_SECRET, options)
-}
-
-function deleteTokenCookies(c: Context<HonoEnv>) {
-	const options = {
-		secure: true
-	}
-	deleteCookie(c, 'accessToken', options)
-	deleteCookie(c, 'refreshToken', options)
 }

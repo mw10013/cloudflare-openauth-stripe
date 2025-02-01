@@ -16,8 +16,8 @@
 		"enabled": true
 	},
 	"vars": {
-		"ENVIRONMENT": "local",
-		"OPENAUTH_ISSUER": "http://localhost:8788"
+		"ENVIRONMENT": "local"
+		// "OPENAUTH_ISSUER": "http://localhost:8788"
 	},
 	"d1_databases": [
 		{
@@ -32,17 +32,17 @@
 			"id": "kv-local"
 		}
 	],
-	"services": [
-		{
-			"binding": "WORKER",
-			"service": "cloudflare-openauth-stripe-worker"
-		}
-	],
+	// "services": [
+	// 	{
+	// 		"binding": "WORKER",
+	// 		"service": "cloudflare-openauth-stripe-worker"
+	// 	}
+	// ],
 	"env": {
 		"staging": {
 			"vars": {
-				"ENVIRONMENT": "staging",
-				"OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-staging.devxo.workers.dev"
+				"ENVIRONMENT": "staging"
+				// "OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-staging.devxo.workers.dev"
 			},
 			"d1_databases": [
 				{
@@ -56,18 +56,18 @@
 					"binding": "KV",
 					"id": "e04ef1bfdd06484da42362681e16bc42" // cloudflare-openauth-stripe-app-kv-staging
 				}
-			],
-			"services": [
-				{
-					"binding": "WORKER",
-					"service": "cloudflare-openauth-stripe-worker-staging"
-				}
 			]
+			// "services": [
+			// 	{
+			// 		"binding": "WORKER",
+			// 		"service": "cloudflare-openauth-stripe-worker-staging"
+			// 	}
+			// ]
 		},
 		"production": {
 			"vars": {
-				"ENVIRONMENT": "production",
-				"OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-production.devxo.workers.dev"
+				"ENVIRONMENT": "production"
+				// "OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-production.devxo.workers.dev"
 			},
 			"d1_databases": [
 				{
@@ -81,13 +81,13 @@
 					"binding": "KV",
 					"id": "6b25aa052065450cb71054f84fd0df84" // cloudflare-openauth-stripe-app-kv-production
 				}
-			],
-			"services": [
-				{
-					"binding": "WORKER",
-					"service": "cloudflare-openauth-stripe-worker-production"
-				}
 			]
+			// "services": [
+			// 	{
+			// 		"binding": "WORKER",
+			// 		"service": "cloudflare-openauth-stripe-worker-production"
+			// 	}
+			// ]
 		}
 	}
 }
