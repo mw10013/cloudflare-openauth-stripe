@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
-import { Client, createClient, VerifyResult } from '@openauthjs/openauth/client'
+import { Client, createClient } from '@openauthjs/openauth/client'
 import { createId } from '@paralleldrive/cuid2'
 import { subjects } from '@repo/shared/subjects'
 import { Context, Hono } from 'hono'
@@ -14,7 +14,6 @@ type HonoEnv = {
 		stripe: Stripe
 		client: Client
 		redirectUri: string
-		verifyResult?: VerifyResult<typeof subjects>
 	}
 }
 
@@ -48,29 +47,14 @@ export default {
 			})
 			c.set('client', client)
 			c.set('redirectUri', new URL(c.req.url).origin + '/callback')
-			const { accessToken, refreshToken } = await getTokenCookies(c)
-			if (accessToken && refreshToken) {
-				const verified = await client.verify(subjects, accessToken, {
-					refresh: refreshToken,
-					fetch: (input, init) => c.env.WORKER.fetch(input, init)
-				})
-				if (verified.err) {
-					deleteTokenCookies(c)
-				} else {
-					c.set('verifyResult', verified)
-				}
-			}
 			await next()
 			if (c.var.sessionData !== sessionData) {
 				console.log({ log: 'sessionData changed', sessionData, sessionDataChanged: c.var.sessionData })
 				await env.KV.put(sessionId, JSON.stringify(c.var.sessionData), { expirationTtl: 60 * 5 })
 			}
-			if (c.var.verifyResult?.tokens) {
-				await setTokenCookies(c, c.var.verifyResult.tokens.access, c.var.verifyResult.tokens.refresh)
-			}
 		})
 		app.use('/protected/*', async (c, next) => {
-			if (!c.var.verifyResult) {
+			if (!c.var.sessionData.email) {
 				return c.redirect('/authorize')
 			}
 			await next()
@@ -94,25 +78,29 @@ export default {
 
 		app.get('/protected', (c) => c.render('Protected'))
 		app.get('/authorize', async (c) => {
-			if (c.var.verifyResult) {
+			if (c.var.sessionData.email) {
 				return c.redirect('/')
 			}
 			const { url } = await c.var.client.authorize(c.var.redirectUri, 'code')
 			return c.redirect(url)
 		})
 		app.post('/signout', (c) => {
-			c.set('verifyResult', undefined)
-			deleteTokenCookies(c)
+			deleteCookie(c, 'sessionId')
+			// TODO: Delete kv
 			return c.redirect('/')
 		})
 		app.get('/callback', async (c) => {
 			try {
-				c.set('verifyResult', undefined)
 				const code = c.req.query('code')
 				if (!code) throw new Error('Missing code')
 				const exchanged = await c.var.client.exchange(code, c.var.redirectUri)
 				if (exchanged.err) throw exchanged.err
-				await setTokenCookies(c, exchanged.tokens.access, exchanged.tokens.refresh)
+				const verified = await c.var.client.verify(subjects, exchanged.tokens.access, {
+					refresh: exchanged.tokens.refresh,
+					fetch: (input, init) => c.env.WORKER.fetch(input, init)
+				})
+				if (verified.err) throw verified.err
+				c.set('sessionData', { ...c.var.sessionData, email: verified.subject.properties.email })
 				return c.redirect('/')
 			} catch (e: any) {
 				return new Response(e.toString())
@@ -165,7 +153,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 						</ul>
 					</div>
 					<div className="navbar-end">
-						{ctx.var.verifyResult ? (
+						{ctx.var.sessionData.email ? (
 							<form action="/signout" method="post">
 								<button type="submit" className="btn">
 									Sign Out
@@ -184,12 +172,17 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 	)
 }
 
-const Home: FC = () => (
-	<div className="flex gap-2">
-		<VerifyResultCard />
-		<CookiesCard />
-	</div>
-)
+const Home: FC = () => {
+	const c = useRequestContext<HonoEnv>()
+	return (
+		<div className="flex flex-col gap-2">
+			<CookiesCard />
+			<div>
+				<pre>{JSON.stringify({ sessionData: c.var.sessionData }, null, 2)}</pre>
+			</div>
+		</div>
+	)
+}
 
 const Public: FC = async () => {
 	const c = useRequestContext<HonoEnv>()
@@ -216,19 +209,6 @@ const Public: FC = async () => {
 				</form>
 			</div>
 			<pre>{JSON.stringify({ sessionData: c.var.sessionData, prices, products }, null, 2)}</pre>
-		</div>
-	)
-}
-
-const VerifyResultCard: FC = () => {
-	const ctx = useRequestContext<HonoEnv>()
-	const verifyResult = ctx.get('verifyResult')
-	return (
-		<div className="card bg-base-100 w-96 shadow-sm">
-			<div className="card-body">
-				<h2 className="card-title">Verify Result</h2>
-				<pre>{JSON.stringify(verifyResult, null, 2)}</pre>
-			</div>
 		</div>
 	)
 }

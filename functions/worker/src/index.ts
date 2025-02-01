@@ -11,20 +11,20 @@ export default {
 		return issuer({
 			ttl: {
 				access: 60 * 5,
-				refresh: 60 * 15,
+				refresh: 60 * 15
 			},
 			storage: CloudflareStorage({
-				namespace: env.KV,
+				namespace: env.KV
 			}),
 			subjects,
 			providers: {
 				code: CodeProvider(
 					CodeUI({
 						copy: {
-							code_placeholder: 'Code (check Worker logs)',
+							code_placeholder: 'Code (check Worker logs)'
 						},
-						sendCode: async (claims, code) => console.log(claims.email, code),
-					}),
+						sendCode: async (claims, code) => console.log(claims.email, code)
+					})
 				),
 				password: PasswordProvider(
 					PasswordUI({
@@ -32,24 +32,24 @@ export default {
 							console.log(email, code)
 						},
 						copy: {
-							input_code: 'Code (check Worker logs)',
-						},
-					}),
-				),
+							input_code: 'Code (check Worker logs)'
+						}
+					})
+				)
 			},
 			success: async (ctx, value) => {
 				if (value.provider === 'code') {
 					return ctx.subject('user', {
-						userId: value.claims.email,
+						email: value.claims.email
 					})
 				}
 				if (value.provider === 'password') {
 					return ctx.subject('user', {
-						userId: value.email,
+						email: value.email
 					})
 				}
 				throw new Error('Invalid provider')
-			},
+			}
 		}).fetch(request, env, ctx)
-	},
+	}
 } satisfies ExportedHandler<Env>
