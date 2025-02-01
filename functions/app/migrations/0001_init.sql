@@ -4,7 +4,7 @@ create table activityLogs (
 	teamId integer not null references teams (id),
 	userId integer references users (id),
 	action text not null,
-	timestamp text not null default (current_time),
+	timestamp text not null default (datetime('now')),
 	ipAddress text
 );
 
@@ -15,7 +15,7 @@ create table invitations (
 	email text not null,
 	role text not null,
 	invitedBy integer not null references users (id),
-	invitedAt text not null default (current_time),
+	invitedAt text not null default (datetime('now')),
 	status text not null default 'pending'
 );
 
@@ -25,15 +25,15 @@ create table teamMembers (
 	userId integer not null references users (id),
 	teamId integer not null references teams (id),
 	role text not null,
-	joinedAt text not null default (current_time)
+	joinedAt text not null default (datetime('now'))
 );
 
 --> statement-breakpoint
 create table teams (
 	id integer primary key,
 	name text not null,
-	createdAt text not null default (current_time),
-	updatedAt text not null default (current_time),
+	createdAt text not null default (datetime('now')),
+	updatedAt text not null default (datetime('now')),
 	stripeCustomerId text unique,
 	stripeSubscriptionId text unique,
 	stripeProductId text,
@@ -44,11 +44,10 @@ create table teams (
 --> statement-breakpoint
 create table users (
 	id integer primary key,
-	name text,
+	name text not null default '',
 	email text not null unique,
-	passwordHash text not null,
 	role text not null default 'member',
-	createdAt text not null default (current_time),
-	updatedAt text not null default (current_time),
+	createdAt text not null default (datetime('now')),
+	updatedAt text not null default (datetime('now')),
 	deletedAt text
 );

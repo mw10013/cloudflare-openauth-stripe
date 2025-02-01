@@ -3,4 +3,5 @@
 interface Env {
 	KV: KVNamespace;
 	ENVIRONMENT: "local" | "staging" | "production";
+	D1: D1Database;
 }

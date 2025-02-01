@@ -10,8 +10,8 @@ export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext) {
 		return issuer({
 			ttl: {
-				access: 60 * 5,
-				refresh: 60 * 15
+				access: 60 * 30,
+				refresh: 60 * 30
 			},
 			storage: CloudflareStorage({
 				namespace: env.KV
@@ -25,30 +25,25 @@ export default {
 						},
 						sendCode: async (claims, code) => console.log(claims.email, code)
 					})
-				),
-				password: PasswordProvider(
-					PasswordUI({
-						sendCode: async (email, code) => {
-							console.log(email, code)
-						},
-						copy: {
-							input_code: 'Code (check Worker logs)'
-						}
-					})
 				)
 			},
 			success: async (ctx, value) => {
-				if (value.provider === 'code') {
-					return ctx.subject('user', {
-						email: value.claims.email
-					})
-				}
-				if (value.provider === 'password') {
-					return ctx.subject('user', {
-						email: value.email
-					})
-				}
-				throw new Error('Invalid provider')
+				const email = value.claims.email
+				const stmt = env.D1.prepare(
+					`
+					insert into users (email) values (?)
+					on conflict (email) do nothing
+					returning *
+				`
+				).bind(email)
+				const user = await stmt.first<{ userId: number; email: string }>()
+				console.log({ user })
+				if (!user) throw new Error('Unable to create user. Try again.')
+
+				return ctx.subject('user', {
+					// userId: user.userId,
+					email
+				})
 			}
 		}).fetch(request, env, ctx)
 	}

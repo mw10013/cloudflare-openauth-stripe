@@ -18,6 +18,7 @@ type HonoEnv = {
 }
 
 type SessionData = {
+	userId?: number
 	email?: string
 	foo?: string
 }
@@ -92,6 +93,8 @@ export default {
 		})
 		app.get('/callback', async (c) => {
 			try {
+				// http://localhost:8787/callback?error=server_error&error_description=D1_ERROR%3A+NOT+NULL+constraint+failed%3A+users.passwordHash%3A+SQLITE_CONSTRAINT
+				if (c.req.query('error')) throw new Error(c.req.query('error_description') || c.req.query('error'))
 				const code = c.req.query('code')
 				if (!code) throw new Error('Missing code')
 				const exchanged = await c.var.client.exchange(code, c.var.redirectUri)
@@ -101,6 +104,7 @@ export default {
 					fetch: (input, init) => c.env.WORKER.fetch(input, init)
 				})
 				if (verified.err) throw verified.err
+				// c.set('sessionData', { ...c.var.sessionData, userId: verified.subject.properties.userId, email: verified.subject.properties.email })
 				c.set('sessionData', { ...c.var.sessionData, email: verified.subject.properties.email })
 				return c.redirect('/')
 			} catch (e: any) {
