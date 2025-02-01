@@ -84,9 +84,10 @@ export default {
 			const { url } = await c.var.client.authorize(c.var.redirectUri, 'code')
 			return c.redirect(url)
 		})
-		app.post('/signout', (c) => {
+		app.post('/signout', async (c) => {
+			const sessionId = await getSignedCookie(c, c.env.COOKIE_SECRET, 'sessionId')
+			if (sessionId) await env.KV.delete(sessionId)
 			deleteCookie(c, 'sessionId')
-			// TODO: Delete kv
 			return c.redirect('/')
 		})
 		app.get('/callback', async (c) => {
