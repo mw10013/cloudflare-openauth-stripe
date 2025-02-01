@@ -32,13 +32,19 @@ export default {
 				const stmt = env.D1.prepare(
 					`
 					insert into users (email) values (?)
-					on conflict (email) do nothing
+					on conflict (email) do update set email = email
 					returning *
 				`
 				).bind(email)
 				const user = await stmt.first<{ userId: number; email: string }>()
-				console.log({ user })
+				console.log({ user, email })
 				if (!user) throw new Error('Unable to create user. Try again.')
+
+				const foo = await ctx.subject('user', {
+					// userId: user.userId,
+					email
+				})
+				console.log({ foo: await foo.text() })
 
 				return ctx.subject('user', {
 					// userId: user.userId,

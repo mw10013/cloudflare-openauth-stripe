@@ -24,6 +24,9 @@ catalogs:
     wrangler:
       specifier: 3.105.1
       version: 3.105.1
+    zod:
+      specifier: 3.24.1
+      version: 3.24.1
 
 importers:
 
@@ -93,9 +96,9 @@ importers:
       '@openauthjs/openauth':
         specifier: 'catalog:'
         version: 0.3.6(arctic@2.3.4)(hono@4.6.18)
-      valibot:
-        specifier: 1.0.0-beta.12
-        version: 1.0.0-beta.12(typescript@5.7.3)
+      zod:
+        specifier: 'catalog:'
+        version: 3.24.1
     devDependencies:
       typescript:
         specifier: 'catalog:'
@@ -1108,14 +1111,6 @@ packages:
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
-  valibot@1.0.0-beta.12:
-    resolution: {integrity: sha512-j3WIxJ0pmUFMfdfUECn3YnZPYOiG0yHYcFEa/+RVgo0I+MXE3ToLt7gNRLtY5pwGfgNmsmhenGZfU5suu9ijUA==}
-    peerDependencies:
-      typescript: '>=5'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-
   workerd@1.20250124.0:
     resolution: {integrity: sha512-EnT9gN3M9/UHRFPZptKgK36DLOW8WfJV7cjNs3zstVbmF5cpFaHCAzX7tXWBO6zyvW/+EjklJPFtOvfatiZsuQ==}
     engines: {node: '>=16'}
@@ -1966,10 +1961,6 @@ snapshots:
       ufo: 1.5.4
 
   util-deprecate@1.0.2: {}
-
-  valibot@1.0.0-beta.12(typescript@5.7.3):
-    optionalDependencies:
-      typescript: 5.7.3
 
   workerd@1.20250124.0:
     optionalDependencies:
