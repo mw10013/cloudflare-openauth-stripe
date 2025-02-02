@@ -199,6 +199,7 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 	)
 
 	app.get('/', (c) => c.render(<Home />))
+	app.get('/pricing', (c) => c.render(<Pricing />))
 	app.get('/public', (c) => c.render(<Public />))
 	app.post('/public', async (c) => {
 		const formData = await c.req.formData()
@@ -291,7 +292,10 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 							<ListItems />
 						</ul>
 					</div>
-					<div className="navbar-end">
+					<div className="navbar-end gap-2">
+						<a href="/pricing" className="btn">
+							Pricing
+						</a>
 						{ctx.var.sessionData.email ? (
 							<form action="/signout" method="post">
 								<button type="submit" className="btn">
@@ -320,6 +324,31 @@ const Home: FC = () => {
 				<pre>{JSON.stringify({ sessionData: c.var.sessionData }, null, 2)}</pre>
 			</div>
 		</div>
+	)
+}
+
+const Pricing: FC = async () => {
+	const c = useRequestContext<HonoEnv>()
+	const stripe = c.var.stripe
+	const priceList = await stripe.prices.list({ lookup_keys: ['base', 'plus'], expand: ['data.product'] })
+	const prices = priceList.data.sort((a, b) => (a.lookup_key && b.lookup_key ? a.lookup_key.localeCompare(b.lookup_key) : 0))
+	return (
+		<>
+			<div className="mx-auto grid max-w-xl gap-8 md:grid-cols-2">
+				{prices.map((price) => {
+					if (!price.unit_amount) return null
+					return (
+						<div key={price.id} className="card bg-base-100 shadow-sm">
+							<div className="card-body">
+								<h2 className="card-title capitalize">{price.lookup_key}</h2>
+								<p className="text-2xl font-bold">${price.unit_amount / 100}</p>
+							</div>
+						</div>
+					)
+				})}
+			</div>
+			<pre>{JSON.stringify({ prices }, null, 2)}</pre>
+		</>
 	)
 }
 
