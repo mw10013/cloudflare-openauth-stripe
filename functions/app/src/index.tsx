@@ -5,6 +5,7 @@ import { CodeProvider } from '@openauthjs/openauth/provider/code'
 import { CloudflareStorage } from '@openauthjs/openauth/storage/cloudflare'
 import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
+import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
 import { subjects } from '@repo/shared/subjects'
 import { Hono } from 'hono'
@@ -69,9 +70,21 @@ function createOpenAuth(env: Env) {
 					if (state.type === 'code' && env.ENVIRONMENT === 'local') {
 						const code = await env.KV.get('local:code')
 						if (code) {
+							const copy = {
+								button_continue: 'Continue',
+								code_invalid: 'Invalid code',
+								code_sent: 'Code sent to ',
+								code_resent: 'Code resent to ',
+								code_didnt_get: "Didn't get code?",
+								code_resend: 'Resend'
+							}
 							const jsx = (
 								<OpenAuthLayout>
-									<form data-component="form" className="flex max-w-xs flex-col gap-2 p-6" method="post">
+									<form data-component="form" class="form" method="post">
+										{error?.type === 'invalid_code' && <FormAlert message={copy.code_invalid} />}
+										{state.type === 'code' && (
+											<FormAlert message={(state.resend ? copy.code_resent : copy.code_sent) + state.claims.email} color="success" />
+										)}
 										<input type="hidden" name="action" value="verify" />
 										<input
 											data-component="input"
@@ -85,7 +98,18 @@ function createOpenAuth(env: Env) {
 											autocomplete="one-time-code"
 											value={code}
 										/>
-										<button data-component="button">Submit</button>
+										<button data-component="button">{copy.button_continue}</button>
+									</form>
+									<form method="post">
+										{Object.entries(state.claims).map(([key, value]) => (
+											<input key={key} type="hidden" name={key} value={value} className="hidden" />
+										))}
+										<input type="hidden" name="action" value="request" />
+										<div data-component="form-footer">
+											<span>
+												{copy.code_didnt_get} <button data-component="link">{copy.code_resend}</button>
+											</span>
+										</div>
 									</form>
 								</OpenAuthLayout>
 							)
