@@ -18,7 +18,8 @@
 		"d1:migrate:apply:PRODUCTION": "wrangler d1 migrations apply cloudflare-openauth-stripe-d1-production --env production --remote",
 		"d1:reset": "node scripts/d1-reset.ts",
 		"d1:reset:staging": "node scripts/d1-reset.ts --env staging",
-		"d1:reset:PRODUCTION": "node scripts/d1-reset.ts --env production"
+		"d1:reset:PRODUCTION": "node scripts/d1-reset.ts --env production",
+		"script": "node --env-file=.dev.vars"
 	},
 	"devDependencies": {
 		"@tailwindcss/cli": "^4.0.0",

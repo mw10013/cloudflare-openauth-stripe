@@ -52,3 +52,30 @@ create table users (
 	deletedAt text
 );
 
+--> statement-breakpoint
+insert into
+	users (name, email, role)
+values
+	('A', 'a@a.com', 'owner');
+
+insert into
+	teams (name)
+values
+	('A Team');
+
+--> statement-breakpoint
+insert into
+	teamMembers (userId, teamId, role)
+values
+	(
+		(
+			select
+				userId
+			from
+				users
+			where
+				email = 'a@a.com'
+		),
+		last_insert_rowid(),
+		'owner'
+	);
