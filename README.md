@@ -34,7 +34,7 @@
     - Deploy command: pnpm -F app exec wrangler deploy --env production
   - Build watch paths
     - Include paths: functions/app/* functions/shared/*
-- pnpm -F worker exec wrangler tail cloudflare-openauth-stripe-worker-production
+- pnpm -F worker exec wrangler tail cloudflare-openauth-stripe-app-production
 
 ## Deploy (staging)
 
