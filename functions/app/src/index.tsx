@@ -3,6 +3,7 @@ import { issuer } from '@openauthjs/openauth'
 import { Client, createClient } from '@openauthjs/openauth/client'
 import { CodeProvider } from '@openauthjs/openauth/provider/code'
 import { CloudflareStorage } from '@openauthjs/openauth/storage/cloudflare'
+import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { createId } from '@paralleldrive/cuid2'
 import { subjects } from '@repo/shared/subjects'
@@ -69,32 +70,24 @@ function createOpenAuth(env: Env) {
 						const code = await env.KV.get('local:code')
 						if (code) {
 							const jsx = (
-								<html>
-									<head>
-										<meta charset="UTF-8" />
-										<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-										<link href="/tailwind.css" rel="stylesheet" />
-										<title>COS App</title>
-									</head>
-									<body>
-										<form data-component="form" className="flex max-w-xs flex-col gap-2 p-6" method="post">
-											<input type="hidden" name="action" value="verify" />
-											<input
-												data-component="input"
-												autofocus
-												minLength={6}
-												maxLength={6}
-												type="text"
-												name="code"
-												required
-												inputmode="numeric"
-												autocomplete="one-time-code"
-												value={code}
-											/>
-											<button data-component="button">Submit</button>
-										</form>
-									</body>
-								</html>
+								<OpenAuthLayout>
+									<form data-component="form" className="flex max-w-xs flex-col gap-2 p-6" method="post">
+										<input type="hidden" name="action" value="verify" />
+										<input
+											data-component="input"
+											autofocus
+											minLength={6}
+											maxLength={6}
+											type="text"
+											name="code"
+											required
+											inputmode="numeric"
+											autocomplete="one-time-code"
+											value={code}
+										/>
+										<button data-component="button">Submit</button>
+									</form>
+								</OpenAuthLayout>
 							)
 							return new Response(jsx.toString(), {
 								headers: {
