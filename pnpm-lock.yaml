@@ -56,15 +56,15 @@ importers:
       '@paralleldrive/cuid2':
         specifier: 'catalog:'
         version: 2.2.2
-      '@repo/shared':
-        specifier: workspace:*
-        version: link:../shared
       hono:
         specifier: 'catalog:'
         version: 4.6.18
       stripe:
         specifier: 'catalog:'
         version: 17.6.0
+      zod:
+        specifier: 'catalog:'
+        version: 3.24.1
     devDependencies:
       '@tailwindcss/cli':
         specifier: ^4.0.0

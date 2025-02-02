@@ -3,15 +3,16 @@ import { issuer } from '@openauthjs/openauth'
 import { Client, createClient } from '@openauthjs/openauth/client'
 import { CodeProvider } from '@openauthjs/openauth/provider/code'
 import { CloudflareStorage } from '@openauthjs/openauth/storage/cloudflare'
+import { createSubjects } from '@openauthjs/openauth/subject'
 import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { subjects } from '@repo/shared/subjects'
 import { Hono } from 'hono'
 import { deleteCookie, getCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
+import { z } from 'zod'
 
 type HonoEnv = {
 	Bindings: Env
@@ -28,6 +29,13 @@ type SessionData = {
 	email?: string
 	foo?: string
 }
+
+export const subjects = createSubjects({
+	user: z.object({
+		userId: z.number(),
+		email: z.string()
+	})
+})
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
@@ -134,17 +142,11 @@ function createOpenAuth(env: Env) {
 			`
 			).bind(email)
 			const user = await stmt.first<{ userId: number; email: string }>()
-			console.log({ user, email })
+			console.log({ user, email, userId: user?.userId, userIdType: typeof user?.userId })
 			if (!user) throw new Error('Unable to create user. Try again.')
 
-			const foo = await ctx.subject('user', {
-				// userId: user.userId,
-				email
-			})
-			console.log({ foo: await foo.text() })
-
 			return ctx.subject('user', {
-				// userId: user.userId,
+				userId: user.userId,
 				email
 			})
 		}
