@@ -6,7 +6,7 @@ import { CloudflareStorage } from '@openauthjs/openauth/storage/cloudflare'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { createId } from '@paralleldrive/cuid2'
 import { subjects } from '@repo/shared/subjects'
-import { Context, Hono } from 'hono'
+import { Hono } from 'hono'
 import { deleteCookie, getCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
@@ -38,24 +38,74 @@ export default {
 } satisfies ExportedHandler<Env>
 
 function createOpenAuth(env: Env) {
+	const { request, ...codeUi } = CodeUI({
+		copy: {
+			code_placeholder: 'Code (check Worker logs)'
+		},
+		sendCode: async (claims, code) => {
+			console.log(claims.email, code)
+			if (env.ENVIRONMENT === 'local') {
+				await env.KV.put(`local:code`, code, {
+					expirationTtl: 60
+				})
+			}
+		}
+	})
 	return issuer({
 		ttl: {
 			access: 60 * 30,
-			refresh: 60 * 30
+			refresh: 60 * 30,
+			reuse: 61 // https://github.com/openauthjs/openauth/issues/133#issuecomment-2614264698
 		},
 		storage: CloudflareStorage({
 			namespace: env.KV
 		}),
 		subjects,
 		providers: {
-			code: CodeProvider(
-				CodeUI({
-					copy: {
-						code_placeholder: 'Code (check Worker logs)'
-					},
-					sendCode: async (claims, code) => console.log(claims.email, code)
-				})
-			)
+			code: CodeProvider({
+				...codeUi,
+				request: async (_req, state, _form, error): Promise<Response> => {
+					if (state.type === 'code' && env.ENVIRONMENT === 'local') {
+						const code = await env.KV.get('local:code')
+						if (code) {
+							const jsx = (
+								<html>
+									<head>
+										<meta charset="UTF-8" />
+										<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+										<link href="/tailwind.css" rel="stylesheet" />
+										<title>COS App</title>
+									</head>
+									<body>
+										<form data-component="form" className="flex max-w-xs flex-col gap-2 p-6" method="post">
+											<input type="hidden" name="action" value="verify" />
+											<input
+												data-component="input"
+												autofocus
+												minLength={6}
+												maxLength={6}
+												type="text"
+												name="code"
+												required
+												inputmode="numeric"
+												autocomplete="one-time-code"
+												value={code}
+											/>
+											<button data-component="button">Submit</button>
+										</form>
+									</body>
+								</html>
+							)
+							return new Response(jsx.toString(), {
+								headers: {
+									'Content-Type': 'text/html'
+								}
+							})
+						}
+					}
+					return request(_req, state, _form, error)
+				}
+			})
 		},
 		success: async (ctx, value) => {
 			const email = value.claims.email
