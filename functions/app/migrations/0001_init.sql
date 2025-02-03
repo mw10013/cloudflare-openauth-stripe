@@ -1,4 +1,24 @@
 -- Migration number: 0001 	 2025-01-31T00:42:00.000Z
+create table roles (roleId text primary key);
+
+--> statement-breakpoint
+insert into
+	roles (roleId)
+values
+	('user'),
+	('admin');
+
+--> statement-breakpoint
+create table teamRoles (teamRoleId text primary key);
+
+--> statement-breakpoint
+insert into
+	teamRoles (teamRoleId)
+values
+	('owner'),
+	('member');
+
+--> statement-breakpoint
 create table activityLogs (
 	activityLogId integer primary key,
 	teamId integer not null references teams (teamId),
@@ -24,7 +44,7 @@ create table teamMembers (
 	teamMemberId integer primary key,
 	userId integer not null references users (userId),
 	teamId integer not null references teams (teamId),
-	role text not null,
+	teamRole text not null references teamRoles (teamRoleId),
 	joinedAt text not null default (datetime('now'))
 );
 
@@ -46,7 +66,7 @@ create table users (
 	userId integer primary key,
 	name text not null default '',
 	email text not null unique,
-	role text not null default 'member',
+	role text not null default 'user' references roles (roleId),
 	createdAt text not null default (datetime('now')),
 	updatedAt text not null default (datetime('now')),
 	deletedAt text
@@ -56,16 +76,28 @@ create table users (
 insert into
 	users (name, email, role)
 values
-	('A', 'a@a.com', 'owner');
-
-insert into
-	teams (name)
-values
-	('A Team');
+	('Admin', 'a@a.com', 'admin'),
+	('User (owner)', 'u@u.com', 'user'),
+	('User1 (member)', 'u1@u.com', 'user');
 
 --> statement-breakpoint
 insert into
-	teamMembers (userId, teamId, role)
+	teams (name)
+values
+	('U Team');
+
+--> statement-breakpoint
+with
+	team as materialized (
+		select
+			teamId
+		from
+			teams
+		where
+			teamId = last_insert_rowid()
+	)
+insert into
+	teamMembers (userId, teamId, teamRole)
 values
 	(
 		(
@@ -74,8 +106,30 @@ values
 			from
 				users
 			where
-				email = 'a@a.com'
+				email = 'u@u.com'
 		),
-		last_insert_rowid(),
+		(
+			select
+				teamId
+			from
+				team
+		),
 		'owner'
+	),
+	(
+		(
+			select
+				userId
+			from
+				users
+			where
+				email = 'u1@u.com'
+		),
+		(
+			select
+				teamId
+			from
+				team
+		),
+		'member'
 	);

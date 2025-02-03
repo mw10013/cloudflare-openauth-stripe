@@ -9,10 +9,17 @@ import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
 import { Hono } from 'hono'
-import { deleteCookie, getCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
+import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
 import { z } from 'zod'
+
+const roleSchema = z.enum(['user', 'admin']) // Must align with roles table
+export type Role = z.infer<typeof roleSchema>
+export const asRole = (role: Role) => role
+
+export type TeamRole = 'owner' | 'member' // Must align with teamRoles table
+export const asTeamRole = (role: TeamRole) => role
 
 type HonoEnv = {
 	Bindings: Env
@@ -27,7 +34,7 @@ type HonoEnv = {
 type SessionUser = {
 	userId: number
 	email: string
-	role: string
+	role: Role
 }
 
 type SessionData = {
@@ -38,7 +45,7 @@ export const subjects = createSubjects({
 	user: z.object({
 		userId: z.number(),
 		email: z.string(),
-		role: z.string()
+		role: roleSchema
 	})
 })
 
@@ -70,7 +77,7 @@ function createOpenAuth(env: Env) {
 		ttl: {
 			access: 60 * 30,
 			refresh: 60 * 30,
-			reuse: 61 // https://github.com/openauthjs/openauth/issues/133#issuecomment-2614264698
+			reuse: 0 // https://github.com/openauthjs/openauth/issues/133#issuecomment-2614264698
 		},
 		storage: CloudflareStorage({
 			namespace: env.KV
@@ -146,7 +153,7 @@ function createOpenAuth(env: Env) {
 				returning *
 			`
 			).bind(email)
-			const user = await stmt.first<{ userId: number; email: string; role: string }>()
+			const user = await stmt.first<{ userId: number; email: string; role: Role }>()
 			console.log({ user, email, userId: user?.userId, userIdType: typeof user?.userId })
 			if (!user) throw new Error('Unable to create user. Try again.')
 
@@ -193,9 +200,19 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 			await env.KV.put(sessionId, JSON.stringify(c.var.sessionData), { expirationTtl: 60 * 5 })
 		}
 	})
-	app.use('/protected/*', async (c, next) => {
+	app.use('/dashboard/*', async (c, next) => {
 		if (!c.var.sessionData.sessionUser) {
 			return c.redirect('/authenticate')
+		} else if (c.var.sessionData.sessionUser.role !== 'user') {
+			return c.text('Forbidden', 403)
+		}
+		await next()
+	})
+	app.use('/admin/*', async (c, next) => {
+		if (!c.var.sessionData.sessionUser) {
+			return c.redirect('/authenticate')
+		} else if (c.var.sessionData.sessionUser.role !== 'admin') {
+			return c.text('Forbidden', 403)
 		}
 		await next()
 	})
@@ -205,26 +222,6 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 	)
 
 	app.get('/', (c) => c.render(<Home />))
-	app.get('/pricing', (c) => c.render(<Pricing />))
-	app.post('/pricing', async (c) => {
-		const formData = await c.req.formData()
-		const priceId = formData.get('priceId')
-		if (typeof priceId === 'string' && priceId) {
-		}
-		return c.redirect('/pricing')
-	})
-	app.get('/public', (c) => c.render(<Public />))
-	app.post('/public', async (c) => {
-		const formData = await c.req.formData()
-
-		const value = formData.get('value')
-		if (typeof value === 'string' && value) {
-			// c.set('sessionData', { ...c.var.sessionData, foo: value })
-		}
-		return c.redirect('/public')
-	})
-
-	app.get('/protected', (c) => c.render('Protected'))
 	app.get('/authenticate', async (c) => {
 		// /authorize is taken by openauth
 		if (c.var.sessionData.sessionUser) {
@@ -253,7 +250,6 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 				fetch: async (input, init) => openAuth.fetch(new Request(input, init), env, ctx)
 			})
 			if (verified.err) throw verified.err
-			// c.set('sessionData', { ...c.var.sessionData, userId: verified.subject.properties.userId, email: verified.subject.properties.email })
 			c.set('sessionData', {
 				...c.var.sessionData,
 				sessionUser: {
@@ -262,11 +258,29 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 					role: verified.subject.properties.role
 				}
 			})
-			return c.redirect('/')
+			return c.redirect(verified.subject.properties.role === 'admin' ? '/admin' : '/dashboard')
 		} catch (e: any) {
 			return new Response(e.toString())
 		}
 	})
+	app.get('/pricing', (c) => c.render(<Pricing />))
+	app.post('/pricing', async (c) => {
+		const formData = await c.req.formData()
+		const priceId = formData.get('priceId')
+		if (typeof priceId === 'string' && priceId) {
+		}
+		return c.redirect('/pricing')
+	})
+	// app.post('/public', async (c) => {
+	// 	const formData = await c.req.formData()
+	// 	const value = formData.get('value')
+	// 	if (typeof value === 'string' && value) {
+	// 		// c.set('sessionData', { ...c.var.sessionData, foo: value })
+	// 	}
+	// 	return c.redirect('/public')
+	// })
+	app.get('/dashboard', (c) => c.render(<Dashboard />))
+	app.get('/admin', (c) => c.render(<Admin />))
 	return app
 }
 
@@ -275,10 +289,10 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 	const ListItems = () => (
 		<>
 			<li>
-				<a href="/public">Public</a>
+				<a href="/dashboard">Dashboard</a>
 			</li>
 			<li>
-				<a href="/protected">Protected</a>
+				<a href="/admin">Admin</a>
 			</li>
 		</>
 	)
@@ -339,7 +353,6 @@ const Home: FC = () => {
 	const c = useRequestContext<HonoEnv>()
 	return (
 		<div className="flex flex-col gap-2">
-			<CookiesCard />
 			<div>
 				<pre>{JSON.stringify({ sessionData: c.var.sessionData }, null, 2)}</pre>
 			</div>
@@ -376,52 +389,52 @@ const Pricing: FC = async () => {
 	)
 }
 
-const Public: FC = async () => {
+// const Public: FC = async () => {
+// 	const c = useRequestContext<HonoEnv>()
+// 	const stripe = c.var.stripe
+// 	const products = await stripe.products.list({ expand: ['data.price'] })
+// 	const prices = await stripe.prices.list({ lookup_keys: ['basic', 'pro'], expand: ['data.product'] })
+// 	return (
+// 		<div>
+// 			Public
+// 			<div className="card bg-base-100 w-96 shadow-sm">
+// 				<form action="/public" method="post">
+// 					<div className="card-body">
+// 						<h2 className="card-title">Foo</h2>
+// 						<fieldset className="fieldset">
+// 							<legend className="fieldset-legend">Value</legend>
+// 							<input type="text" name="value" className="input" />
+// 						</fieldset>
+// 						<div className="card-actions justify-end">
+// 							<button type="submit" className="btn btn-primary">
+// 								Set
+// 							</button>
+// 						</div>
+// 					</div>
+// 				</form>
+// 			</div>
+// 			<pre>{JSON.stringify({ sessionData: c.var.sessionData, prices, products }, null, 2)}</pre>
+// 		</div>
+// 	)
+// }
+
+const Dashboard: FC = async () => {
 	const c = useRequestContext<HonoEnv>()
-	const stripe = c.var.stripe
-	const products = await stripe.products.list({ expand: ['data.price'] })
-	const prices = await stripe.prices.list({ lookup_keys: ['basic', 'pro'], expand: ['data.product'] })
+
 	return (
 		<div>
-			Public
-			<div className="card bg-base-100 w-96 shadow-sm">
-				<form action="/public" method="post">
-					<div className="card-body">
-						<h2 className="card-title">Foo</h2>
-						<fieldset className="fieldset">
-							<legend className="fieldset-legend">Value</legend>
-							<input type="text" name="value" className="input" />
-						</fieldset>
-						<div className="card-actions justify-end">
-							<button type="submit" className="btn btn-primary">
-								Set
-							</button>
-						</div>
-					</div>
-				</form>
-			</div>
-			<pre>{JSON.stringify({ sessionData: c.var.sessionData, prices, products }, null, 2)}</pre>
+			<h1 className="mb-6 text-lg font-medium lg:text-2xl">Dashboard</h1>
+			<pre>{JSON.stringify({ sessionData: c.var.sessionData }, null, 2)}</pre>
 		</div>
 	)
 }
-
-const CookiesCard: FC = () => {
+const Admin: FC = async () => {
 	const c = useRequestContext<HonoEnv>()
-	const cookies = getCookie(c)
+
 	return (
-		<div className="card bg-base-100 w-96 shadow-sm">
-			<div className="card-body">
-				<h2 className="card-title">Cookies</h2>
-				<ul className="space-y-2 overflow-auto">
-					{Object.entries(cookies).map(([key, value]) => {
-						return (
-							<li>
-								{key}: {value}
-							</li>
-						)
-					})}
-				</ul>
-			</div>
+		<div>
+			<h1 className="mb-6 text-lg font-medium lg:text-2xl">Admin</h1>
+			<pre>{JSON.stringify({ sessionData: c.var.sessionData }, null, 2)}</pre>
 		</div>
 	)
 }
