@@ -24,16 +24,21 @@ type HonoEnv = {
 	}
 }
 
+type SessionUser = {
+	userId: number
+	email: string
+	role: string
+}
+
 type SessionData = {
-	userId?: number
-	email?: string
-	foo?: string
+	sessionUser?: SessionUser
 }
 
 export const subjects = createSubjects({
 	user: z.object({
 		userId: z.number(),
-		email: z.string()
+		email: z.string(),
+		role: z.string()
 	})
 })
 
@@ -141,13 +146,14 @@ function createOpenAuth(env: Env) {
 				returning *
 			`
 			).bind(email)
-			const user = await stmt.first<{ userId: number; email: string }>()
+			const user = await stmt.first<{ userId: number; email: string; role: string }>()
 			console.log({ user, email, userId: user?.userId, userIdType: typeof user?.userId })
 			if (!user) throw new Error('Unable to create user. Try again.')
 
 			return ctx.subject('user', {
 				userId: user.userId,
-				email
+				email,
+				role: user.role
 			})
 		}
 	})
@@ -188,7 +194,7 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 		}
 	})
 	app.use('/protected/*', async (c, next) => {
-		if (!c.var.sessionData.email) {
+		if (!c.var.sessionData.sessionUser) {
 			return c.redirect('/authenticate')
 		}
 		await next()
@@ -200,13 +206,20 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 
 	app.get('/', (c) => c.render(<Home />))
 	app.get('/pricing', (c) => c.render(<Pricing />))
+	app.post('/pricing', async (c) => {
+		const formData = await c.req.formData()
+		const priceId = formData.get('priceId')
+		if (typeof priceId === 'string' && priceId) {
+		}
+		return c.redirect('/pricing')
+	})
 	app.get('/public', (c) => c.render(<Public />))
 	app.post('/public', async (c) => {
 		const formData = await c.req.formData()
 
 		const value = formData.get('value')
 		if (typeof value === 'string' && value) {
-			c.set('sessionData', { ...c.var.sessionData, foo: value })
+			// c.set('sessionData', { ...c.var.sessionData, foo: value })
 		}
 		return c.redirect('/public')
 	})
@@ -214,7 +227,7 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 	app.get('/protected', (c) => c.render('Protected'))
 	app.get('/authenticate', async (c) => {
 		// /authorize is taken by openauth
-		if (c.var.sessionData.email) {
+		if (c.var.sessionData.sessionUser) {
 			return c.redirect('/')
 		}
 		const { url } = await c.var.client.authorize(c.var.redirectUri, 'code')
@@ -241,7 +254,14 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 			})
 			if (verified.err) throw verified.err
 			// c.set('sessionData', { ...c.var.sessionData, userId: verified.subject.properties.userId, email: verified.subject.properties.email })
-			c.set('sessionData', { ...c.var.sessionData, email: verified.subject.properties.email })
+			c.set('sessionData', {
+				...c.var.sessionData,
+				sessionUser: {
+					userId: verified.subject.properties.userId,
+					email: verified.subject.properties.email,
+					role: verified.subject.properties.role
+				}
+			})
 			return c.redirect('/')
 		} catch (e: any) {
 			return new Response(e.toString())
@@ -296,7 +316,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 						<a href="/pricing" className="btn">
 							Pricing
 						</a>
-						{ctx.var.sessionData.email ? (
+						{ctx.var.sessionData.sessionUser ? (
 							<form action="/signout" method="post">
 								<button type="submit" className="btn">
 									Sign Out
@@ -342,6 +362,10 @@ const Pricing: FC = async () => {
 							<div className="card-body">
 								<h2 className="card-title capitalize">{price.lookup_key}</h2>
 								<p className="text-2xl font-bold">${price.unit_amount / 100}</p>
+								<form action="/pricing" method="post" className="card-actions justify-end">
+									<input type="hidden" name="priceId" value={price.id} />
+									<button className="btn btn-soft">Get Started</button>
+								</form>
 							</div>
 						</div>
 					)
