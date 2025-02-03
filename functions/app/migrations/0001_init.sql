@@ -133,3 +133,40 @@ values
 		),
 		'member'
 	);
+
+--> statement-breakpoint
+insert into
+	teams (name)
+values
+	('U1 Team');
+
+--> statement-breakpoint
+with
+	team as materialized (
+		select
+			teamId
+		from
+			teams
+		where
+			teamId = last_insert_rowid()
+	)
+insert into
+	teamMembers (userId, teamId, teamRole)
+values
+	(
+		(
+			select
+				userId
+			from
+				users
+			where
+				email = 'u1@u.com'
+		),
+		(
+			select
+				teamId
+			from
+				team
+		),
+		'owner'
+	);

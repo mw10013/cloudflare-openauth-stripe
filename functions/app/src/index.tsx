@@ -25,6 +25,7 @@ type HonoEnv = {
 	Bindings: Env
 	Variables: {
 		sessionData: SessionData
+		dbService: ReturnType<typeof createDbService>
 		stripe: Stripe
 		client: Client
 		redirectUri: string
@@ -48,6 +49,18 @@ export const subjects = createSubjects({
 		role: roleSchema
 	})
 })
+
+export function createDbService(db: Env['D1']) {
+	return {
+		getTeamForUser: async ({ userId }: { userId: number }) => {
+			console.log({ log: 'getTeamForUser', userId })
+			return await db
+				.prepare('select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamRole = "owner")')
+				.bind(userId)
+				.first()
+		}
+	}
+}
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
@@ -182,6 +195,7 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 		c.set('sessionData', sessionData)
 		console.log({ sessionData })
 
+		c.set('dbService', createDbService(env.D1))
 		c.set('stripe', new Stripe(c.env.STRIPE_SECRET_KEY))
 
 		const { origin } = new URL(c.req.url)
@@ -420,11 +434,13 @@ const Pricing: FC = async () => {
 
 const Dashboard: FC = async () => {
 	const c = useRequestContext<HonoEnv>()
+	if (!c.var.sessionData.sessionUser) throw new Error('Missing sessionUser')
+	const team = await c.var.dbService.getTeamForUser(c.var.sessionData.sessionUser)
 
 	return (
 		<div>
 			<h1 className="mb-6 text-lg font-medium lg:text-2xl">Dashboard</h1>
-			<pre>{JSON.stringify({ sessionData: c.var.sessionData }, null, 2)}</pre>
+			<pre>{JSON.stringify({ team, sessionData: c.var.sessionData }, null, 2)}</pre>
 		</div>
 	)
 }
