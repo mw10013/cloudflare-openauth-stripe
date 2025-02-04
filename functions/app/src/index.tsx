@@ -170,8 +170,9 @@ export default {
 		const dbService = createDbService(env.D1)
 		const openAuth = createOpenAuth({ env, dbService })
 		const app = new Hono()
-		app.route('/', openAuth) // Before frontend so we don't get its middleware
-		app.route('/', createFrontend({ env, ctx, openAuth, dbService }))
+		app.route('/', openAuth)
+		app.route('/', createApi({ env, dbService }))
+		app.route('/', createFrontend({ env, ctx, openAuth, dbService })) // Last to isolate middleware
 		return app.fetch(request, env, ctx)
 	}
 } satisfies ExportedHandler<Env>
@@ -263,16 +264,6 @@ function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<ty
 		},
 		success: async (ctx, value) => {
 			const email = value.claims.email
-			// const stmt = env.D1.prepare(
-			// 	`
-			// 	insert into users (email) values (?)
-			// 	on conflict (email) do update set email = email
-			// 	returning *
-			// `
-			// ).bind(email)
-			// const user = await stmt.first<{ userId: number; email: string; role: Role }>()
-			// console.log({ user, email, userId: user?.userId, userIdType: typeof user?.userId })
-			// if (!user) throw new Error('Unable to create user. Try again.')
 			const user = await dbService.upsertUser({ email })
 			return ctx.subject('user', {
 				userId: user.userId,
@@ -281,6 +272,15 @@ function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<ty
 			})
 		}
 	})
+}
+
+function createApi({ env, dbService }: { env: Env; dbService: ReturnType<typeof createDbService> }) {
+	const app = new Hono<HonoEnv>()
+	app.get('/api/stripe/checkout', async (c) => {
+		const sessionId = c.req.query('sessionId')
+		if (!sessionId) return c.redirect('/pricing')
+	})
+	return app
 }
 
 function createFrontend({
