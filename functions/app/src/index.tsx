@@ -8,7 +8,7 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { Hono } from 'hono'
+import { Context, Hono } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
@@ -20,6 +20,30 @@ export const asRole = (role: Role) => role
 
 export type TeamMemberRole = 'owner' | 'member' // Must align with teamMemberRoles table
 export const asTeamMemberRole = (role: TeamMemberRole) => role
+
+type User = {
+	userId: number
+	name: string
+	email: string
+	role: Role
+}
+
+type Team = {
+	teamId: number
+	name: string
+	stripeCustomerId?: string | null
+	stripeSubscriptionId?: string | null
+	stripeProductId?: string | null
+	planName?: string | null
+	subscriptionStatus?: string | null
+}
+
+type TeamMember = {
+	teamMemberId: number
+	teamId: number
+	user: User
+	teamMemberRole: TeamMemberRole
+}
 
 type HonoEnv = {
 	Bindings: Env
@@ -52,10 +76,40 @@ export const subjects = createSubjects({
 
 export function createDbService(db: Env['D1']) {
 	return {
-		getTeams: async () => await db.prepare('select * from teams').run(),
-		createUser: async ({ email }: { email: string }) => {
+		getTeams: async () =>
+			await db
+				.prepare(
+					`
+select json_group_array(
+	json_object(
+		'teamId', teamId, 'name', name, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
+		'teamMembers',
+		(
+			select
+				json_group_array(
+					json_object(
+						'teamMemberId',
+						tm.teamMemberId,
+						'teamMemberRole',
+						tm.teamMemberRole,
+						'user',
+						(select json_object('userId', u.userId, 'email', u.email) from users u where u.userId = tm.userId))
+					)
+			from teamMembers tm where tm.teamId = t.teamId
+		)
+	)
+) as data from teams t
+`
+				)
+				.first<{ data: string }>()
+				.then((v) => JSON.parse(v?.data || 'null')),
+		upsertUser: async ({ email }: { email: string }) => {
 			console.log({ log: 'createUser', email })
-			const batchResults = await db.batch([
+			const [
+				{
+					results: [user]
+				}
+			] = await db.batch([
 				db.prepare('insert into users (email) values (?) on conflict (email) do update set email = email returning *').bind(email),
 				db
 					.prepare(
@@ -64,8 +118,8 @@ insert into teams (name)
 select 'Team' 
 where not exists (
 	select 1 
-	from teamMembers 
-	where email = ?
+	from teamMembers tm
+	where tm.userId = (select u.userId from users u where u.email = ?)
 )
 `
 					)
@@ -73,22 +127,24 @@ where not exists (
 				db
 					.prepare(
 						`
-insert into teamMembers(userId, teamId, teamMemberRole)
-select (select userId from users where email = ?), last_insert_rowid(), 'owner'
+insert into teamMembers (userId, teamId, teamMemberRole)
+select (select userId from users where email = ?1), last_insert_rowid(), 'owner'
 where not exists (
 	select 1
-	from teamMembers
-	where email = ?)
+	from teamMembers tm
+	where tm.userId = (select u.userId from users u where u.email = ?1)
+)
 `
 					)
 					.bind(email)
 			])
-			console.log({ batchResults })
+			console.log({ user })
+			return user as User
 		},
 		getTeamForUser: async ({ userId }: { userId: number }) => {
 			console.log({ log: 'getTeamForUser', userId })
 			return await db
-				.prepare('select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamRole = "owner")')
+				.prepare('select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")')
 				.bind(userId)
 				.first()
 		}
@@ -193,17 +249,17 @@ function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<ty
 		},
 		success: async (ctx, value) => {
 			const email = value.claims.email
-			const stmt = env.D1.prepare(
-				`
-				insert into users (email) values (?)
-				on conflict (email) do update set email = email
-				returning *
-			`
-			).bind(email)
-			const user = await stmt.first<{ userId: number; email: string; role: Role }>()
-			console.log({ user, email, userId: user?.userId, userIdType: typeof user?.userId })
-			if (!user) throw new Error('Unable to create user. Try again.')
-
+			// const stmt = env.D1.prepare(
+			// 	`
+			// 	insert into users (email) values (?)
+			// 	on conflict (email) do update set email = email
+			// 	returning *
+			// `
+			// ).bind(email)
+			// const user = await stmt.first<{ userId: number; email: string; role: Role }>()
+			// console.log({ user, email, userId: user?.userId, userIdType: typeof user?.userId })
+			// if (!user) throw new Error('Unable to create user. Try again.')
+			const user = await dbService.upsertUser({ email })
 			return ctx.subject('user', {
 				userId: user.userId,
 				email,
@@ -231,7 +287,7 @@ function createFrontend({
 		await setSignedCookie(c, 'sessionId', sessionId, c.env.COOKIE_SECRET, {
 			secure: true,
 			httpOnly: true,
-			maxAge: 60 * 5,
+			maxAge: 60 * 60,
 			sameSite: 'Strict'
 		})
 		const kvSessionData = await env.KV.get<SessionData>(sessionId, { type: 'json' })
@@ -255,7 +311,7 @@ function createFrontend({
 		await next()
 		if (c.var.sessionData !== sessionData) {
 			console.log({ changedSessionData: c.var.sessionData })
-			await env.KV.put(sessionId, JSON.stringify(c.var.sessionData), { expirationTtl: 60 * 5 })
+			await env.KV.put(sessionId, JSON.stringify(c.var.sessionData), { expirationTtl: 60 * 60 })
 		}
 	})
 	app.use('/dashboard/*', async (c, next) => {
@@ -329,16 +385,9 @@ function createFrontend({
 		}
 		return c.redirect('/pricing')
 	})
-	// app.post('/public', async (c) => {
-	// 	const formData = await c.req.formData()
-	// 	const value = formData.get('value')
-	// 	if (typeof value === 'string' && value) {
-	// 		// c.set('sessionData', { ...c.var.sessionData, foo: value })
-	// 	}
-	// 	return c.redirect('/public')
-	// })
 	app.get('/dashboard', (c) => c.render(<Dashboard />))
 	app.get('/admin', (c) => c.render(<Admin />))
+	app.post('/admin', handlerAdminPost)
 	return app
 }
 
@@ -447,35 +496,6 @@ const Pricing: FC = async () => {
 	)
 }
 
-// const Public: FC = async () => {
-// 	const c = useRequestContext<HonoEnv>()
-// 	const stripe = c.var.stripe
-// 	const products = await stripe.products.list({ expand: ['data.price'] })
-// 	const prices = await stripe.prices.list({ lookup_keys: ['basic', 'pro'], expand: ['data.product'] })
-// 	return (
-// 		<div>
-// 			Public
-// 			<div className="card bg-base-100 w-96 shadow-sm">
-// 				<form action="/public" method="post">
-// 					<div className="card-body">
-// 						<h2 className="card-title">Foo</h2>
-// 						<fieldset className="fieldset">
-// 							<legend className="fieldset-legend">Value</legend>
-// 							<input type="text" name="value" className="input" />
-// 						</fieldset>
-// 						<div className="card-actions justify-end">
-// 							<button type="submit" className="btn btn-primary">
-// 								Set
-// 							</button>
-// 						</div>
-// 					</div>
-// 				</form>
-// 			</div>
-// 			<pre>{JSON.stringify({ sessionData: c.var.sessionData, prices, products }, null, 2)}</pre>
-// 		</div>
-// 	)
-// }
-
 const Dashboard: FC = async () => {
 	const c = useRequestContext<HonoEnv>()
 	if (!c.var.sessionData.sessionUser) throw new Error('Missing sessionUser')
@@ -490,11 +510,37 @@ const Dashboard: FC = async () => {
 }
 const Admin: FC = async () => {
 	const c = useRequestContext<HonoEnv>()
-	const { results: teams } = await c.var.dbService.getTeams()
+	const teams = await c.var.dbService.getTeams()
 	return (
-		<div>
-			<h1 className="mb-6 text-lg font-medium lg:text-2xl">Admin</h1>
-			<pre>{JSON.stringify({ teams, sessionData: c.var.sessionData }, null, 2)}</pre>
+		<div className="flex flex-col gap-2">
+			<h1 className="text-lg font-medium lg:text-2xl">Admin</h1>
+			<div className="card bg-base-100 w-96 shadow-sm">
+				<form action="/admin" method="post">
+					<div className="card-body">
+						<h2 className="card-title">Create User</h2>
+						<fieldset className="fieldset">
+							<legend className="fieldset-legend">Email</legend>
+							<input type="email" name="email" className="input" />
+						</fieldset>
+						<div className="card-actions justify-end">
+							<button type="submit" className="btn btn-primary">
+								Submit
+							</button>
+						</div>
+					</div>
+				</form>
+			</div>
+			<pre>{JSON.stringify({ teams }, null, 2)}</pre>
 		</div>
 	)
+}
+
+const handlerAdminPost = async <T extends Context<HonoEnv>>(c: T) => {
+	const formData = await c.req.formData()
+	const email = formData.get('email')
+	if (!(typeof email === 'string' && email)) throw new Error('Invalid email')
+	// if (typeof email !== 'string' && !email) throw new Error('Invalid email')
+	console.log({ log: 'handlerAdminPost', email })
+	await c.var.dbService.upsertUser({ email })
+	return c.redirect('/admin')
 }
