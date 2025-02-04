@@ -18,8 +18,8 @@ const roleSchema = z.enum(['user', 'admin']) // Must align with roles table
 export type Role = z.infer<typeof roleSchema>
 export const asRole = (role: Role) => role
 
-export type TeamRole = 'owner' | 'member' // Must align with teamRoles table
-export const asTeamRole = (role: TeamRole) => role
+export type TeamMemberRole = 'owner' | 'member' // Must align with teamMemberRoles table
+export const asTeamMemberRole = (role: TeamMemberRole) => role
 
 type HonoEnv = {
 	Bindings: Env
@@ -52,6 +52,39 @@ export const subjects = createSubjects({
 
 export function createDbService(db: Env['D1']) {
 	return {
+		getTeams: async () => await db.prepare('select * from teams').run(),
+		createUser: async ({ email }: { email: string }) => {
+			console.log({ log: 'createUser', email })
+			const batchResults = await db.batch([
+				db.prepare('insert into users (email) values (?) on conflict (email) do update set email = email returning *').bind(email),
+				db
+					.prepare(
+						`
+insert into teams (name) 
+select 'Team' 
+where not exists (
+	select 1 
+	from teamMembers 
+	where email = ?
+)
+`
+					)
+					.bind(email),
+				db
+					.prepare(
+						`
+insert into teamMembers(userId, teamId, teamMemberRole)
+select (select userId from users where email = ?), last_insert_rowid(), 'owner'
+where not exists (
+	select 1
+	from teamMembers
+	where email = ?)
+`
+					)
+					.bind(email)
+			])
+			console.log({ batchResults })
+		},
 		getTeamForUser: async ({ userId }: { userId: number }) => {
 			console.log({ log: 'getTeamForUser', userId })
 			return await db
@@ -64,15 +97,16 @@ export function createDbService(db: Env['D1']) {
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
-		const openAuth = createOpenAuth(env)
+		const dbService = createDbService(env.D1)
+		const openAuth = createOpenAuth({ env, dbService })
 		const app = new Hono()
 		app.route('/', openAuth) // Before frontend so we don't get its middleware
-		app.route('/', createFrontend({ env, ctx, openAuth }))
+		app.route('/', createFrontend({ env, ctx, openAuth, dbService }))
 		return app.fetch(request, env, ctx)
 	}
 } satisfies ExportedHandler<Env>
 
-function createOpenAuth(env: Env) {
+function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<typeof createDbService> }) {
 	const { request, ...codeUi } = CodeUI({
 		copy: {
 			code_placeholder: 'Code (check Worker logs)'
@@ -179,7 +213,17 @@ function createOpenAuth(env: Env) {
 	})
 }
 
-function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContext; openAuth: ReturnType<typeof createOpenAuth> }) {
+function createFrontend({
+	env,
+	ctx,
+	openAuth,
+	dbService
+}: {
+	env: Env
+	ctx: ExecutionContext
+	openAuth: ReturnType<typeof createOpenAuth>
+	dbService: ReturnType<typeof createDbService>
+}) {
 	const app = new Hono<HonoEnv>()
 	app.use(async (c, next) => {
 		const cookieSessionId = await getSignedCookie(c, c.env.COOKIE_SECRET, 'sessionId')
@@ -195,7 +239,7 @@ function createFrontend({ env, ctx, openAuth }: { env: Env; ctx: ExecutionContex
 		c.set('sessionData', sessionData)
 		console.log({ sessionData })
 
-		c.set('dbService', createDbService(env.D1))
+		c.set('dbService', dbService)
 		c.set('stripe', new Stripe(c.env.STRIPE_SECRET_KEY))
 
 		const { origin } = new URL(c.req.url)
@@ -446,11 +490,11 @@ const Dashboard: FC = async () => {
 }
 const Admin: FC = async () => {
 	const c = useRequestContext<HonoEnv>()
-
+	const { results: teams } = await c.var.dbService.getTeams()
 	return (
 		<div>
 			<h1 className="mb-6 text-lg font-medium lg:text-2xl">Admin</h1>
-			<pre>{JSON.stringify({ sessionData: c.var.sessionData }, null, 2)}</pre>
+			<pre>{JSON.stringify({ teams, sessionData: c.var.sessionData }, null, 2)}</pre>
 		</div>
 	)
 }

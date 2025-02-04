@@ -9,11 +9,11 @@ values
 	('admin');
 
 --> statement-breakpoint
-create table teamRoles (teamRoleId text primary key);
+create table teamMemberRoles (teamMemberRoleId text primary key);
 
 --> statement-breakpoint
 insert into
-	teamRoles (teamRoleId)
+	teamMemberRoles (teamMemberRoleId)
 values
 	('owner'),
 	('member');
@@ -44,7 +44,7 @@ create table teamMembers (
 	teamMemberId integer primary key,
 	userId integer not null references users (userId),
 	teamId integer not null references teams (teamId),
-	teamRole text not null references teamRoles (teamRoleId),
+	teamMemberRole text not null references teamMemberRoles (teamMemberRoleId),
 	joinedAt text not null default (datetime('now'))
 );
 
@@ -97,7 +97,7 @@ with
 			teamId = last_insert_rowid()
 	)
 insert into
-	teamMembers (userId, teamId, teamRole)
+	teamMembers (userId, teamId, teamMemberRole)
 values
 	(
 		(
@@ -151,7 +151,7 @@ with
 			teamId = last_insert_rowid()
 	)
 insert into
-	teamMembers (userId, teamId, teamRole)
+	teamMembers (userId, teamId, teamMemberRole)
 values
 	(
 		(
