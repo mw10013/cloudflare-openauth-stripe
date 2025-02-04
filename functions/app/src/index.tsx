@@ -143,10 +143,24 @@ where not exists (
 		},
 		getTeamForUser: async ({ userId }: { userId: number }) => {
 			console.log({ log: 'getTeamForUser', userId })
-			return await db
+			const team = await db
 				.prepare('select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")')
 				.bind(userId)
-				.first()
+				.first<Team>()
+			if (!team) throw new Error('Missing team.')
+			return team
+		},
+		updateStripeCustomerId: async ({
+			teamId,
+			stripeCustomerId
+		}: Pick<
+			{
+				[K in keyof Team]-?: NonNullable<Team[K]>
+			},
+			'teamId' | 'stripeCustomerId'
+		>) => {
+			console.log({ log: 'updateStripeCustomerId', teamId, stripeCustomerId })
+			await db.prepare('update teams set stripeCustomerId = ? where teamId = ?').bind(stripeCustomerId, teamId).run()
 		}
 	}
 }
@@ -288,7 +302,7 @@ function createFrontend({
 			secure: true,
 			httpOnly: true,
 			maxAge: 60 * 60,
-			sameSite: 'Strict'
+			sameSite: 'Lax'
 		})
 		const kvSessionData = await env.KV.get<SessionData>(sessionId, { type: 'json' })
 		const sessionData = kvSessionData || {}
@@ -378,14 +392,9 @@ function createFrontend({
 		}
 	})
 	app.get('/pricing', (c) => c.render(<Pricing />))
-	app.post('/pricing', async (c) => {
-		const formData = await c.req.formData()
-		const priceId = formData.get('priceId')
-		if (typeof priceId === 'string' && priceId) {
-		}
-		return c.redirect('/pricing')
-	})
+	app.post('/pricing', handlerPricingPost)
 	app.get('/dashboard', (c) => c.render(<Dashboard />))
+	app.post('/dashboard', handlerDashboardPost)
 	app.get('/admin', (c) => c.render(<Admin />))
 	app.post('/admin', handlerAdminPost)
 	return app
@@ -496,18 +505,87 @@ const Pricing: FC = async () => {
 	)
 }
 
+const handlerPricingPost = async (c: Context<HonoEnv>) => {
+	const sessionUser = c.var.sessionData.sessionUser
+	if (!sessionUser) return c.redirect('/authenticate')
+	if (sessionUser.role !== 'user') throw new Error('Only users can subscribe')
+
+	// https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#checkout-flow
+	const getStripeCustomerId = async (team: Team) => {
+		if (team.stripeCustomerId) return team.stripeCustomerId
+		const customer = await c.var.stripe.customers.create({
+			email: sessionUser.email,
+			metadata: {
+				userId: sessionUser.userId // DO NOT FORGET THIS
+			}
+		})
+		await c.var.dbService.updateStripeCustomerId({
+			teamId: team.teamId,
+			stripeCustomerId: customer.id
+		})
+		return customer.id
+	}
+	const formData = await c.req.formData()
+	const priceId = formData.get('priceId')
+	if (!(typeof priceId === 'string' && priceId)) throw new Error('Missing priceId.')
+	const team = await c.var.dbService.getTeamForUser(sessionUser)
+
+	const { origin } = new URL(c.req.url)
+	const session = await c.var.stripe.checkout.sessions.create({
+		payment_method_types: ['card'],
+		line_items: [
+			{
+				price: priceId,
+				quantity: 1
+			}
+		],
+		mode: 'subscription',
+		success_url: `${origin}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
+		cancel_url: `${origin}/pricing`,
+		customer: await getStripeCustomerId(team),
+		client_reference_id: sessionUser.userId.toString(),
+		allow_promotion_codes: true,
+		subscription_data: {
+			trial_period_days: 14
+		}
+	})
+	if (!session.url) throw new Error('Missing session.url')
+	return c.redirect(session.url)
+}
+
 const Dashboard: FC = async () => {
 	const c = useRequestContext<HonoEnv>()
 	if (!c.var.sessionData.sessionUser) throw new Error('Missing sessionUser')
 	const team = await c.var.dbService.getTeamForUser(c.var.sessionData.sessionUser)
 
 	return (
-		<div>
-			<h1 className="mb-6 text-lg font-medium lg:text-2xl">Dashboard</h1>
+		<div className="flex flex-col gap-2">
+			<h1 className="text-lg font-medium lg:text-2xl">Dashboard</h1>
+			<div className="card bg-base-100 w-96 shadow-sm">
+				<div className="card-body">
+					<h2 className="card-title">Team Subscription</h2>
+					<p className="font-medium">Current Plan: {team.planName || 'Free'}</p>
+					<div className="card-actions justify-end">
+						<form action="/dashboard" method="post">
+							<button className="btn btn-outline">Manage Subscription</button>
+						</form>
+					</div>
+				</div>
+			</div>
 			<pre>{JSON.stringify({ team, sessionData: c.var.sessionData }, null, 2)}</pre>
 		</div>
 	)
 }
+
+const handlerDashboardPost = async (c: Context<HonoEnv>) => {
+	if (!c.var.sessionData.sessionUser) throw new Error('Missing sessionUser')
+	const team = await c.var.dbService.getTeamForUser(c.var.sessionData.sessionUser)
+	if (!team.stripeCustomerId || !team.stripeProductId) {
+		return c.redirect('/pricing')
+	}
+	throw new Error('Implement subscription management')
+}
+
 const Admin: FC = async () => {
 	const c = useRequestContext<HonoEnv>()
 	const teams = await c.var.dbService.getTeams()
@@ -535,12 +613,10 @@ const Admin: FC = async () => {
 	)
 }
 
-const handlerAdminPost = async <T extends Context<HonoEnv>>(c: T) => {
+const handlerAdminPost = async (c: Context<HonoEnv>) => {
 	const formData = await c.req.formData()
 	const email = formData.get('email')
 	if (!(typeof email === 'string' && email)) throw new Error('Invalid email')
-	// if (typeof email !== 'string' && !email) throw new Error('Invalid email')
-	console.log({ log: 'handlerAdminPost', email })
 	await c.var.dbService.upsertUser({ email })
 	return c.redirect('/admin')
 }
