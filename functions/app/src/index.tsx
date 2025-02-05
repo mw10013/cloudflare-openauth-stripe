@@ -116,10 +116,8 @@ select json_group_array(
 						`
 insert into teams (name) 
 select 'Team' 
-where not exists (
-	select 1 
-	from teamMembers tm
-	where tm.userId = (select u.userId from users u where u.email = ?)
+where exists (select 1 from users u where u.email = ?1 and role = "user") and
+not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from users u where u.email = ?1 and role = "user")
 )
 `
 					)
@@ -129,10 +127,8 @@ where not exists (
 						`
 insert into teamMembers (userId, teamId, teamMemberRole)
 select (select userId from users where email = ?1), last_insert_rowid(), 'owner'
-where not exists (
-	select 1
-	from teamMembers tm
-	where tm.userId = (select u.userId from users u where u.email = ?1)
+where exists (select 1 from users u where u.email = ?1 and role = "user") and
+not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from users u where u.email = ?1)
 )
 `
 					)
@@ -629,12 +625,33 @@ const handlerDashboardPost = async (c: Context<HonoEnv>) => {
 	throw new Error('Implement subscription management')
 }
 
-const Admin: FC = async () => {
-	const c = useRequestContext<HonoEnv>()
-	const teams = await c.var.dbService.getTeams()
+const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 	return (
 		<div className="flex flex-col gap-2">
 			<h1 className="text-lg font-medium lg:text-2xl">Admin</h1>
+			<div className="flex gap-2">
+				<form action="/admin" method="post">
+					<button name="intent" value="teams" className="btn btn-outline">
+						Teams
+					</button>
+				</form>
+			</div>
+			<div className="card bg-base-100 w-96 shadow-sm">
+				<form action="/admin" method="post">
+					<div className="card-body">
+						<h2 className="card-title">Customer Subscription</h2>
+						<fieldset className="fieldset">
+							<legend className="fieldset-legend">Customer Id</legend>
+							<input type="text" name="customerId" className="input" />
+						</fieldset>
+						<div className="card-actions justify-end">
+							<button name="intent" value="customer_subscription" className="btn btn-primary">
+								Submit
+							</button>
+						</div>
+					</div>
+				</form>
+			</div>
 			<div className="card bg-base-100 w-96 shadow-sm">
 				<form action="/admin" method="post">
 					<div className="card-body">
@@ -644,24 +661,53 @@ const Admin: FC = async () => {
 							<input type="email" name="email" className="input" />
 						</fieldset>
 						<div className="card-actions justify-end">
-							<button type="submit" className="btn btn-primary">
+							<button type="submit" name="intent" value="create_user" className="btn btn-primary">
 								Submit
 							</button>
 						</div>
 					</div>
 				</form>
 			</div>
-			<pre>{JSON.stringify({ teams }, null, 2)}</pre>
+			<pre>{JSON.stringify({ actionData }, null, 2)}</pre>
 		</div>
 	)
 }
 
 const handlerAdminPost = async (c: Context<HonoEnv>) => {
 	const formData = await c.req.formData()
-	const email = formData.get('email')
-	if (!(typeof email === 'string' && email)) throw new Error('Invalid email')
-	await c.var.dbService.upsertUser({ email })
-	return c.redirect('/admin')
+	const intent = formData.get('intent')
+	let actionData = {}
+	switch (intent) {
+		case 'teams':
+			actionData = { teams: await c.var.dbService.getTeams() }
+			break
+		case 'customer_subscription':
+			{
+				const customerId = formData.get('customerId')
+				if (!(typeof customerId === 'string' && customerId)) throw new Error('Invalid customerId')
+				const subscriptions = await c.var.stripe.subscriptions.list({
+					customer: customerId,
+					limit: 1,
+					status: 'all',
+					expand: ['data.items', 'data.items.data.price']
+				})
+				if (subscriptions.data.length === 0) throw new Error('No subscriptions found')
+				actionData = {
+					subscription: subscriptions.data[0]
+				}
+			}
+			break
+		case 'create_user':
+			{
+				const email = formData.get('email')
+				if (!(typeof email === 'string' && email)) throw new Error('Invalid email')
+				await c.var.dbService.upsertUser({ email })
+			}
+			break
+		default:
+			throw new Error('Invalid intent')
+	}
+	return c.render(<Admin actionData={{ intent, ...actionData }} />)
 }
 
 async function syncStripeData({
@@ -677,11 +723,8 @@ async function syncStripeData({
 		customer: customerId,
 		limit: 1,
 		status: 'all',
-		expand: ['data.items']
+		expand: ['data.items', 'data.items.data.price']
 	})
-
-	// 'items.data.price.product'
-
 	if (subscriptions.data.length === 0) {
 		console.log(`syncStripeData: No subscriptions found for customer ${customerId}`)
 		return
@@ -691,27 +734,13 @@ async function syncStripeData({
 	const subscription = subscriptions.data[0]
 	const subscriptionItem = subscription.items.data[0]
 	console.log({ log: 'syncStripeData', subscription, subscriptionItem, product: subscriptionItem.price.product })
+	if (typeof subscriptionItem.price.product !== 'string') throw new Error('Invalid product')
+	if (typeof subscriptionItem.price.lookup_key !== 'string') throw new Error('Invalid lookup_key')
 	await dbService.updateStripeSubscription({
 		stripeCustomerId: customerId,
 		stripeSubscriptionId: subscription.id,
-		stripeProductId: subscription.items.data[0].price.product as string,
-		planName: subscription.items.data[0].price.product as string,
+		stripeProductId: subscriptionItem.price.product,
+		planName: subscriptionItem.price.lookup_key,
 		subscriptionStatus: subscription.status
 	})
-
-	// const subData = {
-	// 	subscriptionId: subscription.id,
-	// 	status: subscription.status,
-	// 	priceId: subscription.items.data[0].price.id,
-	// 	currentPeriodEnd: subscription.current_period_end,
-	// 	currentPeriodStart: subscription.current_period_start,
-	// 	cancelAtPeriodEnd: subscription.cancel_at_period_end,
-	// 	paymentMethod:
-	// 		subscription.default_payment_method && typeof subscription.default_payment_method !== 'string'
-	// 			? {
-	// 					brand: subscription.default_payment_method.card?.brand ?? null,
-	// 					last4: subscription.default_payment_method.card?.last4 ?? null
-	// 				}
-	// 			: null
-	// }
 }
