@@ -60,7 +60,8 @@
 
 ## Stripe
 
-- limit 1 subscription  
+- Prevent customer creation race conditions: https://github.com/stripe/stripe-node/issues/476#issuecomment-402541143
+
 - https://github.com/stripe/stripe-node
 - https://docs.stripe.com/api?lang=node
 - https://github.com/nextjs/saas-starter
@@ -69,6 +70,17 @@
 ```
 Double subscriptions are not an issue when you create a customer first, then create a payment intent for that customer and then load your checkout forms using that intent. It won't matter whether the user goes back, forward, refreshes or whatever. As long as the payment intent doesn't change, it won't be a double subscription. Also a lot of projects actually do allow multiple subscriptions, so they can't just make such a critical option on by default (limit to 1). On the price IDs between environments - use price lookup keys instead.
 ```
+
+### Disable Cash App Pay
+
+- https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#disable-cash-app-pay
+- Settings | Payments | Payment methods
+
+### Limit Customers to One Subscription
+
+- https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#enable-limit-customers-to-one-subscription
+- https://docs.stripe.com/payments/checkout/limit-subscriptions
+- https://billing.stripe.com/p/login/test_3cs9EBfMn4Qn7Ze144
 
 ### Testing Payments
 

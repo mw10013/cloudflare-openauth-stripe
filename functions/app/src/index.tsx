@@ -142,7 +142,6 @@ where not exists (
 			return user as User
 		},
 		getTeamForUser: async ({ userId }: { userId: number }) => {
-			console.log({ log: 'getTeamForUser', userId })
 			const team = await db
 				.prepare('select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")')
 				.bind(userId)
@@ -161,6 +160,33 @@ where not exists (
 		>) => {
 			console.log({ log: 'updateStripeCustomerId', teamId, stripeCustomerId })
 			await db.prepare('update teams set stripeCustomerId = ? where teamId = ?').bind(stripeCustomerId, teamId).run()
+		},
+		updateStripeSubscription: async ({
+			stripeCustomerId,
+			stripeSubscriptionId,
+			stripeProductId,
+			planName,
+			subscriptionStatus
+		}: Pick<
+			{
+				[K in keyof Team]-?: NonNullable<Team[K]>
+			},
+			'stripeCustomerId' | 'stripeSubscriptionId' | 'stripeProductId' | 'planName' | 'subscriptionStatus'
+		>) => {
+			console.log({
+				log: 'updateStripeSubscription',
+				stripeCustomerId,
+				stripeSubscriptionId,
+				stripeProductId,
+				planName,
+				subscriptionStatus
+			})
+			await db
+				.prepare(
+					'update teams set stripeSubscriptionId = ?, stripeProductId = ?, planName = ?, subscriptionStatus = ? where stripeCustomerId = ?'
+				)
+				.bind(stripeSubscriptionId, stripeProductId, planName, subscriptionStatus, stripeCustomerId)
+				.run()
 		}
 	}
 }
@@ -168,11 +194,12 @@ where not exists (
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const dbService = createDbService(env.D1)
+		const stripe = new Stripe(env.STRIPE_SECRET_KEY)
 		const openAuth = createOpenAuth({ env, dbService })
 		const app = new Hono()
 		app.route('/', openAuth)
-		app.route('/', createApi({ env, dbService }))
-		app.route('/', createFrontend({ env, ctx, openAuth, dbService })) // Last to isolate middleware
+		app.route('/', createApi({ env, dbService, stripe }))
+		app.route('/', createFrontend({ env, ctx, openAuth, dbService, stripe })) // Last to isolate middleware
 		return app.fetch(request, env, ctx)
 	}
 } satisfies ExportedHandler<Env>
@@ -274,11 +301,25 @@ function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<ty
 	})
 }
 
-function createApi({ env, dbService }: { env: Env; dbService: ReturnType<typeof createDbService> }) {
+function createApi({ env, dbService, stripe }: { env: Env; dbService: ReturnType<typeof createDbService>; stripe: Stripe }) {
 	const app = new Hono<HonoEnv>()
 	app.get('/api/stripe/checkout', async (c) => {
 		const sessionId = c.req.query('sessionId')
 		if (!sessionId) return c.redirect('/pricing')
+
+		const session = await stripe.checkout.sessions.retrieve(sessionId, {
+			expand: ['customer']
+		})
+		const customer = session.customer
+		if (!customer || typeof customer === 'string') {
+			throw new Error('Invalid customer data from Stripe.')
+		}
+		await syncStripeData({
+			customerId: customer.id,
+			stripe,
+			dbService
+		})
+		return c.redirect('/dashboard')
 	})
 	return app
 }
@@ -287,12 +328,14 @@ function createFrontend({
 	env,
 	ctx,
 	openAuth,
-	dbService
+	dbService,
+	stripe
 }: {
 	env: Env
 	ctx: ExecutionContext
 	openAuth: ReturnType<typeof createOpenAuth>
 	dbService: ReturnType<typeof createDbService>
+	stripe: Stripe
 }) {
 	const app = new Hono<HonoEnv>()
 	app.use(async (c, next) => {
@@ -310,7 +353,7 @@ function createFrontend({
 		console.log({ sessionData })
 
 		c.set('dbService', dbService)
-		c.set('stripe', new Stripe(c.env.STRIPE_SECRET_KEY))
+		c.set('stripe', stripe)
 
 		const { origin } = new URL(c.req.url)
 		const client = createClient({
@@ -540,7 +583,7 @@ const handlerPricingPost = async (c: Context<HonoEnv>) => {
 			}
 		],
 		mode: 'subscription',
-		success_url: `${origin}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
+		success_url: `${origin}/api/stripe/checkout?sessionId={CHECKOUT_SESSION_ID}`,
 		cancel_url: `${origin}/pricing`,
 		customer: await getStripeCustomerId(team),
 		client_reference_id: sessionUser.userId.toString(),
@@ -619,4 +662,56 @@ const handlerAdminPost = async (c: Context<HonoEnv>) => {
 	if (!(typeof email === 'string' && email)) throw new Error('Invalid email')
 	await c.var.dbService.upsertUser({ email })
 	return c.redirect('/admin')
+}
+
+async function syncStripeData({
+	customerId,
+	stripe,
+	dbService
+}: {
+	customerId: string
+	stripe: Stripe
+	dbService: ReturnType<typeof createDbService>
+}) {
+	const subscriptions = await stripe.subscriptions.list({
+		customer: customerId,
+		limit: 1,
+		status: 'all',
+		expand: ['data.items']
+	})
+
+	// 'items.data.price.product'
+
+	if (subscriptions.data.length === 0) {
+		console.log(`syncStripeData: No subscriptions found for customer ${customerId}`)
+		return
+	}
+
+	// If a user can have multiple subscriptions, that's your problem
+	const subscription = subscriptions.data[0]
+	const subscriptionItem = subscription.items.data[0]
+	console.log({ log: 'syncStripeData', subscription, subscriptionItem, product: subscriptionItem.price.product })
+	await dbService.updateStripeSubscription({
+		stripeCustomerId: customerId,
+		stripeSubscriptionId: subscription.id,
+		stripeProductId: subscription.items.data[0].price.product as string,
+		planName: subscription.items.data[0].price.product as string,
+		subscriptionStatus: subscription.status
+	})
+
+	// const subData = {
+	// 	subscriptionId: subscription.id,
+	// 	status: subscription.status,
+	// 	priceId: subscription.items.data[0].price.id,
+	// 	currentPeriodEnd: subscription.current_period_end,
+	// 	currentPeriodStart: subscription.current_period_start,
+	// 	cancelAtPeriodEnd: subscription.cancel_at_period_end,
+	// 	paymentMethod:
+	// 		subscription.default_payment_method && typeof subscription.default_payment_method !== 'string'
+	// 			? {
+	// 					brand: subscription.default_payment_method.card?.brand ?? null,
+	// 					last4: subscription.default_payment_method.card?.last4 ?? null
+	// 				}
+	// 			: null
+	// }
 }
