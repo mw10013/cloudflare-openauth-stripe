@@ -664,58 +664,59 @@ const handlerDashboardPost = async (c: Context<HonoEnv>) => {
 		return c.redirect('/pricing')
 	}
 	const stripe = c.var.stripe
-	let configuration: Stripe.BillingPortal.Configuration
 	const configurations = await stripe.billingPortal.configurations.list()
+	if (configurations.data.length === 0) throw new Error('Missing billing portal configuration')
+	const configuration = configurations.data[0]
+	// if (configurations.data.length > 0) {
+	// 	configuration = configurations.data[0]
+	// } else {
+	// 	const product = await stripe.products.retrieve(team.stripeProductId)
+	// 	if (!product.active) {
+	// 		throw new Error("Team's product is not active in Stripe")
+	// 	}
 
-	if (configurations.data.length > 0) {
-		configuration = configurations.data[0]
-	} else {
-		const product = await stripe.products.retrieve(team.stripeProductId)
-		if (!product.active) {
-			throw new Error("Team's product is not active in Stripe")
-		}
+	// 	const prices = await stripe.prices.list({
+	// 		product: product.id,
+	// 		active: true
+	// 	})
+	// 	if (prices.data.length === 0) {
+	// 		throw new Error("No active prices found for the team's product")
+	// 	}
 
-		const prices = await stripe.prices.list({
-			product: product.id,
-			active: true
-		})
-		if (prices.data.length === 0) {
-			throw new Error("No active prices found for the team's product")
-		}
-
-		configuration = await stripe.billingPortal.configurations.create({
-			business_profile: {
-				headline: 'Manage your subscription'
-			},
-			features: {
-				subscription_update: {
-					enabled: true,
-					default_allowed_updates: ['price', 'quantity', 'promotion_code'],
-					proration_behavior: 'create_prorations',
-					products: [
-						{
-							product: product.id,
-							prices: prices.data.map((price) => price.id)
-						}
-					]
-				},
-				subscription_cancel: {
-					enabled: true,
-					mode: 'at_period_end',
-					cancellation_reason: {
-						enabled: true,
-						options: ['too_expensive', 'missing_features', 'switched_service', 'unused', 'other']
-					}
-				}
-			}
-		})
-	}
-
-	return (await stripe.billingPortal.sessions.create({
+	// 	configuration = await stripe.billingPortal.configurations.create({
+	// 		business_profile: {
+	// 			headline: 'Manage your subscription'
+	// 		},
+	// 		features: {
+	// 			subscription_update: {
+	// 				enabled: true,
+	// 				default_allowed_updates: ['price', 'quantity', 'promotion_code'],
+	// 				proration_behavior: 'create_prorations',
+	// 				products: [
+	// 					{
+	// 						product: product.id,
+	// 						prices: prices.data.map((price) => price.id)
+	// 					}
+	// 				]
+	// 			},
+	// 			subscription_cancel: {
+	// 				enabled: true,
+	// 				mode: 'at_period_end',
+	// 				cancellation_reason: {
+	// 					enabled: true,
+	// 					options: ['too_expensive', 'missing_features', 'switched_service', 'unused', 'other']
+	// 				}
+	// 			}
+	// 		}
+	// 	})
+	// }
+	const session = await stripe.billingPortal.sessions.create({
 		customer: team.stripeCustomerId,
 		return_url: `${new URL(c.req.url).origin}/dashboard`,
 		configuration: configuration.id
-	})) as unknown as Response
+	})
+	console.log({ log: 'handleDashboardPost', session })
+	return c.redirect(session.url)
 }
 
 const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
@@ -726,6 +727,11 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 				<form action="/admin" method="post">
 					<button name="intent" value="teams" className="btn btn-outline">
 						Teams
+					</button>
+				</form>
+				<form action="/admin" method="post">
+					<button name="intent" value="billing_portal_configurations" className="btn btn-outline">
+						Billing Portal Configs
 					</button>
 				</form>
 			</div>
@@ -773,6 +779,9 @@ const handlerAdminPost = async (c: Context<HonoEnv>) => {
 	switch (intent) {
 		case 'teams':
 			actionData = { teams: await c.var.dbService.getTeams() }
+			break
+		case 'billing_portal_configurations':
+			actionData = { configurations: await c.var.stripe.billingPortal.configurations.list() }
 			break
 		case 'customer_subscription':
 			{

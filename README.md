@@ -90,6 +90,11 @@ Double subscriptions are not an issue when you create a customer first, then cre
 - stripe listen --forward-to localhost:8787/api/stripe/webhook
 - stripe listen --print-secret
 
+
+### Billing Portal
+
+- https://billing.stripe.com/p/login/test_9AQeYV6bN1Eb6VafYZ
+
 ### Testing Payments
 
 To test Stripe payments, use the following test card details:
