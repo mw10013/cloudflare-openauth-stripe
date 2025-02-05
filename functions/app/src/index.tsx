@@ -317,6 +317,57 @@ function createApi({ env, dbService, stripe }: { env: Env; dbService: ReturnType
 		})
 		return c.redirect('/dashboard')
 	})
+	app.post('/api/stripe/webhook', async (c) => {
+		const signature = c.req.header('stripe-signature')
+		if (!signature) return c.text('', 400)
+		try {
+			const body = await c.req.text()
+			const event = await stripe.webhooks.constructEventAsync(body, signature, env.STRIPE_WEBHOOK_SECRET)
+			console.log({ log: 'stripe webhook', event })
+			const allowedEvents: Stripe.Event.Type[] = [
+				'checkout.session.completed',
+				'customer.subscription.created',
+				'customer.subscription.updated',
+				'customer.subscription.deleted',
+				'customer.subscription.paused',
+				'customer.subscription.resumed',
+				'customer.subscription.pending_update_applied',
+				'customer.subscription.pending_update_expired',
+				'customer.subscription.trial_will_end',
+				'invoice.paid',
+				'invoice.payment_failed',
+				'invoice.payment_action_required',
+				'invoice.upcoming',
+				'invoice.marked_uncollectible',
+				'invoice.payment_succeeded',
+				'payment_intent.succeeded',
+				'payment_intent.payment_failed',
+				'payment_intent.canceled'
+			]
+			if (!allowedEvents.includes(event.type)) return c.text('', 200)
+
+			// All the events I track have a customerId
+			const { customer: customerId } = event?.data?.object as {
+				customer: string // Sadly TypeScript does not know this
+			}
+
+			// This helps make it typesafe and also lets me know if my assumption is wrong
+			if (typeof customerId !== 'string') {
+				throw new Error(`[STRIPE HOOK][CANCER] ID isn't string.\nEvent type: ${event.type}`)
+			}
+
+			await syncStripeData({
+				customerId,
+				stripe,
+				dbService
+			})
+			return c.text('', 200)
+		} catch (err) {
+			const errorMessage = `Stripe webhook failed: ${err instanceof Error ? err.message : 'Internal server error'}`
+			console.log(errorMessage)
+			return c.text(errorMessage, 400)
+		}
+	})
 	return app
 }
 
@@ -719,6 +770,7 @@ async function syncStripeData({
 	stripe: Stripe
 	dbService: ReturnType<typeof createDbService>
 }) {
+	console.log({ log: 'syncStripeData', customerId })
 	const subscriptions = await stripe.subscriptions.list({
 		customer: customerId,
 		limit: 1,
@@ -733,7 +785,6 @@ async function syncStripeData({
 	// If a user can have multiple subscriptions, that's your problem
 	const subscription = subscriptions.data[0]
 	const subscriptionItem = subscription.items.data[0]
-	console.log({ log: 'syncStripeData', subscription, subscriptionItem, product: subscriptionItem.price.product })
 	if (typeof subscriptionItem.price.product !== 'string') throw new Error('Invalid product')
 	if (typeof subscriptionItem.price.lookup_key !== 'string') throw new Error('Invalid lookup_key')
 	await dbService.updateStripeSubscription({
