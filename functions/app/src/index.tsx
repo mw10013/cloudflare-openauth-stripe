@@ -104,7 +104,6 @@ select json_group_array(
 				.first<{ data: string }>()
 				.then((v) => JSON.parse(v?.data || 'null')),
 		upsertUser: async ({ email }: { email: string }) => {
-			console.log({ log: 'createUser', email })
 			const [
 				{
 					results: [user]
@@ -134,7 +133,6 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 					)
 					.bind(email)
 			])
-			console.log({ user })
 			return user as User
 		},
 		getTeamForUser: async ({ userId }: { userId: number }) => {
@@ -154,7 +152,6 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 			},
 			'teamId' | 'stripeCustomerId'
 		>) => {
-			console.log({ log: 'updateStripeCustomerId', teamId, stripeCustomerId })
 			await db.prepare('update teams set stripeCustomerId = ? where teamId = ?').bind(stripeCustomerId, teamId).run()
 		},
 		updateStripeSubscription: async ({
@@ -169,14 +166,6 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 			},
 			'stripeCustomerId' | 'stripeSubscriptionId' | 'stripeProductId' | 'planName' | 'subscriptionStatus'
 		>) => {
-			console.log({
-				log: 'updateStripeSubscription',
-				stripeCustomerId,
-				stripeSubscriptionId,
-				stripeProductId,
-				planName,
-				subscriptionStatus
-			})
 			await db
 				.prepare(
 					'update teams set stripeSubscriptionId = ?, stripeProductId = ?, planName = ?, subscriptionStatus = ? where stripeCustomerId = ?'
@@ -319,11 +308,11 @@ function createApi({ env, dbService, stripe }: { env: Env; dbService: ReturnType
 	})
 	app.post('/api/stripe/webhook', async (c) => {
 		const signature = c.req.header('stripe-signature')
+		// console.log({ log: 'stripe webhook', signature, STRIPE_WEBHOOK_SECRET: env.STRIPE_WEBHOOK_SECRET })
 		if (!signature) return c.text('', 400)
 		try {
 			const body = await c.req.text()
 			const event = await stripe.webhooks.constructEventAsync(body, signature, env.STRIPE_WEBHOOK_SECRET)
-			console.log({ log: 'stripe webhook', event })
 			const allowedEvents: Stripe.Event.Type[] = [
 				'checkout.session.completed',
 				'customer.subscription.created',
@@ -344,6 +333,7 @@ function createApi({ env, dbService, stripe }: { env: Env; dbService: ReturnType
 				'payment_intent.payment_failed',
 				'payment_intent.canceled'
 			]
+			console.log({ log: 'stripe webhook', eventType: event.type, allow: allowedEvents.includes(event.type) })
 			if (!allowedEvents.includes(event.type)) return c.text('', 200)
 
 			// All the events I track have a customerId
@@ -673,7 +663,59 @@ const handlerDashboardPost = async (c: Context<HonoEnv>) => {
 	if (!team.stripeCustomerId || !team.stripeProductId) {
 		return c.redirect('/pricing')
 	}
-	throw new Error('Implement subscription management')
+	const stripe = c.var.stripe
+	let configuration: Stripe.BillingPortal.Configuration
+	const configurations = await stripe.billingPortal.configurations.list()
+
+	if (configurations.data.length > 0) {
+		configuration = configurations.data[0]
+	} else {
+		const product = await stripe.products.retrieve(team.stripeProductId)
+		if (!product.active) {
+			throw new Error("Team's product is not active in Stripe")
+		}
+
+		const prices = await stripe.prices.list({
+			product: product.id,
+			active: true
+		})
+		if (prices.data.length === 0) {
+			throw new Error("No active prices found for the team's product")
+		}
+
+		configuration = await stripe.billingPortal.configurations.create({
+			business_profile: {
+				headline: 'Manage your subscription'
+			},
+			features: {
+				subscription_update: {
+					enabled: true,
+					default_allowed_updates: ['price', 'quantity', 'promotion_code'],
+					proration_behavior: 'create_prorations',
+					products: [
+						{
+							product: product.id,
+							prices: prices.data.map((price) => price.id)
+						}
+					]
+				},
+				subscription_cancel: {
+					enabled: true,
+					mode: 'at_period_end',
+					cancellation_reason: {
+						enabled: true,
+						options: ['too_expensive', 'missing_features', 'switched_service', 'unused', 'other']
+					}
+				}
+			}
+		})
+	}
+
+	return (await stripe.billingPortal.sessions.create({
+		customer: team.stripeCustomerId,
+		return_url: `${new URL(c.req.url).origin}/dashboard`,
+		configuration: configuration.id
+	})) as unknown as Response
 }
 
 const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {

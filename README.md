@@ -20,7 +20,7 @@
   - Build configuration
     - Deploy command: pnpm -F worker exec wrangler deploy --env production
   - Build watch paths
-    - Include paths: functions/worker/* functions/shared/*
+    - Include paths: functions/worker/_ functions/shared/_
 - Update app/wrangler.jsonc OPENAUTH_ISSUER
 - pnpm -F app build
 - pnpm -F app exec wrangler deploy --env production
@@ -33,7 +33,7 @@
     - Build command: pnpm -F app build
     - Deploy command: pnpm -F app exec wrangler deploy --env production
   - Build watch paths
-    - Include paths: functions/app/* functions/shared/*
+    - Include paths: functions/app/_ functions/shared/_
 - pnpm -F worker exec wrangler tail cloudflare-openauth-stripe-app-production
 
 ## Deploy (staging)
@@ -81,6 +81,14 @@ Double subscriptions are not an issue when you create a customer first, then cre
 - https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#enable-limit-customers-to-one-subscription
 - https://docs.stripe.com/payments/checkout/limit-subscriptions
 - https://billing.stripe.com/p/login/test_3cs9EBfMn4Qn7Ze144
+
+### Webhook
+
+- stripe listen --load-from-webhooks-api --forward-to localhost:8787
+  - Must have stripe webhook endpoint url with path /api/stripe/webhook
+  - STRIPE_WEBHOOK_SECRET must align with listen secret 
+- stripe listen --forward-to localhost:8787/api/stripe/webhook
+- stripe listen --print-secret
 
 ### Testing Payments
 
