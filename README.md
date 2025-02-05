@@ -86,13 +86,14 @@ Double subscriptions are not an issue when you create a customer first, then cre
 
 - stripe listen --load-from-webhooks-api --forward-to localhost:8787
   - Must have stripe webhook endpoint url with path /api/stripe/webhook
-  - STRIPE_WEBHOOK_SECRET must align with listen secret 
+  - STRIPE_WEBHOOK_SECRET must align with listen secret
 - stripe listen --forward-to localhost:8787/api/stripe/webhook
 - stripe listen --print-secret
 
-
 ### Billing Portal
 
+- Settings | Billing | Customer portal
+- https://docs.stripe.com/customer-management/activate-no-code-customer-portal
 - https://billing.stripe.com/p/login/test_9AQeYV6bN1Eb6VafYZ
 
 ### Testing Payments
