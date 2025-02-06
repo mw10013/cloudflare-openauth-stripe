@@ -31,11 +31,11 @@ type User = {
 type Team = {
 	teamId: number
 	name: string
-	stripeCustomerId?: string | null
-	stripeSubscriptionId?: string | null
-	stripeProductId?: string | null
-	planName?: string | null
-	subscriptionStatus?: string | null
+	stripeCustomerId: string | null
+	stripeSubscriptionId: string | null
+	stripeProductId: string | null
+	planName: string | null
+	subscriptionStatus: string | null
 }
 
 type TeamMember = {
@@ -148,7 +148,7 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 			stripeCustomerId
 		}: Pick<
 			{
-				[K in keyof Team]-?: NonNullable<Team[K]>
+				[K in keyof Team]: NonNullable<Team[K]>
 			},
 			'teamId' | 'stripeCustomerId'
 		>) => {
@@ -162,7 +162,7 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 			subscriptionStatus
 		}: Pick<
 			{
-				[K in keyof Team]-?: NonNullable<Team[K]>
+				[K in keyof Team]: NonNullable<Team[K]>
 			},
 			'stripeCustomerId' | 'stripeSubscriptionId' | 'stripeProductId' | 'planName' | 'subscriptionStatus'
 		>) => {
@@ -472,11 +472,11 @@ function createFrontend({
 		}
 	})
 	app.get('/pricing', (c) => c.render(<Pricing />))
-	app.post('/pricing', handlerPricingPost)
+	app.post('/pricing', pricingPost)
 	app.get('/dashboard', (c) => c.render(<Dashboard />))
-	app.post('/dashboard', handlerDashboardPost)
+	app.post('/dashboard', dashboardPost)
 	app.get('/admin', (c) => c.render(<Admin />))
-	app.post('/admin', handlerAdminPost)
+	app.post('/admin', adminPost)
 	return app
 }
 
@@ -585,14 +585,13 @@ const Pricing: FC = async () => {
 	)
 }
 
-const handlerPricingPost = async (c: Context<HonoEnv>) => {
+const pricingPost = async (c: Context<HonoEnv>) => {
 	const sessionUser = c.var.sessionData.sessionUser
 	if (!sessionUser) return c.redirect('/authenticate')
 	if (sessionUser.role !== 'user') throw new Error('Only users can subscribe')
-
 	// https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#checkout-flow
-	const getStripeCustomerId = async (team: Team) => {
-		if (team.stripeCustomerId) return team.stripeCustomerId
+	const ensureStripeCustomerId = async (team: Team) => {
+		if (team.stripeCustomerId) return [team.stripeCustomerId, team.stripeSubscriptionId] as const
 		const customer = await c.var.stripe.customers.create({
 			email: sessionUser.email,
 			metadata: {
@@ -603,34 +602,45 @@ const handlerPricingPost = async (c: Context<HonoEnv>) => {
 			teamId: team.teamId,
 			stripeCustomerId: customer.id
 		})
-		return customer.id
+		return [customer.id, null] as const
 	}
 	const formData = await c.req.formData()
 	const priceId = formData.get('priceId')
 	if (!(typeof priceId === 'string' && priceId)) throw new Error('Missing priceId.')
 	const team = await c.var.dbService.getTeamForUser(sessionUser)
-
-	const { origin } = new URL(c.req.url)
-	const session = await c.var.stripe.checkout.sessions.create({
-		payment_method_types: ['card'],
-		line_items: [
-			{
-				price: priceId,
-				quantity: 1
+	const [stripeCustomerId, stripeSubscriptionId] = await ensureStripeCustomerId(team)
+	if (stripeSubscriptionId) {
+		const configurations = await c.var.stripe.billingPortal.configurations.list()
+		if (configurations.data.length === 0) throw new Error('Missing billing portal configuration')
+		const session = await c.var.stripe.billingPortal.sessions.create({
+			customer: stripeCustomerId,
+			return_url: `${new URL(c.req.url).origin}/dashboard`,
+			configuration: configurations.data[0].id
+		})
+		return c.redirect(session.url)
+	} else {
+		const { origin } = new URL(c.req.url)
+		const session = await c.var.stripe.checkout.sessions.create({
+			payment_method_types: ['card'],
+			line_items: [
+				{
+					price: priceId,
+					quantity: 1
+				}
+			],
+			mode: 'subscription',
+			success_url: `${origin}/api/stripe/checkout?sessionId={CHECKOUT_SESSION_ID}`,
+			cancel_url: `${origin}/pricing`,
+			customer: stripeCustomerId,
+			client_reference_id: sessionUser.userId.toString(),
+			allow_promotion_codes: true,
+			subscription_data: {
+				trial_period_days: 14
 			}
-		],
-		mode: 'subscription',
-		success_url: `${origin}/api/stripe/checkout?sessionId={CHECKOUT_SESSION_ID}`,
-		cancel_url: `${origin}/pricing`,
-		customer: await getStripeCustomerId(team),
-		client_reference_id: sessionUser.userId.toString(),
-		allow_promotion_codes: true,
-		subscription_data: {
-			trial_period_days: 14
-		}
-	})
-	if (!session.url) throw new Error('Missing session.url')
-	return c.redirect(session.url)
+		})
+		if (!session.url) throw new Error('Missing session.url')
+		return c.redirect(session.url)
+	}
 }
 
 const Dashboard: FC = async () => {
@@ -657,7 +667,7 @@ const Dashboard: FC = async () => {
 	)
 }
 
-const handlerDashboardPost = async (c: Context<HonoEnv>) => {
+const dashboardPost = async (c: Context<HonoEnv>) => {
 	if (!c.var.sessionData.sessionUser) throw new Error('Missing sessionUser')
 	const team = await c.var.dbService.getTeamForUser(c.var.sessionData.sessionUser)
 	if (!team.stripeCustomerId || !team.stripeProductId) {
@@ -666,56 +676,11 @@ const handlerDashboardPost = async (c: Context<HonoEnv>) => {
 	const stripe = c.var.stripe
 	const configurations = await stripe.billingPortal.configurations.list()
 	if (configurations.data.length === 0) throw new Error('Missing billing portal configuration')
-	const configuration = configurations.data[0]
-	// if (configurations.data.length > 0) {
-	// 	configuration = configurations.data[0]
-	// } else {
-	// 	const product = await stripe.products.retrieve(team.stripeProductId)
-	// 	if (!product.active) {
-	// 		throw new Error("Team's product is not active in Stripe")
-	// 	}
-
-	// 	const prices = await stripe.prices.list({
-	// 		product: product.id,
-	// 		active: true
-	// 	})
-	// 	if (prices.data.length === 0) {
-	// 		throw new Error("No active prices found for the team's product")
-	// 	}
-
-	// 	configuration = await stripe.billingPortal.configurations.create({
-	// 		business_profile: {
-	// 			headline: 'Manage your subscription'
-	// 		},
-	// 		features: {
-	// 			subscription_update: {
-	// 				enabled: true,
-	// 				default_allowed_updates: ['price', 'quantity', 'promotion_code'],
-	// 				proration_behavior: 'create_prorations',
-	// 				products: [
-	// 					{
-	// 						product: product.id,
-	// 						prices: prices.data.map((price) => price.id)
-	// 					}
-	// 				]
-	// 			},
-	// 			subscription_cancel: {
-	// 				enabled: true,
-	// 				mode: 'at_period_end',
-	// 				cancellation_reason: {
-	// 					enabled: true,
-	// 					options: ['too_expensive', 'missing_features', 'switched_service', 'unused', 'other']
-	// 				}
-	// 			}
-	// 		}
-	// 	})
-	// }
 	const session = await stripe.billingPortal.sessions.create({
 		customer: team.stripeCustomerId,
 		return_url: `${new URL(c.req.url).origin}/dashboard`,
-		configuration: configuration.id
+		configuration: configurations.data[0].id
 	})
-	console.log({ log: 'handleDashboardPost', session })
 	return c.redirect(session.url)
 }
 
@@ -772,7 +737,7 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 	)
 }
 
-const handlerAdminPost = async (c: Context<HonoEnv>) => {
+const adminPost = async (c: Context<HonoEnv>) => {
 	const formData = await c.req.formData()
 	const intent = formData.get('intent')
 	let actionData = {}

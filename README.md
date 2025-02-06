@@ -61,6 +61,7 @@
 ## Stripe
 
 - Prevent customer creation race conditions: https://github.com/stripe/stripe-node/issues/476#issuecomment-402541143
+- https://docs.stripe.com/api/idempotent_requests
 
 - https://github.com/stripe/stripe-node
 - https://docs.stripe.com/api?lang=node
