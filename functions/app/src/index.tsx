@@ -8,42 +8,47 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
+import { Schema } from 'effect'
 import { Context, Hono } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
 import { z } from 'zod'
 
-const roleSchema = z.enum(['user', 'admin']) // Must align with roles table
-export type Role = z.infer<typeof roleSchema>
+export const roleSchema = Schema.Literal('user', 'admin') // Must align with roles table
+export type Role = Schema.Schema.Type<typeof roleSchema>
 export const asRole = (role: Role) => role
 
-export type TeamMemberRole = 'owner' | 'member' // Must align with teamMemberRoles table
+export const teamMemberRoleSchema = Schema.Literal('owner', 'member') // Must align with teamMemberRoles table
+export type TeamMemberRole = Schema.Schema.Type<typeof teamMemberRoleSchema>
 export const asTeamMemberRole = (role: TeamMemberRole) => role
 
-type User = {
-	userId: number
-	name: string
-	email: string
-	role: Role
-}
+export const userSchema = Schema.Struct({
+	userId: Schema.Number,
+	name: Schema.Union(Schema.String, Schema.Literal(null)),
+	email: Schema.String,
+	role: roleSchema
+})
+export type User = Schema.Schema.Type<typeof userSchema>
 
-type Team = {
-	teamId: number
-	name: string
-	stripeCustomerId: string | null
-	stripeSubscriptionId: string | null
-	stripeProductId: string | null
-	planName: string | null
-	subscriptionStatus: string | null
-}
+export const teamSchema = Schema.Struct({
+	teamId: Schema.Number,
+	name: Schema.String,
+	stripeCustomerId: Schema.Union(Schema.String, Schema.Literal(null)),
+	stripeSubscriptionId: Schema.Union(Schema.String, Schema.Literal(null)),
+	stripeProductId: Schema.Union(Schema.String, Schema.Literal(null)),
+	planName: Schema.Union(Schema.String, Schema.Literal(null)),
+	subscriptionStatus: Schema.Union(Schema.String, Schema.Literal(null))
+})
+export type Team = Schema.Schema.Type<typeof teamSchema>
 
-type TeamMember = {
-	teamMemberId: number
-	teamId: number
-	user: User
-	teamMemberRole: TeamMemberRole
-}
+export const teamMemberSchema = Schema.Struct({
+	teamMemberId: Schema.Number,
+	teamId: Schema.Number,
+	user: userSchema,
+	teamMemberRole: teamMemberRoleSchema
+})
+export type TeamMember = Schema.Schema.Type<typeof teamMemberSchema>
 
 type HonoEnv = {
 	Bindings: Env
@@ -70,7 +75,7 @@ export const subjects = createSubjects({
 	user: z.object({
 		userId: z.number(),
 		email: z.string(),
-		role: roleSchema
+		role: z.enum(['user', 'admin'])
 	})
 })
 
@@ -133,15 +138,15 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 					)
 					.bind(email)
 			])
-			return user as User
+			return Schema.decodeUnknownSync(userSchema)(user)
 		},
 		getTeamForUser: async ({ userId }: { userId: number }) => {
 			const team = await db
 				.prepare('select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")')
 				.bind(userId)
-				.first<Team>()
+				.first()
 			if (!team) throw new Error('Missing team.')
-			return team
+			return Schema.decodeUnknownSync(teamSchema)(team)
 		},
 		updateStripeCustomerId: async ({
 			teamId,
