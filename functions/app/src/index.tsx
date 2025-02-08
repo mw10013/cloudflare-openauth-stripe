@@ -8,8 +8,8 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { Schema } from 'effect'
-import { Context, Hono } from 'hono'
+import { Console, Context, Effect, Layer, ManagedRuntime, Schema } from 'effect'
+import { Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
@@ -63,6 +63,7 @@ export type TeamWithTeamMembers = Schema.Schema.Type<typeof TeamWithTeamMembers>
 type HonoEnv = {
 	Bindings: Env
 	Variables: {
+		runtime: ReturnType<typeof createRuntime>
 		sessionData: SessionData
 		dbService: ReturnType<typeof createDbService>
 		stripe: Stripe
@@ -189,18 +190,45 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 	}
 }
 
+class Config extends Context.Tag('Config')<
+	Config,
+	{
+		readonly getConfig: Effect.Effect<{
+			readonly logLevel: string
+			readonly connection: string
+		}>
+	}
+>() {}
+
+const ConfigLive = Layer.succeed(
+	Config,
+	Config.of({
+		getConfig: Effect.succeed({
+			logLevel: 'INFO',
+			connection: 'mysql://username:password@hostname:port/database_name'
+		})
+	})
+)
+
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
+		const runtime = createRuntime()
 		const dbService = createDbService(env.D1)
 		const stripe = new Stripe(env.STRIPE_SECRET_KEY)
 		const openAuth = createOpenAuth({ env, dbService })
 		const app = new Hono()
 		app.route('/', openAuth)
 		app.route('/', createApi({ env, dbService, stripe }))
-		app.route('/', createFrontend({ env, ctx, openAuth, dbService, stripe })) // Last to isolate middleware
-		return app.fetch(request, env, ctx)
+		app.route('/', createFrontend({ env, ctx, openAuth, dbService, stripe, runtime })) // Last to isolate middleware
+		const response = await app.fetch(request, env, ctx)
+		ctx.waitUntil(runtime.dispose())
+		return response
 	}
 } satisfies ExportedHandler<Env>
+
+function createRuntime() {
+	return ManagedRuntime.make(ConfigLive)
+}
 
 function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<typeof createDbService> }) {
 	const { request, ...codeUi } = CodeUI({
@@ -377,12 +405,14 @@ function createApi({ env, dbService, stripe }: { env: Env; dbService: ReturnType
 function createFrontend({
 	env,
 	ctx,
+	runtime,
 	openAuth,
 	dbService,
 	stripe
 }: {
 	env: Env
 	ctx: ExecutionContext
+	runtime: ReturnType<typeof createRuntime>
 	openAuth: ReturnType<typeof createOpenAuth>
 	dbService: ReturnType<typeof createDbService>
 	stripe: Stripe
@@ -397,11 +427,12 @@ function createFrontend({
 			maxAge: 60 * 60,
 			sameSite: 'Lax'
 		})
-		const kvSessionData = await env.KV.get(sessionId, { type: 'json' }) || {}
+		const kvSessionData = (await env.KV.get(sessionId, { type: 'json' })) || {}
 		const sessionData = Schema.decodeUnknownSync(SessionData)(kvSessionData)
 		c.set('sessionData', sessionData)
 		console.log({ sessionData })
 
+		c.set('runtime', runtime)
 		c.set('dbService', dbService)
 		c.set('stripe', stripe)
 
@@ -598,7 +629,7 @@ const Pricing: FC = async () => {
 	)
 }
 
-const pricingPost = async (c: Context<HonoEnv>) => {
+const pricingPost = async (c: HonoContext<HonoEnv>) => {
 	const sessionUser = c.var.sessionData.sessionUser
 	if (!sessionUser) return c.redirect('/authenticate')
 	if (sessionUser.role !== 'user') throw new Error('Only users can subscribe')
@@ -680,7 +711,7 @@ const Dashboard: FC = async () => {
 	)
 }
 
-const dashboardPost = async (c: Context<HonoEnv>) => {
+const dashboardPost = async (c: HonoContext<HonoEnv>) => {
 	if (!c.var.sessionData.sessionUser) throw new Error('Missing sessionUser')
 	const team = await c.var.dbService.getTeamForUser(c.var.sessionData.sessionUser)
 	if (!team.stripeCustomerId || !team.stripeProductId) {
@@ -702,6 +733,11 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 		<div className="flex flex-col gap-2">
 			<h1 className="text-lg font-medium lg:text-2xl">Admin</h1>
 			<div className="flex gap-2">
+				<form action="/admin" method="post">
+					<button name="intent" value="effect" className="btn btn-outline">
+						Effect
+					</button>
+				</form>
 				<form action="/admin" method="post">
 					<button name="intent" value="teams" className="btn btn-outline">
 						Teams
@@ -750,11 +786,20 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 	)
 }
 
-const adminPost = async (c: Context<HonoEnv>) => {
+const adminPost = async (c: HonoContext<HonoEnv>) => {
 	const formData = await c.req.formData()
 	const intent = formData.get('intent')
 	let actionData = {}
 	switch (intent) {
+		case 'effect':
+			{
+				const runtime = c.var.runtime
+				const program = Effect.gen(function* () {
+					yield* Console.log('hello effect')
+				})
+				await runtime.runPromise(program)
+			}
+			break
 		case 'teams':
 			actionData = { teams: await c.var.dbService.getTeams() }
 			break
