@@ -15,15 +15,6 @@ import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
 import { z } from 'zod'
 
-const schema = Schema.Array(Schema.Number)
-
-// Access the value type of the array schema
-//
-//      ┌─── typeof Schema.Number
-//      ▼
-const value = schema.value
-type T = typeof schema.Type
-
 export const Role = Schema.Literal('user', 'admin') // Must align with roles table
 export type Role = Schema.Schema.Type<typeof Role>
 
@@ -80,15 +71,17 @@ type HonoEnv = {
 	}
 }
 
-type SessionUser = {
-	userId: number
-	email: string
+export const SessionUser = Schema.Struct({
+	userId: Schema.Number,
+	email: Schema.String,
 	role: Role
-}
+})
+export type SessionUser = Schema.Schema.Type<typeof SessionUser>
 
-type SessionData = {
-	sessionUser?: SessionUser
-}
+export const SessionData = Schema.Struct({
+	sessionUser: Schema.optional(SessionUser)
+})
+export type SessionData = Schema.Schema.Type<typeof SessionData>
 
 export const subjects = createSubjects({
 	user: z.object({
@@ -404,8 +397,8 @@ function createFrontend({
 			maxAge: 60 * 60,
 			sameSite: 'Lax'
 		})
-		const kvSessionData = await env.KV.get<SessionData>(sessionId, { type: 'json' })
-		const sessionData = kvSessionData || {}
+		const kvSessionData = await env.KV.get(sessionId, { type: 'json' }) || {}
+		const sessionData = Schema.decodeUnknownSync(SessionData)(kvSessionData)
 		c.set('sessionData', sessionData)
 		console.log({ sessionData })
 
