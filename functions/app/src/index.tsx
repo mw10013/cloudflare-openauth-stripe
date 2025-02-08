@@ -15,50 +15,59 @@ import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
 import { z } from 'zod'
 
-export const roleSchema = Schema.Literal('user', 'admin') // Must align with roles table
-export type Role = Schema.Schema.Type<typeof roleSchema>
+const schema = Schema.Array(Schema.Number)
 
-export const teamMemberRoleSchema = Schema.Literal('owner', 'member') // Must align with teamMemberRoles table
-export type TeamMemberRole = Schema.Schema.Type<typeof teamMemberRoleSchema>
+// Access the value type of the array schema
+//
+//      ┌─── typeof Schema.Number
+//      ▼
+const value = schema.value
+type T = typeof schema.Type
 
-export const userSchema = Schema.Struct({
+export const Role = Schema.Literal('user', 'admin') // Must align with roles table
+export type Role = Schema.Schema.Type<typeof Role>
+
+export const TeamMemberRole = Schema.Literal('owner', 'member') // Must align with teamMemberRoles table
+export type TeamMemberRole = Schema.Schema.Type<typeof TeamMemberRole>
+
+export const User = Schema.Struct({
 	userId: Schema.Number,
-	name: Schema.Union(Schema.String, Schema.Null),
+	name: Schema.NullOr(Schema.String),
 	email: Schema.String,
-	role: roleSchema
+	role: Role
 })
-export type User = Schema.Schema.Type<typeof userSchema>
+export type User = Schema.Schema.Type<typeof User>
 
-export const teamSchema = Schema.Struct({
+export const Team = Schema.Struct({
 	teamId: Schema.Number,
 	name: Schema.String,
-	stripeCustomerId: Schema.Union(Schema.String, Schema.Null),
-	stripeSubscriptionId: Schema.Union(Schema.String, Schema.Null),
-	stripeProductId: Schema.Union(Schema.String, Schema.Null),
-	planName: Schema.Union(Schema.String, Schema.Null),
-	subscriptionStatus: Schema.Union(Schema.String, Schema.Null)
+	stripeCustomerId: Schema.NullOr(Schema.String),
+	stripeSubscriptionId: Schema.NullOr(Schema.String),
+	stripeProductId: Schema.NullOr(Schema.String),
+	planName: Schema.NullOr(Schema.String),
+	subscriptionStatus: Schema.NullOr(Schema.String)
 })
-export type Team = Schema.Schema.Type<typeof teamSchema>
+export type Team = Schema.Schema.Type<typeof Team>
 
-export const teamMemberSchema = Schema.Struct({
+export const TeamMember = Schema.Struct({
 	teamMemberId: Schema.Number,
 	teamId: Schema.Number,
 	userId: Schema.Number,
-	teamMemberRole: teamMemberRoleSchema
+	teamMemberRole: TeamMemberRole
 })
-export type TeamMember = Schema.Schema.Type<typeof teamMemberSchema>
+export type TeamMember = Schema.Schema.Type<typeof TeamMember>
 
-export const teamMemberWithUserSchema = Schema.Struct({
-	...teamMemberSchema.fields,
-	user: userSchema
+export const TeamMemberWithUser = Schema.Struct({
+	...TeamMember.fields,
+	user: User
 })
-export type TeamMemberWithUser = Schema.Schema.Type<typeof teamMemberWithUserSchema>
+export type TeamMemberWithUser = Schema.Schema.Type<typeof TeamMemberWithUser>
 
-export const teamWithTeamMembersSchema = Schema.Struct({
-	...teamSchema.fields,
-	teamMembers: Schema.Array(teamMemberWithUserSchema)
+export const TeamWithTeamMembers = Schema.Struct({
+	...Team.fields,
+	teamMembers: Schema.Array(TeamMemberWithUser)
 })
-export type TeamWithTeamMembers = Schema.Schema.Type<typeof teamWithTeamMembersSchema>
+export type TeamWithTeamMembers = Schema.Schema.Type<typeof TeamWithTeamMembers>
 
 type HonoEnv = {
 	Bindings: Env
@@ -103,12 +112,8 @@ select json_group_array(
 			select
 				json_group_array(
 					json_object(
-						'teamMemberId',
-						tm.teamMemberId,
-						'teamMemberRole',
-						tm.teamMemberRole,
-						'user',
-						(select json_object('userId', u.userId, 'email', u.email) from users u where u.userId = tm.userId))
+						'teamMemberId', tm.teamMemberId, 'userId', tm.userId, 'teamId', tm.teamId, 'teamMemberRole', tm.teamMemberRole,
+						'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'role', u.role) from users u where u.userId = tm.userId))
 					)
 			from teamMembers tm where tm.teamId = t.teamId
 		)
@@ -117,7 +122,7 @@ select json_group_array(
 `
 				)
 				.first<{ data: string }>()
-				.then((v) => JSON.parse(v?.data || 'null')),
+				.then((v) => Schema.decodeSync(Schema.NullishOr(Schema.parseJson(Schema.Array(TeamWithTeamMembers))))(v?.data)),
 		upsertUser: async ({ email }: { email: string }) => {
 			const [
 				{
@@ -148,7 +153,7 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 					)
 					.bind(email)
 			])
-			return Schema.decodeUnknownSync(userSchema)(user)
+			return Schema.decodeUnknownSync(User)(user)
 		},
 		getTeamForUser: async ({ userId }: { userId: number }) => {
 			const team = await db
@@ -156,7 +161,7 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 				.bind(userId)
 				.first()
 			if (!team) throw new Error('Missing team.')
-			return Schema.decodeUnknownSync(teamSchema)(team)
+			return Schema.decodeUnknownSync(Team)(team)
 		},
 		updateStripeCustomerId: async ({
 			teamId,
@@ -519,14 +524,14 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 				<div className="navbar bg-base-100 shadow-sm">
 					<div className="navbar-start">
 						<div className="dropdown">
-						<div tabIndex={0} role="button" className="btn btn-ghost lg:hidden">
-							<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h8m-8 6h16" />
-							</svg>
-						</div>
-						<ul tabIndex={0} class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
-							<ListItems />
-						</ul>
+							<div tabIndex={0} role="button" className="btn btn-ghost lg:hidden">
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h8m-8 6h16" />
+								</svg>
+							</div>
+							<ul tabIndex={0} class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
+								<ListItems />
+							</ul>
 						</div>
 						<a href="/" className="btn btn-ghost text-xl">
 							Cloudflare-OpenAUTH-Stripe
