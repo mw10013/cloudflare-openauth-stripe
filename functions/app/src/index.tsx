@@ -17,15 +17,13 @@ import { z } from 'zod'
 
 export const roleSchema = Schema.Literal('user', 'admin') // Must align with roles table
 export type Role = Schema.Schema.Type<typeof roleSchema>
-export const asRole = (role: Role) => role
 
 export const teamMemberRoleSchema = Schema.Literal('owner', 'member') // Must align with teamMemberRoles table
 export type TeamMemberRole = Schema.Schema.Type<typeof teamMemberRoleSchema>
-export const asTeamMemberRole = (role: TeamMemberRole) => role
 
 export const userSchema = Schema.Struct({
 	userId: Schema.Number,
-	name: Schema.Union(Schema.String, Schema.Literal(null)),
+	name: Schema.Union(Schema.String, Schema.Null),
 	email: Schema.String,
 	role: roleSchema
 })
@@ -34,21 +32,33 @@ export type User = Schema.Schema.Type<typeof userSchema>
 export const teamSchema = Schema.Struct({
 	teamId: Schema.Number,
 	name: Schema.String,
-	stripeCustomerId: Schema.Union(Schema.String, Schema.Literal(null)),
-	stripeSubscriptionId: Schema.Union(Schema.String, Schema.Literal(null)),
-	stripeProductId: Schema.Union(Schema.String, Schema.Literal(null)),
-	planName: Schema.Union(Schema.String, Schema.Literal(null)),
-	subscriptionStatus: Schema.Union(Schema.String, Schema.Literal(null))
+	stripeCustomerId: Schema.Union(Schema.String, Schema.Null),
+	stripeSubscriptionId: Schema.Union(Schema.String, Schema.Null),
+	stripeProductId: Schema.Union(Schema.String, Schema.Null),
+	planName: Schema.Union(Schema.String, Schema.Null),
+	subscriptionStatus: Schema.Union(Schema.String, Schema.Null)
 })
 export type Team = Schema.Schema.Type<typeof teamSchema>
 
 export const teamMemberSchema = Schema.Struct({
 	teamMemberId: Schema.Number,
 	teamId: Schema.Number,
-	user: userSchema,
+	userId: Schema.Number,
 	teamMemberRole: teamMemberRoleSchema
 })
 export type TeamMember = Schema.Schema.Type<typeof teamMemberSchema>
+
+export const teamMemberWithUserSchema = Schema.Struct({
+	...teamMemberSchema.fields,
+	user: userSchema
+})
+export type TeamMemberWithUser = Schema.Schema.Type<typeof teamMemberWithUserSchema>
+
+export const teamWithTeamMembersSchema = Schema.Struct({
+	...teamSchema.fields,
+	teamMembers: Schema.Array(teamMemberWithUserSchema)
+})
+export type TeamWithTeamMembers = Schema.Schema.Type<typeof teamWithTeamMembersSchema>
 
 type HonoEnv = {
 	Bindings: Env
@@ -509,14 +519,14 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 				<div className="navbar bg-base-100 shadow-sm">
 					<div className="navbar-start">
 						<div className="dropdown">
-							<div tabIndex={0} role="button" className="btn btn-ghost lg:hidden">
-								<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h8m-8 6h16" />
-								</svg>
-							</div>
-							<ul tabIndex={0} class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
-								<ListItems />
-							</ul>
+						<div tabIndex={0} role="button" className="btn btn-ghost lg:hidden">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h8m-8 6h16" />
+							</svg>
+						</div>
+						<ul tabIndex={0} class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
+							<ListItems />
+						</ul>
 						</div>
 						<a href="/" className="btn btn-ghost text-xl">
 							Cloudflare-OpenAUTH-Stripe
