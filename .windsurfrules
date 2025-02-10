@@ -7,4 +7,5 @@
 - Schema documentaton for filters: https://effect.website/docs/schema/filters/
 - Schema documentation for transformations: https://effect.website/docs/schema/transformations/
 - Schema documentation for advanced usage including branded types, optionals, and extending schemas: https://effect.website/docs/schema/advanced-usage/
-
+- Layer documentationt: https://effect.website/docs/requirements-management/layers
+- Layer api: https://effect-ts.github.io/effect/effect/Layer.ts.html

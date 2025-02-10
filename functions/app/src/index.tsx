@@ -9,6 +9,7 @@ import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
 import { Console, Context, Effect, Layer, ManagedRuntime, Schema } from 'effect'
+import { UnknownException } from 'effect/Cause'
 import { Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
@@ -92,6 +93,9 @@ export const subjects = createSubjects({
 	})
 })
 
+export const TeamsResult = Schema.NullishOr(Schema.parseJson(Schema.Array(TeamWithTeamMembers)))
+export type TeamsResult = Schema.Schema.Type<typeof TeamsResult>
+
 export function createDbService(db: Env['D1']) {
 	return {
 		getTeams: async () =>
@@ -116,7 +120,7 @@ select json_group_array(
 `
 				)
 				.first<{ data: string }>()
-				.then((v) => Schema.decodeSync(Schema.NullishOr(Schema.parseJson(Schema.Array(TeamWithTeamMembers))))(v?.data)),
+				.then((v) => Schema.decodeSync(TeamsResult)(v?.data)),
 		upsertUser: async ({ email }: { email: string }) => {
 			const [
 				{
@@ -190,29 +194,66 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 	}
 }
 
-class Config extends Context.Tag('Config')<
-	Config,
-	{
-		readonly getConfig: Effect.Effect<{
-			readonly logLevel: string
-			readonly connection: string
-		}>
-	}
+// class Config extends Context.Tag('Config')<
+// 	Config,
+// 	{
+// 		readonly getConfig: Effect.Effect<{
+// 			readonly logLevel: string
+// 			readonly connection: string
+// 		}>
+// 	}
+// >() {}
+
+// const ConfigLive = Layer.succeed(
+// 	Config,
+// 	Config.of({
+// 		getConfig: Effect.succeed({
+// 			logLevel: 'INFO',
+// 			connection: 'mysql://username:password@hostname:port/database_name'
+// 		})
+// 	})
+// )
+
+class MyService extends Context.Tag('MyService')<
+	MyService,
+	{ readonly foo: Effect.Effect<string>; readonly getTeams: Effect.Effect<TeamsResult, UnknownException> }
 >() {}
 
-const ConfigLive = Layer.succeed(
-	Config,
-	Config.of({
-		getConfig: Effect.succeed({
-			logLevel: 'INFO',
-			connection: 'mysql://username:password@hostname:port/database_name'
-		})
-	})
+function createRuntime({ env }: { env: Env }) {
+	const d1 = env.D1
+	const MyServiceLive = Layer.succeed(MyService, {
+		foo: Effect.succeed('bar!!'),
+		getTeams: Effect.tryPromise(() =>
+			d1
+				.prepare(
+					`
+select json_group_array(
+json_object(
+	'teamId', teamId, 'name', name, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
+	'teamMembers',
+	(
+		select
+			json_group_array(
+				json_object(
+					'teamMemberId', tm.teamMemberId, 'userId', tm.userId, 'teamId', tm.teamId, 'teamMemberRole', tm.teamMemberRole,
+					'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'role', u.role) from users u where u.userId = tm.userId))
+				)
+		from teamMembers tm where tm.teamId = t.teamId
+	)
 )
+) as data from teams t
+`
+				)
+				.first<{ data: string }>()
+				.then((v) => Schema.decodeSync(TeamsResult)(v?.data))
+		)
+	})
+	return ManagedRuntime.make(MyServiceLive)
+}
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
-		const runtime = createRuntime()
+		const runtime = createRuntime({ env })
 		const dbService = createDbService(env.D1)
 		const stripe = new Stripe(env.STRIPE_SECRET_KEY)
 		const openAuth = createOpenAuth({ env, dbService })
@@ -225,10 +266,6 @@ export default {
 		return response
 	}
 } satisfies ExportedHandler<Env>
-
-function createRuntime() {
-	return ManagedRuntime.make(ConfigLive)
-}
 
 function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<typeof createDbService> }) {
 	const { request, ...codeUi } = CodeUI({
@@ -728,6 +765,41 @@ const dashboardPost = async (c: HonoContext<HonoEnv>) => {
 	return c.redirect(session.url)
 }
 
+async function syncStripeData({
+	customerId,
+	stripe,
+	dbService
+}: {
+	customerId: string
+	stripe: Stripe
+	dbService: ReturnType<typeof createDbService>
+}) {
+	console.log({ log: 'syncStripeData', customerId })
+	const subscriptions = await stripe.subscriptions.list({
+		customer: customerId,
+		limit: 1,
+		status: 'all',
+		expand: ['data.items', 'data.items.data.price']
+	})
+	if (subscriptions.data.length === 0) {
+		console.log(`syncStripeData: No subscriptions found for customer ${customerId}`)
+		return
+	}
+
+	// If a user can have multiple subscriptions, that's your problem
+	const subscription = subscriptions.data[0]
+	const subscriptionItem = subscription.items.data[0]
+	if (typeof subscriptionItem.price.product !== 'string') throw new Error('Invalid product')
+	if (typeof subscriptionItem.price.lookup_key !== 'string') throw new Error('Invalid lookup_key')
+	await dbService.updateStripeSubscription({
+		stripeCustomerId: customerId,
+		stripeSubscriptionId: subscription.id,
+		stripeProductId: subscriptionItem.price.product,
+		planName: subscriptionItem.price.lookup_key,
+		subscriptionStatus: subscription.status
+	})
+}
+
 const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 	return (
 		<div className="flex flex-col gap-2">
@@ -736,6 +808,11 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 				<form action="/admin" method="post">
 					<button name="intent" value="effect" className="btn btn-outline">
 						Effect
+					</button>
+				</form>
+				<form action="/admin" method="post">
+					<button name="intent" value="effect_1" className="btn btn-outline">
+						Effect 1
 					</button>
 				</form>
 				<form action="/admin" method="post">
@@ -793,11 +870,21 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 	switch (intent) {
 		case 'effect':
 			{
-				const runtime = c.var.runtime
 				const program = Effect.gen(function* () {
 					yield* Console.log('hello effect')
+					return 'hello effect'
 				})
-				await runtime.runPromise(program)
+				actionData = { data: await c.var.runtime.runPromise(program) }
+			}
+			break
+
+		case 'effect_1':
+			{
+				const program = Effect.gen(function* () {
+					const myService = yield* MyService
+					return yield* myService.getTeams
+				})
+				actionData = { data: await c.var.runtime.runPromise(program) }
 			}
 			break
 		case 'teams':
@@ -833,39 +920,4 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 			throw new Error('Invalid intent')
 	}
 	return c.render(<Admin actionData={{ intent, ...actionData }} />)
-}
-
-async function syncStripeData({
-	customerId,
-	stripe,
-	dbService
-}: {
-	customerId: string
-	stripe: Stripe
-	dbService: ReturnType<typeof createDbService>
-}) {
-	console.log({ log: 'syncStripeData', customerId })
-	const subscriptions = await stripe.subscriptions.list({
-		customer: customerId,
-		limit: 1,
-		status: 'all',
-		expand: ['data.items', 'data.items.data.price']
-	})
-	if (subscriptions.data.length === 0) {
-		console.log(`syncStripeData: No subscriptions found for customer ${customerId}`)
-		return
-	}
-
-	// If a user can have multiple subscriptions, that's your problem
-	const subscription = subscriptions.data[0]
-	const subscriptionItem = subscription.items.data[0]
-	if (typeof subscriptionItem.price.product !== 'string') throw new Error('Invalid product')
-	if (typeof subscriptionItem.price.lookup_key !== 'string') throw new Error('Invalid lookup_key')
-	await dbService.updateStripeSubscription({
-		stripeCustomerId: customerId,
-		stripeSubscriptionId: subscription.id,
-		stripeProductId: subscriptionItem.price.product,
-		planName: subscriptionItem.price.lookup_key,
-		subscriptionStatus: subscription.status
-	})
 }
