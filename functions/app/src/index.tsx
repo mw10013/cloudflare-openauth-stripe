@@ -194,63 +194,6 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 	}
 }
 
-// class Config extends Context.Tag('Config')<
-// 	Config,
-// 	{
-// 		readonly getConfig: Effect.Effect<{
-// 			readonly logLevel: string
-// 			readonly connection: string
-// 		}>
-// 	}
-// >() {}
-
-// const ConfigLive = Layer.succeed(
-// 	Config,
-// 	Config.of({
-// 		getConfig: Effect.succeed({
-// 			logLevel: 'INFO',
-// 			connection: 'mysql://username:password@hostname:port/database_name'
-// 		})
-// 	})
-// )
-
-class MyService extends Context.Tag('MyService')<
-	MyService,
-	{ readonly foo: Effect.Effect<string>; readonly getTeams: Effect.Effect<TeamsResult, UnknownException> }
->() {}
-
-function createRuntime({ env }: { env: Env }) {
-	const d1 = env.D1
-	const MyServiceLive = Layer.succeed(MyService, {
-		foo: Effect.succeed('bar!!'),
-		getTeams: Effect.tryPromise(() =>
-			d1
-				.prepare(
-					`
-select json_group_array(
-json_object(
-	'teamId', teamId, 'name', name, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
-	'teamMembers',
-	(
-		select
-			json_group_array(
-				json_object(
-					'teamMemberId', tm.teamMemberId, 'userId', tm.userId, 'teamId', tm.teamId, 'teamMemberRole', tm.teamMemberRole,
-					'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'role', u.role) from users u where u.userId = tm.userId))
-				)
-		from teamMembers tm where tm.teamId = t.teamId
-	)
-)
-) as data from teams t
-`
-				)
-				.first<{ data: string }>()
-				.then((v) => Schema.decodeSync(TeamsResult)(v?.data))
-		)
-	})
-	return ManagedRuntime.make(MyServiceLive)
-}
-
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const runtime = createRuntime({ env })
@@ -825,38 +768,38 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 						Billing Portal Configs
 					</button>
 				</form>
-			</div>
-			<div className="card bg-base-100 w-96 shadow-sm">
-				<form action="/admin" method="post">
-					<div className="card-body">
-						<h2 className="card-title">Customer Subscription</h2>
-						<fieldset className="fieldset">
-							<legend className="fieldset-legend">Customer Id</legend>
-							<input type="text" name="customerId" className="input" />
-						</fieldset>
-						<div className="card-actions justify-end">
-							<button name="intent" value="customer_subscription" className="btn btn-primary">
-								Submit
-							</button>
+				<div className="card bg-base-100 w-96 shadow-sm">
+					<form action="/admin" method="post">
+						<div className="card-body">
+							<h2 className="card-title">Customer Subscription</h2>
+							<fieldset className="fieldset">
+								<legend className="fieldset-legend">Customer Id</legend>
+								<input type="text" name="customerId" className="input" />
+							</fieldset>
+							<div className="card-actions justify-end">
+								<button name="intent" value="customer_subscription" className="btn btn-primary">
+									Submit
+								</button>
+							</div>
 						</div>
-					</div>
-				</form>
-			</div>
-			<div className="card bg-base-100 w-96 shadow-sm">
-				<form action="/admin" method="post">
-					<div className="card-body">
-						<h2 className="card-title">Create User</h2>
-						<fieldset className="fieldset">
-							<legend className="fieldset-legend">Email</legend>
-							<input type="email" name="email" className="input" />
-						</fieldset>
-						<div className="card-actions justify-end">
-							<button type="submit" name="intent" value="create_user" className="btn btn-primary">
-								Submit
-							</button>
+					</form>
+				</div>
+				<div className="card bg-base-100 w-96 shadow-sm">
+					<form action="/admin" method="post">
+						<div className="card-body">
+							<h2 className="card-title">Create User</h2>
+							<fieldset className="fieldset">
+								<legend className="fieldset-legend">Email</legend>
+								<input type="email" name="email" className="input" />
+							</fieldset>
+							<div className="card-actions justify-end">
+								<button type="submit" name="intent" value="create_user" className="btn btn-primary">
+									Submit
+								</button>
+							</div>
 						</div>
-					</div>
-				</form>
+					</form>
+				</div>
 			</div>
 			<pre>{JSON.stringify({ actionData }, null, 2)}</pre>
 		</div>
@@ -871,8 +814,9 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 		case 'effect':
 			{
 				const program = Effect.gen(function* () {
-					yield* Console.log('hello effect')
-					return 'hello effect'
+					const d1 = yield* D1
+					const stmt = d1.prepare('select * from users where userId = ?').bind(1)
+					return yield* run(stmt)
 				})
 				actionData = { data: await c.var.runtime.runPromise(program) }
 			}
@@ -881,10 +825,11 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 		case 'effect_1':
 			{
 				const program = Effect.gen(function* () {
-					const myService = yield* MyService
-					return yield* myService.getTeams
+					const d1 = yield* D1
+					const stmt = d1.prepare('select * from users')
+					return yield* Effect.tryPromise(() => stmt.run())
 				})
-				actionData = { data: await c.var.runtime.runPromise(program) }
+				actionData = { result: await c.var.runtime.runPromise(program) }
 			}
 			break
 		case 'teams':
@@ -920,4 +865,32 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 			throw new Error('Invalid intent')
 	}
 	return c.render(<Admin actionData={{ intent, ...actionData }} />)
+}
+
+class CloudflareEnv extends Context.Tag('CloudflareEnv')<CloudflareEnv, Env>() {}
+
+const run = (stmt: D1PreparedStatement) =>
+	Effect.gen(function* () {
+		return yield* Effect.tryPromise(() => stmt.run())
+	})
+
+class D1 extends Context.Tag('D1')<
+	D1,
+	{
+		readonly prepare: (query: string) => D1PreparedStatement
+	}
+>() {}
+
+function createRuntime({ env }: { env: Env }) {
+	const D1Live = Layer.effect(
+		D1,
+		Effect.gen(function* () {
+			const { D1 } = yield* CloudflareEnv
+			return {
+				prepare: (query) => D1.prepare(query)
+			}
+		})
+	)
+	const Live = D1Live.pipe(Layer.provide(Layer.succeed(CloudflareEnv, env)))
+	return ManagedRuntime.make(Live)
 }
