@@ -8,13 +8,14 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { Console, Context, Effect, Layer, ManagedRuntime, Schema } from 'effect'
+import { Context, Effect, Layer, ManagedRuntime, Schema } from 'effect'
 import { UnknownException } from 'effect/Cause'
 import { Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
 import { z } from 'zod'
+import * as D from './D1'
 
 export const Role = Schema.Literal('user', 'admin') // Must align with roles table
 export type Role = Schema.Schema.Type<typeof Role>
@@ -819,9 +820,9 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 		case 'effect':
 			{
 				const program = Effect.gen(function* () {
-					const d1 = yield* D1
+					const d1 = yield* D.D1
 					const stmt = d1.prepare('select * from users where userId = ?').bind(1)
-					return yield* first(stmt)
+					return yield* D.first(stmt)
 				})
 				actionData = { data: await c.var.runtime.runPromise(program) }
 			}
@@ -830,9 +831,9 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 		case 'effect_1':
 			{
 				const program = Effect.gen(function* () {
-					const d1 = yield* D1
+					const d1 = yield* D.D1
 					const stmt = d1.prepare('select * from users')
-					return yield* run(stmt)
+					return yield* D.run(stmt)
 				})
 				actionData = { result: await c.var.runtime.runPromise(program) }
 			}
@@ -840,7 +841,7 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 		case 'effect_2':
 			{
 				const program = Effect.gen(function* () {
-					const d1 = yield* D1
+					const d1 = yield* D.D1
 					return yield* d1.batch([
 						d1.prepare('select * from users where userId = ?').bind(1),
 						d1.prepare('select * from users where userId = ?').bind(2)
@@ -884,72 +885,51 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 	return c.render(<Admin actionData={{ intent, ...actionData }} />)
 }
 
-class CloudflareEnv extends Context.Tag('CloudflareEnv')<CloudflareEnv, Env>() {}
 
-const run = (stmt: D1PreparedStatement) => Effect.tryPromise(() => stmt.run())
-const first = (stmt: D1PreparedStatement) => Effect.tryPromise(() => stmt.first())
-
-class D1 extends Context.Tag('D1')<
-	D1,
-	{
-		readonly prepare: (query: string) => D1PreparedStatement
-		readonly batch: (statements: D1PreparedStatement[]) => Effect.Effect<D1Result[], UnknownException>
-	}
->() {}
-
-class Repository extends Context.Tag('Repository')<
-	Repository,
-	{
-		readonly getTeams: Effect.Effect<TeamsResult, UnknownException>
-		// readonly upsertUser: (props: { email: string }) => Effect.Effect<string, UnknownException>
-	}
->() {}
+// class Repository extends Context.Tag('Repository')<
+// 	Repository,
+// 	{
+// 		readonly getTeams: Effect.Effect<TeamsResult, UnknownException>
+// 		// readonly upsertUser: (props: { email: string }) => Effect.Effect<string, UnknownException>
+// 	}
+// >() {}
 
 function createRuntime({ env }: { env: Env }) {
-	const CloudflareEnvLive = Layer.succeed(CloudflareEnv, env)
-	const D1Live = Layer.effect(
-		D1,
-		Effect.gen(function* () {
-			const { D1 } = yield* CloudflareEnv
-			return {
-				prepare: (query) => D1.prepare(query),
-				batch: (statements) => Effect.tryPromise(() => D1.batch(statements))
-			}
-		})
-	).pipe(Layer.provide(CloudflareEnvLive))
-	const RepositoryLive = Layer.effect(
-		Repository,
-		Effect.gen(function* () {
-			const d1 = yield* D1
-			return {
-				getTeams: Effect.tryPromise(() =>
-					d1
-						.prepare(
-							`
-	select json_group_array(
-	json_object(
-		'teamId', teamId, 'name', name, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
-		'teamMembers',
-		(
-			select
-				json_group_array(
-					json_object(
-						'teamMemberId', tm.teamMemberId, 'userId', tm.userId, 'teamId', tm.teamId, 'teamMemberRole', tm.teamMemberRole,
-						'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'role', u.role) from users u where u.userId = tm.userId))
-					)
-			from teamMembers tm where tm.teamId = t.teamId
-		)
-	)
-	) as data from teams t
-	`
-						)
-						.first<{ data: string }>()
-						.then((v) => Schema.decodeSync(TeamsResult)(v?.data))
-				)
-			}
-		})
-	)
+	// ).pipe(Layer.provide(CloudflareEnvLive))
+	// const RepositoryLive = Layer.effect(
+	// 	Repository,
+	// 	Effect.gen(function* () {
+	// 		const d1 = yield* D1
+	// 		return {
+	// 			getTeams: Effect.tryPromise(() =>
+	// 				d1
+	// 					.prepare(
+	// 						`
+	// select json_group_array(
+	// json_object(
+	// 	'teamId', teamId, 'name', name, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
+	// 	'teamMembers',
+	// 	(
+	// 		select
+	// 			json_group_array(
+	// 				json_object(
+	// 					'teamMemberId', tm.teamMemberId, 'userId', tm.userId, 'teamId', tm.teamId, 'teamMemberRole', tm.teamMemberRole,
+	// 					'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'role', u.role) from users u where u.userId = tm.userId))
+	// 				)
+	// 		from teamMembers tm where tm.teamId = t.teamId
+	// 	)
+	// )
+	// ) as data from teams t
+	// `
+	// 					)
+	// 					.first<{ data: string }>()
+	// 					.then((v) => Schema.decodeSync(TeamsResult)(v?.data))
+	// 			)
+	// 		}
+	// 	})
+	// )
 
-	const Live = RepositoryLive.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
+	// const Live = RepositoryLive.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
+	const Live = D.layer({ db: env.D1 })
 	return ManagedRuntime.make(Live)
 }
