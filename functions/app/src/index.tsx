@@ -822,7 +822,7 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 				const program = Effect.gen(function* () {
 					const d1 = yield* D.D1
 					const stmt = d1.prepare('select * from users where userId = ?').bind(1)
-					return yield* D.first(stmt)
+					return yield* d1.first(stmt)
 				})
 				actionData = { data: await c.var.runtime.runPromise(program) }
 			}
@@ -833,7 +833,7 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 				const program = Effect.gen(function* () {
 					const d1 = yield* D.D1
 					const stmt = d1.prepare('select * from users')
-					return yield* D.run(stmt)
+					return yield* d1.run(stmt)
 				})
 				actionData = { result: await c.var.runtime.runPromise(program) }
 			}
