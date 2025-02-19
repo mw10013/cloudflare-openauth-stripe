@@ -2,9 +2,9 @@ packages:
   - 'functions/*'
 
 catalog:
-  '@openauthjs/openauth': 0.3.6
+  '@openauthjs/openauth': 0.3.9
   '@paralleldrive/cuid2': 2.2.2
-  effect: 3.12.10
+  effect: 3.12.2
   hono: 4.6.18
   stripe: 17.6.0
   typescript: 5.7.3
