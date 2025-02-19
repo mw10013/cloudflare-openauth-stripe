@@ -1,5 +1,5 @@
 import { Context, Effect, Layer, Schema } from "effect";
-import { TeamsResult } from ".";
+import { TeamsResult } from "./schemas";
 import { UnknownException } from "effect/Cause";
 import { D1 } from "./D1";
 
