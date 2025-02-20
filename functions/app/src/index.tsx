@@ -15,7 +15,7 @@ import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
 import { D1, layer as d1Layer} from './D1'
 import { RepositoryLive } from './Repository'
-import { Role, Team, TeamsResult, User, UserSubject } from './schemas'
+import { SessionData, Team, TeamsResult, User, UserSubject } from './schemas'
 
 type HonoEnv = {
 	Bindings: Env
@@ -28,18 +28,6 @@ type HonoEnv = {
 		redirectUri: string
 	}
 }
-
-export const SessionUser = Schema.Struct({
-	userId: Schema.Number,
-	email: Schema.String,
-	role: Role
-})
-export type SessionUser = Schema.Schema.Type<typeof SessionUser>
-
-export const SessionData = Schema.Struct({
-	sessionUser: Schema.optional(SessionUser)
-})
-export type SessionData = Schema.Schema.Type<typeof SessionData>
 
 export const subjects = createSubjects({
 	user: Schema.standardSchemaV1(UserSubject)

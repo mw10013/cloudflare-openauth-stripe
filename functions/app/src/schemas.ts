@@ -53,3 +53,17 @@ export const UserSubject = Schema.Struct({
 	email: Schema.String,
 	role: Role
 })
+
+export const SessionUser = Schema.Struct({
+  userId: Schema.Number,
+  email: Schema.String,
+  role: Role
+})
+export type SessionUser = Schema.Schema.Type<typeof SessionUser>
+
+export const SessionData = Schema.Struct({
+  sessionUser: Schema.optional(SessionUser)
+})
+export type SessionData = Schema.Schema.Type<typeof SessionData>
+
+
