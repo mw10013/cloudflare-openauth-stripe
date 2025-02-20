@@ -38,7 +38,6 @@
 		"@paralleldrive/cuid2": "catalog:",
 		"effect": "catalog:",
 		"hono": "catalog:",
-		"stripe": "catalog:",
-		"zod": "catalog:"
+		"stripe": "catalog:"
 	}
 }

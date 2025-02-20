@@ -1,9 +1,10 @@
 import { createSubjects } from '@openauthjs/openauth/subject'
-import { z } from 'zod'
+import { Schema } from 'effect'
+
+export const UserSubject = Schema.Struct({
+	email: Schema.String
+})
 
 export const subjects = createSubjects({
-	user: z.object({
-		// userId: z.number(),
-		email: z.string()
-	})
+	user: Schema.standardSchemaV1(UserSubject)
 })

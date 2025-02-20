@@ -13,10 +13,9 @@ import { Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
-import { z } from 'zod'
 import { D1, layer as d1Layer} from './D1'
 import { RepositoryLive } from './Repository'
-import { Role, Team, TeamsResult, User } from './schemas'
+import { Role, Team, TeamsResult, User, UserSubject } from './schemas'
 
 type HonoEnv = {
 	Bindings: Env
@@ -43,11 +42,7 @@ export const SessionData = Schema.Struct({
 export type SessionData = Schema.Schema.Type<typeof SessionData>
 
 export const subjects = createSubjects({
-	user: z.object({
-		userId: z.number(),
-		email: z.string(),
-		role: z.enum(['user', 'admin'])
-	})
+	user: Schema.standardSchemaV1(UserSubject)
 })
 
 export function createDbService(db: Env['D1']) {

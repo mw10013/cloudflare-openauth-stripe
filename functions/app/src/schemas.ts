@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Schema } from 'effect'
 
 export const Role = Schema.Literal('user', 'admin') // Must align with roles table
 export type Role = Schema.Schema.Type<typeof Role>
@@ -48,3 +48,8 @@ export type TeamWithTeamMembers = Schema.Schema.Type<typeof TeamWithTeamMembers>
 export const TeamsResult = Schema.NullishOr(Schema.parseJson(Schema.Array(TeamWithTeamMembers)))
 export type TeamsResult = Schema.Schema.Type<typeof TeamsResult>
 
+export const UserSubject = Schema.Struct({
+	userId: Schema.Number,
+	email: Schema.String,
+	role: Role
+})

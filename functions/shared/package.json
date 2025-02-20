@@ -12,7 +12,7 @@
 		"typescript": "catalog:"
 	},
 	"dependencies": {
-		"zod": "catalog:"
+		"effect": "catalog:"
 	},
 	"peerDependencies": {
 		"@openauthjs/openauth": "catalog:"

@@ -13,8 +13,8 @@ catalogs:
       specifier: 2.2.2
       version: 2.2.2
     effect:
-      specifier: 3.12.2
-      version: 3.12.2
+      specifier: 3.13.2
+      version: 3.13.2
     hono:
       specifier: 4.6.18
       version: 4.6.18
@@ -27,9 +27,6 @@ catalogs:
     wrangler:
       specifier: 3.105.1
       version: 3.105.1
-    zod:
-      specifier: 3.24.1
-      version: 3.24.1
 
 importers:
 
@@ -61,16 +58,13 @@ importers:
         version: 2.2.2
       effect:
         specifier: 'catalog:'
-        version: 3.12.2
+        version: 3.13.2
       hono:
         specifier: 'catalog:'
         version: 4.6.18
       stripe:
         specifier: 'catalog:'
         version: 17.6.0
-      zod:
-        specifier: 'catalog:'
-        version: 3.24.1
     devDependencies:
       '@tailwindcss/cli':
         specifier: ^4.0.0
@@ -102,9 +96,9 @@ importers:
       '@openauthjs/openauth':
         specifier: 'catalog:'
         version: 0.3.9(arctic@2.3.4)(hono@4.6.18)
-      zod:
+      effect:
         specifier: 'catalog:'
-        version: 3.24.1
+        version: 3.13.2
     devDependencies:
       typescript:
         specifier: 'catalog:'
@@ -491,6 +485,9 @@ packages:
     resolution: {integrity: sha512-dfUnCxiN9H4ap84DvD2ubjw+3vUNpstxa0TneY/Paat8a3R4uQZDLSvWjmznAY/DoahqTHl9V46HF/Zs3F29pg==}
     engines: {node: '>= 10.0.0'}
 
+  '@standard-schema/spec@1.0.0':
+    resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
+
   '@standard-schema/spec@1.0.0-beta.3':
     resolution: {integrity: sha512-0ifF3BjA1E8SY9C+nUew8RefNOIq0cDlYALPty4rhUm8Rrl6tCM8hBT4bhGhx7I7iXD0uAgt50lgo8dD73ACMw==}
 
@@ -673,8 +670,8 @@ packages:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
     engines: {node: '>= 0.4'}
 
-  effect@3.12.2:
-    resolution: {integrity: sha512-PslVtcxwapLj95icHZJ/ribCS4O26I4o8ga9zzSdLqRTPRBobwbLTJ2E/Bzim5knJjTutfNdVHOGzl8FW03K5Q==}
+  effect@3.13.2:
+    resolution: {integrity: sha512-/w+CPqHDJ33Wq7xC4YKAchrEEPtjvxh563xH9kDTZp99seNYBoBs87vl8DJwartEjj+KLQLP8PzoDne+XmGT2A==}
 
   enhanced-resolve@5.18.0:
     resolution: {integrity: sha512-0/r0MySGYG8YqlayBZ6MuCfECmHFdJ5qyPh8s8wa5Hnm6SaFLSK1VYCbj+NKp090Nm1caZhD+QTnmxO7esYGyQ==}
@@ -1439,6 +1436,8 @@ snapshots:
       '@parcel/watcher-win32-ia32': 2.5.1
       '@parcel/watcher-win32-x64': 2.5.1
 
+  '@standard-schema/spec@1.0.0': {}
+
   '@standard-schema/spec@1.0.0-beta.3': {}
 
   '@tailwindcss/cli@4.0.1':
@@ -1601,8 +1600,9 @@ snapshots:
       es-errors: 1.3.0
       gopd: 1.2.0
 
-  effect@3.12.2:
+  effect@3.13.2:
     dependencies:
+      '@standard-schema/spec': 1.0.0
       fast-check: 3.23.2
 
   enhanced-resolve@5.18.0:
