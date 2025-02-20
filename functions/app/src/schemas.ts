@@ -48,22 +48,13 @@ export type TeamWithTeamMembers = Schema.Schema.Type<typeof TeamWithTeamMembers>
 export const TeamsResult = Schema.NullishOr(Schema.parseJson(Schema.Array(TeamWithTeamMembers)))
 export type TeamsResult = Schema.Schema.Type<typeof TeamsResult>
 
-export const UserSubject = Schema.Struct({
-	userId: Schema.Number,
-	email: Schema.String,
-	role: Role
-})
+export const UserSubject = User.pick('userId', 'email', 'role')
 
-export const SessionUser = Schema.Struct({
-  userId: Schema.Number,
-  email: Schema.String,
-  role: Role
-})
+export const SessionUser = User.pick('userId', 'email', 'role')
 export type SessionUser = Schema.Schema.Type<typeof SessionUser>
 
 export const SessionData = Schema.Struct({
   sessionUser: Schema.optional(SessionUser)
 })
 export type SessionData = Schema.Schema.Type<typeof SessionData>
-
 
