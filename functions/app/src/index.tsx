@@ -13,8 +13,8 @@ import { Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
-import { D1, layer as d1Layer} from './D1'
-import { RepositoryLive } from './Repository'
+import { D1, layer as d1Layer } from './D1'
+import { Repository, RepositoryLive } from './Repository'
 import { SessionData, Team, TeamsResult, User, UserSubject } from './schemas'
 
 type HonoEnv = {
@@ -787,7 +787,14 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 			}
 			break
 		case 'teams':
-			actionData = { teams: await c.var.dbService.getTeams() }
+			{
+				const program = Effect.gen(function* () {
+					const repository = yield* Repository
+					return yield* repository.getTeams
+				})
+
+				actionData = { teams: await c.var.runtime.runPromise(program) }
+			}
 			break
 		case 'billing_portal_configurations':
 			actionData = { configurations: await c.var.stripe.billingPortal.configurations.list() }
