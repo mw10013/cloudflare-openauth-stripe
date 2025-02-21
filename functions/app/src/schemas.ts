@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { ParseResult, Schema } from 'effect'
 
 export const Role = Schema.Literal('user', 'admin') // Must align with roles table
 export type Role = Schema.Schema.Type<typeof Role>
@@ -45,7 +45,7 @@ export const TeamWithTeamMembers = Schema.Struct({
 })
 export type TeamWithTeamMembers = Schema.Schema.Type<typeof TeamWithTeamMembers>
 
-export const TeamsResult = Schema.NullishOr(Schema.parseJson(Schema.Array(TeamWithTeamMembers)))
+export const TeamsResult = Schema.NullOr(Schema.parseJson(Schema.Array(TeamWithTeamMembers)))
 export type TeamsResult = Schema.Schema.Type<typeof TeamsResult>
 
 export const UserSubject = User.pick('userId', 'email', 'role')
@@ -54,7 +54,39 @@ export const SessionUser = User.pick('userId', 'email', 'role')
 export type SessionUser = Schema.Schema.Type<typeof SessionUser>
 
 export const SessionData = Schema.Struct({
-  sessionUser: Schema.optional(SessionUser)
+	sessionUser: Schema.optional(SessionUser)
 })
 export type SessionData = Schema.Schema.Type<typeof SessionData>
 
+export const DataFromJson = Schema.transform(
+	Schema.Struct({
+		data: Schema.parseJson()
+	}),
+	Schema.Array(TeamWithTeamMembers),
+	{
+		strict: true,
+		decode: (input) => input.data as any,
+		encode: (value) => ({ data: value })
+	}
+)
+
+export const TeamsResult1 = Schema.NullOr(DataFromJson)
+export type TeamsResult1 = Schema.Schema.Type<typeof TeamsResult1>
+
+// export const DataResult = <A, I>(dataSchema: Schema.Schema<A, I, never>) =>
+//   Schema.NullOr(
+//     Schema.transform(
+//       Schema.Struct({
+//         data: Schema.parseJson(dataSchema), // Encoded: { readonly data: string }, Decoded: { readonly data: A }
+//       }),
+//       dataSchema, // Encoded: I, Decoded: A
+//       {
+//         strict: true,
+//         decode: (input: { readonly data: A }, _fromI: unknown) => {
+//           const encoded = Schema.encodeSync(dataSchema)(input.data) // Convert A to I
+//           return encoded
+//         },
+//         encode: (_toI: I, toA: A) => ({ data: toA } as const), // Convert A to { readonly data: A }
+//       }
+//     )
+//   )

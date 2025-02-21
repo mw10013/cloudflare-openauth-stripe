@@ -57,7 +57,7 @@ select json_group_array(
 `
 				)
 				.first<{ data: string }>()
-				.then((v) => Schema.decodeSync(TeamsResult)(v?.data)),
+				.then((v) => Schema.decodeSync(TeamsResult)(v?.data ?? null)),
 		upsertUser: async ({ email }: { email: string }) => {
 			const [
 				{
@@ -790,7 +790,7 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 			{
 				const program = Effect.gen(function* () {
 					const repository = yield* Repository
-					return yield* repository.getTeams
+					return yield* repository.getTeams1()
 				})
 
 				actionData = { teams: await c.var.runtime.runPromise(program) }
