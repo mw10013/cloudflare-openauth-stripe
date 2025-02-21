@@ -35,29 +35,6 @@ export const subjects = createSubjects({
 
 export function createDbService(db: Env['D1']) {
 	return {
-		getTeams: async () =>
-			await db
-				.prepare(
-					`
-select json_group_array(
-	json_object(
-		'teamId', teamId, 'name', name, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
-		'teamMembers',
-		(
-			select
-				json_group_array(
-					json_object(
-						'teamMemberId', tm.teamMemberId, 'userId', tm.userId, 'teamId', tm.teamId, 'teamMemberRole', tm.teamMemberRole,
-						'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'role', u.role) from users u where u.userId = tm.userId))
-					)
-			from teamMembers tm where tm.teamId = t.teamId
-		)
-	)
-) as data from teams t
-`
-				)
-				.first<{ data: string }>()
-				.then((v) => Schema.decodeSync(TeamsResult)(v?.data ?? null)),
 		upsertUser: async ({ email }: { email: string }) => {
 			const [
 				{
@@ -790,7 +767,7 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 			{
 				const program = Effect.gen(function* () {
 					const repository = yield* Repository
-					return yield* repository.getTeams1()
+					return yield* repository.getTeams()
 				})
 
 				actionData = { teams: await c.var.runtime.runPromise(program) }
