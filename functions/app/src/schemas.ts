@@ -55,18 +55,20 @@ export const TeamWithTeamMembers = Schema.Struct({
 })
 export type TeamWithTeamMembers = Schema.Schema.Type<typeof TeamWithTeamMembers>
 
-export const DataFromResult = Schema.transform(
-	Schema.Struct({
-		data: Schema.String
-	}),
-	Schema.parseJson(Schema.Array(TeamWithTeamMembers)),
-	{
-		strict: true,
-		decode: (result) => result.data,
-		encode: (value) => ({ data: value })
-	}
-)
-export type DataFromResult = Schema.Schema.Type<typeof DataFromResult>
+export const DataFromResult = <A, I>(DataSchema: Schema.Schema<A, I>) =>
+	Schema.NullOr(
+		Schema.transform(
+			Schema.Struct({
+				data: Schema.String
+			}),
+			Schema.parseJson(DataSchema),
+			{
+				strict: true,
+				decode: (result) => result.data,
+				encode: (value) => ({ data: value })
+			}
+		)
+	)
 
-export const TeamsResult = Schema.NullOr(DataFromResult)
+export const TeamsResult = DataFromResult(Schema.Array(TeamWithTeamMembers))
 export type TeamsResult = Schema.Schema.Type<typeof TeamsResult>
