@@ -67,14 +67,6 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 			])
 			return Schema.decodeUnknownSync(User)(user)
 		},
-		getTeamForUser: async ({ userId }: { userId: number }) => {
-			const team = await db
-				.prepare('select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")')
-				.bind(userId)
-				.first()
-			if (!team) throw new Error('Missing team.')
-			return Schema.decodeUnknownSync(Team)(team)
-		},
 		updateStripeCustomerId: async ({
 			teamId,
 			stripeCustomerId
@@ -545,7 +537,14 @@ const pricingPost = async (c: HonoContext<HonoEnv>) => {
 	const formData = await c.req.formData()
 	const priceId = formData.get('priceId')
 	if (!(typeof priceId === 'string' && priceId)) throw new Error('Missing priceId.')
-	const team = await c.var.dbService.getTeamForUser(sessionUser)
+
+	const program = Effect.gen(function* () {
+		const repository = yield* Repository
+		return yield* repository.getTeamForUser(sessionUser)
+	})
+	const team = await c.var.runtime.runPromise(program)
+	if (!team) throw new Error('Missing team')
+
 	const [stripeCustomerId, stripeSubscriptionId] = await ensureStripeCustomerId(team)
 	if (stripeSubscriptionId) {
 		const configurations = await c.var.stripe.billingPortal.configurations.list()
@@ -583,8 +582,13 @@ const pricingPost = async (c: HonoContext<HonoEnv>) => {
 
 const Dashboard: FC = async () => {
 	const c = useRequestContext<HonoEnv>()
-	if (!c.var.sessionData.sessionUser) throw new Error('Missing sessionUser')
-	const team = await c.var.dbService.getTeamForUser(c.var.sessionData.sessionUser)
+	const program = Effect.gen(function* () {
+		const repository = yield* Repository
+		if (!c.var.sessionData.sessionUser) throw new Error('Missing sessionUser')
+		return yield* repository.getTeamForUser(c.var.sessionData.sessionUser)
+	})
+	const team = await c.var.runtime.runPromise(program)
+	if (!team) throw new Error('Missing team')
 
 	return (
 		<div className="flex flex-col gap-2">
@@ -606,8 +610,14 @@ const Dashboard: FC = async () => {
 }
 
 const dashboardPost = async (c: HonoContext<HonoEnv>) => {
-	if (!c.var.sessionData.sessionUser) throw new Error('Missing sessionUser')
-	const team = await c.var.dbService.getTeamForUser(c.var.sessionData.sessionUser)
+	const program = Effect.gen(function* () {
+		const repository = yield* Repository
+		if (!c.var.sessionData.sessionUser) throw new Error('Missing sessionUser')
+		return yield* repository.getTeamForUser(c.var.sessionData.sessionUser)
+	})
+	const team = await c.var.runtime.runPromise(program)
+	if (!team) throw new Error('Missing team')
+
 	if (!team.stripeCustomerId || !team.stripeProductId) {
 		return c.redirect('/pricing')
 	}
@@ -733,9 +743,8 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 		case 'effect':
 			{
 				const program = Effect.gen(function* () {
-					const d1 = yield* D1
-					const stmt = d1.prepare('select * from users where userId = ?').bind(1)
-					return yield* d1.first(stmt)
+					const repository = yield* Repository
+					return yield* repository.getTeamForUser({ userId: 1 })
 				})
 				actionData = { data: await c.var.runtime.runPromise(program) }
 			}

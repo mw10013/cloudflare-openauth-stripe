@@ -70,5 +70,8 @@ export const DataFromResult = <A, I>(DataSchema: Schema.Schema<A, I>) =>
 		)
 	)
 
+export const TeamResult = Schema.NullOr(Team)
+export type TeamResult = Schema.Schema.Type<typeof TeamResult>
+
 export const TeamsResult = DataFromResult(Schema.Array(TeamWithTeamMembers))
 export type TeamsResult = Schema.Schema.Type<typeof TeamsResult>
