@@ -20,7 +20,7 @@ import { SessionData, Team, TeamsResult, User, UserSubject } from './schemas'
 type HonoEnv = {
 	Bindings: Env
 	Variables: {
-		runtime: ReturnType<typeof createRuntime>
+		runtime: ReturnType<typeof makeRuntime>['runtime']
 		sessionData: SessionData
 		dbService: ReturnType<typeof createDbService>
 		stripe: Stripe
@@ -102,8 +102,7 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
-		const handler = makeHandler(env)
-		const runtime = createRuntime({ env })
+		const { runtime, handler } = makeRuntime(env)
 		const dbService = createDbService(env.D1)
 		const stripe = new Stripe(env.STRIPE_SECRET_KEY)
 		const openAuth = createOpenAuth({ env, dbService })
@@ -293,15 +292,15 @@ function createFrontend({
 	env,
 	ctx,
 	runtime,
+	handler,
 	openAuth,
 	dbService,
-	stripe,
-	handler
+	stripe
 }: {
 	env: Env
 	ctx: ExecutionContext
-	handler: ReturnType<typeof makeHandler>
-	runtime: ReturnType<typeof createRuntime>
+	runtime: ReturnType<typeof makeRuntime>['runtime']
+	handler: ReturnType<typeof makeRuntime>['handler']
 	openAuth: ReturnType<typeof createOpenAuth>
 	dbService: ReturnType<typeof createDbService>
 	stripe: Stripe
@@ -832,29 +831,21 @@ const adminPost = async (c: HonoContext<HonoEnv>) => {
 	return c.render(<Admin actionData={{ intent, ...actionData }} />)
 }
 
-function createRuntime({ env }: { env: Env }) {
+export const makeRuntime = (env: Env) => {
+	const make = <R, E>(layer: Layer.Layer<R, E, never>) => {
+		const runtime = ManagedRuntime.make(layer)
+		const handler =
+			<A, E>(
+				h: (...args: Parameters<Handler<HonoEnv>>) => Effect.Effect<A, E, R>
+			): {
+				(...args: Parameters<Handler<HonoEnv>>): Promise<A>
+			} =>
+			(...args) =>
+				runtime.runPromise(h(...args))
+
+		return { runtime, handler }
+	}
 	const D1Live = d1Layer({ db: env.D1 })
 	const Live = RepositoryLive.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
-	return ManagedRuntime.make(Live)
-}
-
-export const makeRuntime = <R, E>(layer: Layer.Layer<R, E, never>) => {
-	const runtime = ManagedRuntime.make(layer)
-	const handler =
-		<A, E>(
-			h: (...args: Parameters<Handler<HonoEnv>>) => Effect.Effect<A, E, R>
-		): {
-			(...args: Parameters<Handler<HonoEnv>>): Promise<A>
-		} =>
-		(...args) =>
-			runtime.runPromise(h(...args))
-
-	return { handler }
-}
-
-export function makeHandler(env: Env) {
-	const D1Live = d1Layer({ db: env.D1 })
-	const Live = RepositoryLive.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
-	const { handler } = makeRuntime(Live)
-	return handler
+	return make(Live)
 }
