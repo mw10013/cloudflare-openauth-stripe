@@ -102,6 +102,7 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
+		const handler = makeHandler(env)
 		const runtime = createRuntime({ env })
 		const dbService = createDbService(env.D1)
 		const stripe = new Stripe(env.STRIPE_SECRET_KEY)
@@ -109,7 +110,7 @@ export default {
 		const app = new Hono()
 		app.route('/', openAuth)
 		app.route('/', createApi({ env, dbService, stripe }))
-		app.route('/', createFrontend({ env, ctx, openAuth, dbService, stripe, runtime })) // Last to isolate middleware
+		app.route('/', createFrontend({ env, ctx, handler, openAuth, dbService, stripe, runtime })) // Last to isolate middleware
 		const response = await app.fetch(request, env, ctx)
 		ctx.waitUntil(runtime.dispose())
 		return response
@@ -294,19 +295,18 @@ function createFrontend({
 	runtime,
 	openAuth,
 	dbService,
-	stripe
+	stripe,
+	handler
 }: {
 	env: Env
 	ctx: ExecutionContext
+	handler: ReturnType<typeof makeHandler>
 	runtime: ReturnType<typeof createRuntime>
 	openAuth: ReturnType<typeof createOpenAuth>
 	dbService: ReturnType<typeof createDbService>
 	stripe: Stripe
 }) {
 	const app = new Hono<HonoEnv>()
-	const D1Live = d1Layer({ db: env.D1 })
-	const Live = RepositoryLive.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
-	const handler = makeHandler(Live)
 
 	app.use(async (c, next) => {
 		const cookieSessionId = await getSignedCookie(c, c.env.COOKIE_SECRET, 'sessionId')
@@ -838,9 +838,8 @@ function createRuntime({ env }: { env: Env }) {
 	return ManagedRuntime.make(Live)
 }
 
-export const makeHandler = <R, E>(layer: Layer.Layer<R, E, never>) => {
+export const makeRuntime = <R, E>(layer: Layer.Layer<R, E, never>) => {
 	const runtime = ManagedRuntime.make(layer)
-
 	const handler =
 		<A, E>(
 			h: (...args: Parameters<Handler<HonoEnv>>) => Effect.Effect<A, E, R>
@@ -850,5 +849,12 @@ export const makeHandler = <R, E>(layer: Layer.Layer<R, E, never>) => {
 		(...args) =>
 			runtime.runPromise(h(...args))
 
+	return { handler }
+}
+
+export function makeHandler(env: Env) {
+	const D1Live = d1Layer({ db: env.D1 })
+	const Live = RepositoryLive.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
+	const { handler } = makeRuntime(Live)
 	return handler
 }
