@@ -9,7 +9,7 @@ import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect'
-import { Hono, Context as HonoContext } from 'hono'
+import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
@@ -304,6 +304,10 @@ function createFrontend({
 	stripe: Stripe
 }) {
 	const app = new Hono<HonoEnv>()
+	const D1Live = d1Layer({ db: env.D1 })
+	const Live = RepositoryLive.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
+	const handler = makeHandler(Live)
+
 	app.use(async (c, next) => {
 		const cookieSessionId = await getSignedCookie(c, c.env.COOKIE_SECRET, 'sessionId')
 		const sessionId = cookieSessionId || `session:${createId()}`
@@ -407,6 +411,20 @@ function createFrontend({
 	app.post('/dashboard', dashboardPost)
 	app.get('/admin', (c) => c.render(<Admin />))
 	app.post('/admin', adminPost)
+	app.get(
+		'/handler',
+		handler((c) => Effect.sync(() => c.text('Hello, World!')))
+	)
+	app.get(
+		'/handler1',
+		handler((c) =>
+			Effect.gen(function* () {
+				const repository = yield* Repository
+				const teams = yield* repository.getTeams()
+				return c.json(teams)
+			})
+		)
+	)
 	return app
 }
 
@@ -818,4 +836,19 @@ function createRuntime({ env }: { env: Env }) {
 	const D1Live = d1Layer({ db: env.D1 })
 	const Live = RepositoryLive.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
 	return ManagedRuntime.make(Live)
+}
+
+export const makeHandler = <R, E>(layer: Layer.Layer<R, E, never>) => {
+	const runtime = ManagedRuntime.make(layer)
+
+	const handler =
+		<A, E>(
+			h: (...args: Parameters<Handler<HonoEnv>>) => Effect.Effect<A, E, R>
+		): {
+			(...args: Parameters<Handler<HonoEnv>>): Promise<A>
+		} =>
+		(...args) =>
+			runtime.runPromise(h(...args))
+
+	return handler
 }
