@@ -1,84 +1,50 @@
-import { Context, Effect, Layer, ParseResult, Schema } from 'effect'
-import { UnknownException } from 'effect/Cause'
+import { Effect, Layer, Schema } from 'effect'
 import { D1 } from './D1'
 import { Team, TeamResult, TeamsResult } from './schemas'
 
-export class Repository extends Context.Tag('Repository')<
-	Repository,
-	{
-		readonly getTeams: () => Effect.Effect<TeamsResult, UnknownException | ParseResult.ParseError>
-		// readonly upsertUser: (props: { email: string }) => Effect.Effect<string, UnknownException>
-		readonly getTeamForUser: (props: { userId: number }) => Effect.Effect<TeamResult, UnknownException | ParseResult.ParseError>
-	}
->() {}
-
-export const RepositoryLive = Layer.effect(
-	Repository,
-	Effect.gen(function* () {
-		const d1 = yield* D1
-		return {
-			getTeams: () =>
-				Effect.gen(function* () {
-					const statement = d1.prepare(
-						`
-	select json_group_array(
-	json_object(
-	'teamId', teamId, 'name', name, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
-	'teamMembers',
-	(
-	select
-	json_group_array(
-	json_object(
-	'teamMemberId', tm.teamMemberId, 'userId', tm.userId, 'teamId', tm.teamId, 'teamMemberRole', tm.teamMemberRole,
-	'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'role', u.role) from users u where u.userId = tm.userId))
-	)
-	from teamMembers tm where tm.teamId = t.teamId
-	)
-	)
-	) as data from teams t
-	`
-					)
-					return yield* d1.first(statement).pipe(Effect.flatMap(Schema.decodeUnknown(TeamsResult)))
-				}),
-			getTeamForUser: ({ userId }) =>
-				Effect.gen(function* () {
-					const statement = d1
-						.prepare(
-							`
-          select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")
-          `
-						)
-						.bind(userId)
-					return yield* d1.first(statement).pipe(Effect.flatMap(Schema.decodeUnknown(TeamResult)))
-				})
-		}
-	})
+export const make = Effect.gen(function* () {
+	const d1 = yield* D1
+	return {
+		getTeams: () =>
+			Effect.gen(function* () {
+				const statement = d1.prepare(
+					`
+select json_group_array(
+json_object(
+'teamId', teamId, 'name', name, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
+'teamMembers',
+(
+select
+json_group_array(
+json_object(
+'teamMemberId', tm.teamMemberId, 'userId', tm.userId, 'teamId', tm.teamId, 'teamMemberRole', tm.teamMemberRole,
+'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'role', u.role) from users u where u.userId = tm.userId))
 )
+from teamMembers tm where tm.teamId = t.teamId
+)
+)
+) as data from teams t
+`
+				)
+				return yield* d1.first(statement).pipe(Effect.flatMap(Schema.decodeUnknown(TeamsResult)))
+			}),
+		getTeamForUser: ({ userId }: { userId: number }) =>
+			Effect.gen(function* () {
+				const statement = d1
+					.prepare(
+						`
+				select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")
+				`
+					)
+					.bind(userId)
+				return yield* d1.first(statement).pipe(Effect.flatMap(Schema.decodeUnknown(TeamResult)))
+			})
+	}
+})
 
-// const makeTodoRepo = Effect.sync(() => {
-//   return {
-//     getAllTodos: Effect.gen(function* () {
-//       const todos = [
-//         new Todo({
-//           id: 1,
-//           createdAt: new Date(),
-//           status: "CREATED",
-//           title: "Well well well, look who's streaming!",
-//         }),
-//       ];
-
-//       return yield* Todo.encodeArray(todos);
-//     }),
-//   };
-// });
-
-// export class TodoRepo extends Effect.Tag("@services/TodoRepo")<
-//   TodoRepo,
-//   Effect.Effect.Success<typeof makeTodoRepo>
-// >() {
-//   static Live = Layer.effect(this, makeTodoRepo);
-// }
-
+export class Repository extends Effect.Tag('Repository')<Repository, Effect.Effect.Success<typeof make>>() {
+	static Live = Layer.effect(this, make)
+}
 
 // getTeamForUser: async ({ userId }: { userId: number }) => {
 //   const team = await db

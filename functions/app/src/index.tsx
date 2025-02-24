@@ -14,7 +14,7 @@ import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
 import { D1, layer as d1Layer } from './D1'
-import { Repository, RepositoryLive } from './Repository'
+import { Repository } from './Repository'
 import { SessionData, Team, User, UserSubject } from './schemas'
 
 type HonoEnv = {
@@ -35,7 +35,7 @@ export const subjects = createSubjects({
 
 export const makeRuntime = (env: Env) => {
 	const D1Live = d1Layer({ db: env.D1 })
-	const Live = RepositoryLive.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
+ 	const Live = Repository.Live.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
 	return ManagedRuntime.make(Live)
 }
 
