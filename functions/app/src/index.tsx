@@ -35,7 +35,7 @@ export const subjects = createSubjects({
 
 export const makeRuntime = (env: Env) => {
 	const D1Live = d1Layer({ db: env.D1 })
- 	const Live = Repository.Live.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
+	const Live = Repository.Live.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
 	return ManagedRuntime.make(Live)
 }
 
@@ -755,32 +755,28 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 
 const adminPost = handler((c) =>
 	Effect.gen(function* () {
-		const d1 = yield* D1
-		const repository = yield* Repository
 		const formData = yield* Effect.tryPromise(() => c.req.formData())
 		const intent = formData.get('intent')
 		let actionData = {}
 		switch (intent) {
 			case 'effect':
-				actionData = { data: yield* repository.getTeamForUser({ userId: 2 }) }
+				actionData = { data: yield* Repository.getTeamForUser({ userId: 2 }) }
 				break
 
 			case 'effect_1':
-				{
-					const stmt = d1.prepare('select * from users')
-					actionData = { result: yield* d1.run(stmt) }
-				}
+				actionData = { result: yield* D1.prepare('select * from users').pipe(Effect.andThen(D1.run)) }
 				break
 			case 'effect_2':
 				actionData = {
-					result: yield* d1.batch([
-						d1.prepare('select * from users where userId = ?').bind(1),
-						d1.prepare('select * from users where userId = ?').bind(2)
+					result: yield* D1.batch([
+						yield* D1.prepare('select * from users where userId = ?').pipe(Effect.map((v) => v.bind(1))),
+						yield* D1.prepare('select * from users where userId = ?').pipe(Effect.map((v) => v.bind(2)))
+						// d1.prepare('select * from users where userId = ?').bind(2)
 					])
 				}
 				break
 			case 'teams':
-				actionData = { teams: yield* repository.getTeams() }
+				actionData = { teams: yield* Repository.getTeams() }
 				break
 			case 'billing_portal_configurations':
 				actionData = { configurations: yield* Effect.tryPromise(() => c.var.stripe.billingPortal.configurations.list()) }
@@ -819,8 +815,6 @@ const adminPost = handler((c) =>
 
 const handler1 = handler((c) =>
 	Effect.gen(function* () {
-		const repository = yield* Repository
-		const teams = yield* repository.getTeams()
-		return c.json(teams)
+		return c.json(yield* Repository.getTeams())
 	})
 )
