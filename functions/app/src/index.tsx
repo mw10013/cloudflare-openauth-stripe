@@ -39,19 +39,34 @@ export const makeRuntime = (env: Env) => {
 	return ManagedRuntime.make(Live)
 }
 
-// export const handler =
-// 	<A, E>(h: (c: HonoContext<HonoEnv>) => Effect.Effect<A, E, ManagedRuntime.ManagedRuntime.Context<ReturnType<typeof makeRuntime>>>) =>
-// 	(c: HonoContext<HonoEnv>): Promise<A> =>
-// 		c.var.runtime.runPromise(h(c))
-
 export const handler =
-	<E, _>(
+	<A, E>(
 		h: (
 			c: HonoContext<HonoEnv>
-		) => Effect.Effect<Response | Promise<Response>, E, ManagedRuntime.ManagedRuntime.Context<ReturnType<typeof makeRuntime>>>
+		) => Effect.Effect<A | Promise<A>, E, ManagedRuntime.ManagedRuntime.Context<typeof c.var.runtime>>
 	) =>
-	(c: HonoContext<HonoEnv>): Promise<Response | Promise<Response>> =>
-		c.var.runtime.runPromise(h(c))
+	(c: HonoContext<HonoEnv>) =>
+		c.var.runtime.runPromise(h(c)).then((v) => v)
+
+// export const handler =
+// 	<E, _>(
+// 		h: (
+// 			c: HonoContext<HonoEnv>
+// 		) => Effect.Effect<Response | Promise<Response>, E, ManagedRuntime.ManagedRuntime.Context<typeof c.var.runtime>>
+// 	) =>
+// 	(c: HonoContext<HonoEnv>) =>
+// 		c.var.runtime.runPromise(h(c)).then((v) => v)
+
+// export const handler =
+// 	<E, _>(
+// 		h: (
+// 			c: HonoContext<HonoEnv>
+// 		) => Effect.Effect<Response | Promise<Response>, E, ManagedRuntime.ManagedRuntime.Context<typeof c.var.runtime>>
+// 	): {
+// 		(c: HonoContext<HonoEnv>): Response | Promise<Response>
+// 	} =>
+// 	(c: HonoContext<HonoEnv>) =>
+// 		c.var.runtime.runPromise(h(c)).then((v) => v)
 
 export function createDbService(db: Env['D1']) {
 	return {
@@ -817,7 +832,6 @@ const adminPost = handler((c) =>
 			default:
 				throw new Error('Invalid intent')
 		}
-		// return yield* Effect.tryPromise(() => c.render(<Admin actionData={{ intent, ...actionData }} />))
 		return c.render(<Admin actionData={{ intent, ...actionData }} />)
 	})
 )
