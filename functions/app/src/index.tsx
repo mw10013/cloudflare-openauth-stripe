@@ -40,33 +40,9 @@ export const makeRuntime = (env: Env) => {
 }
 
 export const handler =
-	<A, E>(
-		h: (
-			c: HonoContext<HonoEnv>
-		) => Effect.Effect<A | Promise<A>, E, ManagedRuntime.ManagedRuntime.Context<typeof c.var.runtime>>
-	) =>
+	<A, E>(h: (c: HonoContext<HonoEnv>) => Effect.Effect<A | Promise<A>, E, ManagedRuntime.ManagedRuntime.Context<typeof c.var.runtime>>) =>
 	(c: HonoContext<HonoEnv>) =>
 		c.var.runtime.runPromise(h(c)).then((v) => v)
-
-// export const handler =
-// 	<E, _>(
-// 		h: (
-// 			c: HonoContext<HonoEnv>
-// 		) => Effect.Effect<Response | Promise<Response>, E, ManagedRuntime.ManagedRuntime.Context<typeof c.var.runtime>>
-// 	) =>
-// 	(c: HonoContext<HonoEnv>) =>
-// 		c.var.runtime.runPromise(h(c)).then((v) => v)
-
-// export const handler =
-// 	<E, _>(
-// 		h: (
-// 			c: HonoContext<HonoEnv>
-// 		) => Effect.Effect<Response | Promise<Response>, E, ManagedRuntime.ManagedRuntime.Context<typeof c.var.runtime>>
-// 	): {
-// 		(c: HonoContext<HonoEnv>): Response | Promise<Response>
-// 	} =>
-// 	(c: HonoContext<HonoEnv>) =>
-// 		c.var.runtime.runPromise(h(c)).then((v) => v)
 
 export function createDbService(db: Env['D1']) {
 	return {
