@@ -55,6 +55,31 @@ export const RepositoryLive = Layer.effect(
 	})
 )
 
+// const makeTodoRepo = Effect.sync(() => {
+//   return {
+//     getAllTodos: Effect.gen(function* () {
+//       const todos = [
+//         new Todo({
+//           id: 1,
+//           createdAt: new Date(),
+//           status: "CREATED",
+//           title: "Well well well, look who's streaming!",
+//         }),
+//       ];
+
+//       return yield* Todo.encodeArray(todos);
+//     }),
+//   };
+// });
+
+// export class TodoRepo extends Effect.Tag("@services/TodoRepo")<
+//   TodoRepo,
+//   Effect.Effect.Success<typeof makeTodoRepo>
+// >() {
+//   static Live = Layer.effect(this, makeTodoRepo);
+// }
+
+
 // getTeamForUser: async ({ userId }: { userId: number }) => {
 //   const team = await db
 //     .prepare('select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")')
