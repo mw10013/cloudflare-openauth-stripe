@@ -9,7 +9,7 @@ import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect'
-import { Hono, Context as HonoContext } from 'hono'
+import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
@@ -39,10 +39,15 @@ export const makeRuntime = (env: Env) => {
 	return ManagedRuntime.make(Live)
 }
 
+// The success type of the effect is A | Promise<A> to accomodate Hono functions that return Reponse | Promise<Response>
 export const handler =
-	<A, E>(h: (c: HonoContext<HonoEnv>) => Effect.Effect<A | Promise<A>, E, ManagedRuntime.ManagedRuntime.Context<typeof c.var.runtime>>) =>
-	(c: HonoContext<HonoEnv>) =>
-		c.var.runtime.runPromise(h(c)).then((v) => v)
+	<A, E>(
+		h: (
+			...args: Parameters<Handler<HonoEnv>>
+		) => Effect.Effect<A | Promise<A>, E, ManagedRuntime.ManagedRuntime.Context<Parameters<Handler<HonoEnv>>[0]['var']['runtime']>>
+	) =>
+	(...args: Parameters<Handler<HonoEnv>>) =>
+		args[0].var.runtime.runPromise(h(...args)).then((v) => v) // then so we return Promise<A> instead of Promise<A | Promise<A>>
 
 export function createDbService(db: Env['D1']) {
 	return {
