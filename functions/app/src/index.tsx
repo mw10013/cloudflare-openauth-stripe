@@ -9,18 +9,18 @@ import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect'
-import { Handler, Hono, Context as HonoContext } from 'hono'
+import { Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
 import { D1, layer as d1Layer } from './D1'
 import { Repository, RepositoryLive } from './Repository'
-import { SessionData, Team, TeamsResult, User, UserSubject } from './schemas'
+import { SessionData, Team, User, UserSubject } from './schemas'
 
 type HonoEnv = {
 	Bindings: Env
 	Variables: {
-		runtime: ReturnType<typeof makeRuntime>['runtime']
+		runtime: ReturnType<typeof makeRuntime>
 		sessionData: SessionData
 		dbService: ReturnType<typeof createDbService>
 		stripe: Stripe
@@ -32,6 +32,26 @@ type HonoEnv = {
 export const subjects = createSubjects({
 	user: Schema.standardSchemaV1(UserSubject)
 })
+
+export const makeRuntime = (env: Env) => {
+	const D1Live = d1Layer({ db: env.D1 })
+	const Live = RepositoryLive.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
+	return ManagedRuntime.make(Live)
+}
+
+// export const handler =
+// 	<A, E>(h: (c: HonoContext<HonoEnv>) => Effect.Effect<A, E, ManagedRuntime.ManagedRuntime.Context<ReturnType<typeof makeRuntime>>>) =>
+// 	(c: HonoContext<HonoEnv>): Promise<A> =>
+// 		c.var.runtime.runPromise(h(c))
+
+export const handler =
+	<E, _>(
+		h: (
+			c: HonoContext<HonoEnv>
+		) => Effect.Effect<Response | Promise<Response>, E, ManagedRuntime.ManagedRuntime.Context<ReturnType<typeof makeRuntime>>>
+	) =>
+	(c: HonoContext<HonoEnv>): Promise<Response | Promise<Response>> =>
+		c.var.runtime.runPromise(h(c))
 
 export function createDbService(db: Env['D1']) {
 	return {
@@ -102,14 +122,14 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
-		const { runtime, handler } = makeRuntime(env)
+		const runtime = makeRuntime(env)
 		const dbService = createDbService(env.D1)
 		const stripe = new Stripe(env.STRIPE_SECRET_KEY)
 		const openAuth = createOpenAuth({ env, dbService })
 		const app = new Hono()
 		app.route('/', openAuth)
 		app.route('/', createApi({ env, dbService, stripe }))
-		app.route('/', createFrontend({ env, ctx, handler, openAuth, dbService, stripe, runtime })) // Last to isolate middleware
+		app.route('/', createFrontend({ env, ctx, openAuth, dbService, stripe, runtime })) // Last to isolate middleware
 		const response = await app.fetch(request, env, ctx)
 		ctx.waitUntil(runtime.dispose())
 		return response
@@ -292,15 +312,13 @@ function createFrontend({
 	env,
 	ctx,
 	runtime,
-	handler,
 	openAuth,
 	dbService,
 	stripe
 }: {
 	env: Env
 	ctx: ExecutionContext
-	runtime: ReturnType<typeof makeRuntime>['runtime']
-	handler: ReturnType<typeof makeRuntime>['handler']
+	runtime: ReturnType<typeof makeRuntime>
 	openAuth: ReturnType<typeof createOpenAuth>
 	dbService: ReturnType<typeof createDbService>
 	stripe: Stripe
@@ -410,20 +428,7 @@ function createFrontend({
 	app.post('/dashboard', dashboardPost)
 	app.get('/admin', (c) => c.render(<Admin />))
 	app.post('/admin', adminPost)
-	app.get(
-		'/handler',
-		handler((c) => Effect.sync(() => c.text('Hello, World!')))
-	)
-	app.get(
-		'/handler1',
-		handler((c) =>
-			Effect.gen(function* () {
-				const repository = yield* Repository
-				const teams = yield* repository.getTeams()
-				return c.json(teams)
-			})
-		)
-	)
+	app.get('/handler1', handler1)
 	return app
 }
 
@@ -752,100 +757,75 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 	)
 }
 
-const adminPost = async (c: HonoContext<HonoEnv>) => {
-	const formData = await c.req.formData()
-	const intent = formData.get('intent')
-	let actionData = {}
-	switch (intent) {
-		case 'effect':
-			{
-				const program = Effect.gen(function* () {
-					const repository = yield* Repository
-					return yield* repository.getTeamForUser({ userId: 1 })
-				})
-				actionData = { data: await c.var.runtime.runPromise(program) }
-			}
-			break
+const adminPost = handler((c) =>
+	Effect.gen(function* () {
+		const d1 = yield* D1
+		const repository = yield* Repository
+		const formData = yield* Effect.tryPromise(() => c.req.formData())
+		const intent = formData.get('intent')
+		let actionData = {}
+		switch (intent) {
+			case 'effect':
+				actionData = { data: yield* repository.getTeamForUser({ userId: 2 }) }
+				break
 
-		case 'effect_1':
-			{
-				const program = Effect.gen(function* () {
-					const d1 = yield* D1
+			case 'effect_1':
+				{
 					const stmt = d1.prepare('select * from users')
-					return yield* d1.run(stmt)
-				})
-				actionData = { result: await c.var.runtime.runPromise(program) }
-			}
-			break
-		case 'effect_2':
-			{
-				const program = Effect.gen(function* () {
-					const d1 = yield* D1
-					return yield* d1.batch([
+					actionData = { result: yield* d1.run(stmt) }
+				}
+				break
+			case 'effect_2':
+				actionData = {
+					result: yield* d1.batch([
 						d1.prepare('select * from users where userId = ?').bind(1),
 						d1.prepare('select * from users where userId = ?').bind(2)
 					])
-				})
-				actionData = { result: await c.var.runtime.runPromise(program) }
-			}
-			break
-		case 'teams':
-			{
-				const program = Effect.gen(function* () {
-					const repository = yield* Repository
-					return yield* repository.getTeams()
-				})
-
-				actionData = { teams: await c.var.runtime.runPromise(program) }
-			}
-			break
-		case 'billing_portal_configurations':
-			actionData = { configurations: await c.var.stripe.billingPortal.configurations.list() }
-			break
-		case 'customer_subscription':
-			{
-				const customerId = formData.get('customerId')
-				if (!(typeof customerId === 'string' && customerId)) throw new Error('Invalid customerId')
-				const subscriptions = await c.var.stripe.subscriptions.list({
-					customer: customerId,
-					limit: 1,
-					status: 'all',
-					expand: ['data.items', 'data.items.data.price']
-				})
-				if (subscriptions.data.length === 0) throw new Error('No subscriptions found')
-				actionData = {
-					subscription: subscriptions.data[0]
 				}
-			}
-			break
-		case 'create_user':
-			{
-				const email = formData.get('email')
-				if (!(typeof email === 'string' && email)) throw new Error('Invalid email')
-				await c.var.dbService.upsertUser({ email })
-			}
-			break
-		default:
-			throw new Error('Invalid intent')
-	}
-	return c.render(<Admin actionData={{ intent, ...actionData }} />)
-}
+				break
+			case 'teams':
+				actionData = { teams: yield* repository.getTeams() }
+				break
+			case 'billing_portal_configurations':
+				actionData = { configurations: yield* Effect.tryPromise(() => c.var.stripe.billingPortal.configurations.list()) }
+				break
+			case 'customer_subscription':
+				{
+					const customerId = formData.get('customerId')
+					if (!(typeof customerId === 'string' && customerId)) throw new Error('Invalid customerId')
+					const subscriptions = yield* Effect.tryPromise(() =>
+						c.var.stripe.subscriptions.list({
+							customer: customerId,
+							limit: 1,
+							status: 'all',
+							expand: ['data.items', 'data.items.data.price']
+						})
+					)
+					if (subscriptions.data.length === 0) throw new Error('No subscriptions found')
+					actionData = {
+						subscription: subscriptions.data[0]
+					}
+				}
+				break
+			case 'create_user':
+				{
+					const email = formData.get('email')
+					if (!(typeof email === 'string' && email)) throw new Error('Invalid email')
+					// await c.var.dbService.upsertUser({ email })
+				}
+				break
+			default:
+				throw new Error('Invalid intent')
+		}
+		// return yield* Effect.tryPromise(() => c.render(<Admin actionData={{ intent, ...actionData }} />))
+		return c.render(<Admin actionData={{ intent, ...actionData }} />)
+	})
+)
 
-export const makeRuntime = (env: Env) => {
-	const make = <R, E>(layer: Layer.Layer<R, E, never>) => {
-		const runtime = ManagedRuntime.make(layer)
-		const handler =
-			<A, E>(
-				h: (...args: Parameters<Handler<HonoEnv>>) => Effect.Effect<A, E, R>
-			): {
-				(...args: Parameters<Handler<HonoEnv>>): Promise<A>
-			} =>
-			(...args) =>
-				runtime.runPromise(h(...args))
-
-		return { runtime, handler }
-	}
-	const D1Live = d1Layer({ db: env.D1 })
-	const Live = RepositoryLive.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
-	return make(Live)
-}
+const handler1 = handler((c) =>
+	Effect.gen(function* () {
+		const repository = yield* Repository
+		const teams = yield* repository.getTeams()
+		return c.json(teams)
+	})
+)
