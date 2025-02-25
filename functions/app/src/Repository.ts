@@ -1,6 +1,6 @@
-import { Effect, Layer, Schema } from 'effect'
+import { Effect, Layer, pipe, Schema } from 'effect'
 import { D1 } from './D1'
-import { Team, TeamResult, TeamsResult } from './schemas'
+import { Team, TeamResult, TeamsResult, User } from './schemas'
 
 export const make = Effect.gen(function* () {
 	const d1 = yield* D1 // Outside of functions so that D1 does not show up in R
@@ -28,17 +28,14 @@ from teamMembers tm where tm.teamId = t.teamId
 				)
 				return yield* d1.first(statement).pipe(Effect.flatMap(Schema.decodeUnknown(TeamsResult)))
 			}),
-		getTeamForUser: ({ userId }: { userId: number }) =>
-			Effect.gen(function* () {
-				const statement = d1
-					.prepare(
-						`
-				select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")
-				`
-					)
-					.bind(userId)
-				return yield* d1.first(statement).pipe(Effect.flatMap(Schema.decodeUnknown(TeamResult)))
-			})
+		getTeamForUser: ({ userId }: Pick<User, 'userId'>) =>
+			pipe(
+				d1
+					.prepare(`select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")`)
+					.bind(userId),
+				d1.first,
+				Effect.flatMap(Schema.decodeUnknown(TeamResult))
+			)
 	}
 })
 
@@ -46,14 +43,6 @@ export class Repository extends Effect.Tag('Repository')<Repository, Effect.Effe
 	static Live = Layer.effect(this, make)
 }
 
-// getTeamForUser: async ({ userId }: { userId: number }) => {
-//   const team = await db
-//     .prepare('select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")')
-//     .bind(userId)
-//     .first()
-//   if (!team) throw new Error('Missing team.')
-//   return Schema.decodeUnknownSync(Team)(team)
-// },
 // updateStripeCustomerId: async ({
 //   teamId,
 //   stripeCustomerId
