@@ -13,7 +13,7 @@ import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import Stripe from 'stripe'
-import { D1, layer as d1Layer } from './D1'
+import { bind, D1, layer as d1Layer } from './D1'
 import { Repository } from './Repository'
 import { SessionData, Team, User, UserSubject } from './schemas'
 
@@ -767,12 +767,15 @@ const adminPost = handler((c) =>
 				actionData = { result: yield* D1.prepare('select * from users').pipe(Effect.andThen(D1.run)) }
 				break
 			case 'effect_2':
-				actionData = {
-					result: yield* D1.batch([
-						yield* D1.prepare('select * from users where userId = ?').pipe(Effect.map((v) => v.bind(1))),
-						yield* D1.prepare('select * from users where userId = ?').pipe(Effect.map((v) => v.bind(2)))
-						// d1.prepare('select * from users where userId = ?').bind(2)
-					])
+				{
+					const stmt = yield* D1.prepare('select * from users where userId = ?')
+					actionData = {
+						result: yield* D1.batch([
+							stmt.bind(1),
+							stmt.bind(2),
+							yield* D1.prepare('select userId, email from users where userId = ?').pipe(bind(3))
+						])
+					}
 				}
 				break
 			case 'teams':

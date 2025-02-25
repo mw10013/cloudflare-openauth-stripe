@@ -3,7 +3,7 @@ import { D1 } from './D1'
 import { Team, TeamResult, TeamsResult } from './schemas'
 
 export const make = Effect.gen(function* () {
-	const d1 = yield* D1
+	const d1 = yield* D1 // Outside of functions so that D1 does not show up in R
 	return {
 		getTeams: () =>
 			Effect.gen(function* () {
