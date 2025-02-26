@@ -807,7 +807,7 @@ const adminPost = handler((c) =>
 				{
 					const email = formData.get('email')
 					if (!(typeof email === 'string' && email)) throw new Error('Invalid email')
-					// await c.var.dbService.upsertUser({ email })
+					actionData = { user: yield* Repository.upsertUser({ email }) }
 				}
 				break
 			default:
