@@ -1,9 +1,9 @@
 import { Effect, Layer, pipe, Schema } from 'effect'
-import { D1 } from './D1'
+import * as D1 from './D1'
 import { Team, TeamResult, TeamsResult, User } from './schemas'
 
 export const make = Effect.gen(function* () {
-	const d1 = yield* D1 // Outside of functions so that D1 does not show up in R
+	const d1 = yield* D1.D1 // Outside of functions so that D1 does not show up in R
 	return {
 		getTeams: () =>
 			pipe(
