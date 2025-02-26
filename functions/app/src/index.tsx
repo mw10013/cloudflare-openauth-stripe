@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
-import type { Stripe as StripeNs } from 'stripe'
+import type { Stripe as StripeTypeNs } from 'stripe'
 import { issuer } from '@openauthjs/openauth'
 import { Client, createClient } from '@openauthjs/openauth/client'
 import { CodeProvider } from '@openauthjs/openauth/provider/code'
@@ -260,7 +260,7 @@ function createApi({ env, dbService, stripe }: { env: Env; dbService: ReturnType
 		try {
 			const body = await c.req.text()
 			const event = await stripe.webhooks.constructEventAsync(body, signature, env.STRIPE_WEBHOOK_SECRET)
-			const allowedEvents: StripeNs.Event.Type[] = [
+			const allowedEvents: StripeTypeNs.Event.Type[] = [
 				'checkout.session.completed',
 				'customer.subscription.created',
 				'customer.subscription.updated',
@@ -796,17 +796,9 @@ const adminPost = handler((c) =>
 				{
 					const customerId = formData.get('customerId')
 					if (!(typeof customerId === 'string' && customerId)) throw new Error('Invalid customerId')
-					const subscriptions = yield* Effect.tryPromise(() =>
-						c.var.stripe.subscriptions.list({
-							customer: customerId,
-							limit: 1,
-							status: 'all',
-							expand: ['data.items', 'data.items.data.price']
-						})
-					)
-					if (subscriptions.data.length === 0) throw new Error('No subscriptions found')
+					const subscription = yield* Stripe.getSubscriptionForCustomer(customerId).pipe(Effect.andThen(Effect.fromNullable))
 					actionData = {
-						subscription: subscriptions.data[0]
+						subscription
 					}
 				}
 				break
