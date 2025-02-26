@@ -14,7 +14,8 @@ import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import { Stripe as StripeClass } from 'stripe'
-import * as D1 from './D1'
+import * as D1Ns from './D1'
+import { D1 } from './D1'
 import { Repository } from './Repository'
 import { SessionData, Team, User, UserSubject } from './schemas'
 import { Stripe, layer as stripeLayer } from './Stripe'
@@ -36,7 +37,7 @@ export const subjects = createSubjects({
 })
 
 export const makeRuntime = (env: Env) => {
-	const D1Live = D1.layer({ db: env.D1 })
+	const D1Live = D1Ns.layer({ db: env.D1 })
 	const RepositoryLive = Repository.Live.pipe(Layer.provide(D1Live))
 	const StripeLive = stripeLayer(env).pipe(Layer.provide(RepositoryLive))
 	const Live = Layer.mergeAll(StripeLive, RepositoryLive, D1Live)
@@ -772,16 +773,16 @@ const adminPost = handler((c) =>
 				break
 
 			case 'effect_1':
-				actionData = { result: yield* D1.D1.prepare('select * from users').pipe(Effect.andThen(D1.D1.run)) }
+				actionData = { result: yield* D1.prepare('select * from users').pipe(Effect.andThen(D1.run)) }
 				break
 			case 'effect_2':
 				{
-					const stmt = yield* D1.D1.prepare('select * from users where userId = ?')
+					const stmt = yield* D1.prepare('select * from users where userId = ?')
 					actionData = {
-						result: yield* D1.D1.batch([
+						result: yield* D1.batch([
 							stmt.bind(1),
 							stmt.bind(2),
-							yield* D1.D1.prepare('select userId, email from users where userId = ?').pipe(D1.bind(3))
+							yield* D1.prepare('select userId, email from users where userId = ?').pipe(D1Ns.bind(3))
 						])
 					}
 				}
