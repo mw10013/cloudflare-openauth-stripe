@@ -605,15 +605,14 @@ const pricingPost = async (c: HonoContext<HonoEnv>) => {
 	}
 }
 
-const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashboardLoaderData>> }> = async (props) => {
-	const c = useRequestContext<HonoEnv>()
+const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashboardLoaderData>> }> = async ({ loaderData }) => {
 	return (
 		<div className="flex flex-col gap-2">
 			<h1 className="text-lg font-medium lg:text-2xl">Dashboard</h1>
 			<div className="card bg-base-100 w-96 shadow-sm">
 				<div className="card-body">
 					<h2 className="card-title">Team Subscription</h2>
-					<p className="font-medium">Current Plan: {props.loaderData.team.planName || 'Free'}</p>
+					<p className="font-medium">Current Plan: {loaderData.team.planName || 'Free'}</p>
 					<div className="card-actions justify-end">
 						<form action="/dashboard" method="post">
 							<button className="btn btn-outline">Manage Subscription</button>
@@ -621,7 +620,7 @@ const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashbo
 					</div>
 				</div>
 			</div>
-			<pre>{JSON.stringify({ props, sessionData: c.var.sessionData }, null, 2)}</pre>
+			<pre>{JSON.stringify({ loaderData }, null, 2)}</pre>
 		</div>
 	)
 }
@@ -629,11 +628,11 @@ const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashbo
 const dashboardLoaderData = (c: HonoContext<HonoEnv>) =>
 	pipe(
 		Effect.fromNullable(c.var.sessionData.sessionUser),
-		Effect.orDieWith(() => 'Missing sessionUser'),
+		Effect.catchTag('NoSuchElementException', () => Effect.fail('Missing sessionUser')),
 		Effect.flatMap((user) => Repository.getTeamForUser(user)),
 		Effect.andThen(Effect.fromNullable),
-		Effect.orDieWith(() => 'Missing team'),
-		Effect.map((team) => ({ team }))
+		Effect.catchTag('NoSuchElementException', () => Effect.fail('Missing team')),
+		Effect.map((team) => ({ team, sessionData: c.var.sessionData }))
 	)
 
 const dashboardPost = async (c: HonoContext<HonoEnv>) => {
