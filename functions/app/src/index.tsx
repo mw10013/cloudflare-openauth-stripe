@@ -1,4 +1,5 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
+import type { Stripe as StripeNs } from 'stripe'
 import { issuer } from '@openauthjs/openauth'
 import { Client, createClient } from '@openauthjs/openauth/client'
 import { CodeProvider } from '@openauthjs/openauth/provider/code'
@@ -8,15 +9,15 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { Effect, Layer, ManagedRuntime, Schema } from 'effect'
+import { Effect, Layer, ManagedRuntime, pipe, Schema } from 'effect'
 import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import { Stripe as StripeClass } from 'stripe'
-import type { Stripe as StripeNs } from 'stripe'
 import { bind, D1, layer as d1Layer } from './D1'
 import { Repository } from './Repository'
 import { SessionData, Team, User, UserSubject } from './schemas'
+import { Stripe, layer as stripeLayer } from './Stripe'
 
 type HonoEnv = {
 	Bindings: Env
@@ -37,8 +38,8 @@ export const subjects = createSubjects({
 export const makeRuntime = (env: Env) => {
 	const D1Live = d1Layer({ db: env.D1 })
 	const RepositoryLive = Repository.Live.pipe(Layer.provide(D1Live))
-	// const StripeLive = 
-	const Live = Layer.mergeAll(RepositoryLive, D1Live)
+	const StripeLive = stripeLayer(env).pipe(Layer.provide(RepositoryLive))
+	const Live = Layer.mergeAll(StripeLive, RepositoryLive, D1Live)
 	return ManagedRuntime.make(Live)
 }
 
@@ -423,7 +424,10 @@ function createFrontend({
 	})
 	app.get('/pricing', (c) => c.render(<Pricing />))
 	app.post('/pricing', pricingPost)
-	app.get('/dashboard', (c) => c.render(<Dashboard />))
+	app.get(
+		'/dashboard',
+		handler((c) => dashboardLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Dashboard loaderData={loaderData} />))))
+	)
 	app.post('/dashboard', dashboardPost)
 	app.get('/admin', (c) => c.render(<Admin />))
 	app.post('/admin', adminPost)
@@ -601,23 +605,15 @@ const pricingPost = async (c: HonoContext<HonoEnv>) => {
 	}
 }
 
-const Dashboard: FC = async () => {
+const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashboardLoaderData>> }> = async (props) => {
 	const c = useRequestContext<HonoEnv>()
-	const program = Effect.gen(function* () {
-		const repository = yield* Repository
-		if (!c.var.sessionData.sessionUser) throw new Error('Missing sessionUser')
-		return yield* repository.getTeamForUser(c.var.sessionData.sessionUser)
-	})
-	const team = await c.var.runtime.runPromise(program)
-	if (!team) throw new Error('Missing team')
-
 	return (
 		<div className="flex flex-col gap-2">
 			<h1 className="text-lg font-medium lg:text-2xl">Dashboard</h1>
 			<div className="card bg-base-100 w-96 shadow-sm">
 				<div className="card-body">
 					<h2 className="card-title">Team Subscription</h2>
-					<p className="font-medium">Current Plan: {team.planName || 'Free'}</p>
+					<p className="font-medium">Current Plan: {props.loaderData.team.planName || 'Free'}</p>
 					<div className="card-actions justify-end">
 						<form action="/dashboard" method="post">
 							<button className="btn btn-outline">Manage Subscription</button>
@@ -625,10 +621,20 @@ const Dashboard: FC = async () => {
 					</div>
 				</div>
 			</div>
-			<pre>{JSON.stringify({ team, sessionData: c.var.sessionData }, null, 2)}</pre>
+			<pre>{JSON.stringify({ props, sessionData: c.var.sessionData }, null, 2)}</pre>
 		</div>
 	)
 }
+
+const dashboardLoaderData = (c: HonoContext<HonoEnv>) =>
+	pipe(
+		Effect.fromNullable(c.var.sessionData.sessionUser),
+		Effect.orDieWith(() => 'Missing sessionUser'),
+		Effect.flatMap((user) => Repository.getTeamForUser(user)),
+		Effect.andThen(Effect.fromNullable),
+		Effect.orDieWith(() => 'Missing team'),
+		Effect.map((team) => ({ team }))
+	)
 
 const dashboardPost = async (c: HonoContext<HonoEnv>) => {
 	const program = Effect.gen(function* () {
@@ -764,7 +770,6 @@ const adminPost = handler((c) =>
 		switch (intent) {
 			case 'effect':
 				actionData = { data: yield* Repository.getTeamForUser({ userId: 2 }) }
-				// actionData = { data: yield* Repository.foo() }
 				break
 
 			case 'effect_1':
@@ -786,7 +791,7 @@ const adminPost = handler((c) =>
 				actionData = { teams: yield* Repository.getTeams() }
 				break
 			case 'billing_portal_configurations':
-				actionData = { configurations: yield* Effect.tryPromise(() => c.var.stripe.billingPortal.configurations.list()) }
+				actionData = { configurations: yield* Stripe.getBillingPortalConfigurations() }
 				break
 			case 'customer_subscription':
 				{

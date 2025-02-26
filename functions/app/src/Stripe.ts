@@ -8,6 +8,7 @@ export const make = ({ STRIPE_SECRET_KEY }: { STRIPE_SECRET_KEY: string }) =>
 		const repository = yield* Repository // Outside of functions so that Repository does not show up in R
 		return {
 			getBillingPortalConfigurations: () => Effect.tryPromise(() => stripe.billingPortal.configurations.list())
+      // createBillingPortalSession: ()
 		}
 	})
 
