@@ -432,7 +432,6 @@ function createFrontend({
 	app.post('/dashboard', dashboardPost)
 	app.get('/admin', (c) => c.render(<Admin />))
 	app.post('/admin', adminPost)
-	app.get('/handler1', handler1)
 	return app
 }
 
@@ -814,11 +813,5 @@ const adminPost = handler((c) =>
 				throw new Error('Invalid intent')
 		}
 		return c.render(<Admin actionData={{ intent, ...actionData }} />)
-	})
-)
-
-const handler1 = handler((c) =>
-	Effect.gen(function* () {
-		return c.json(yield* Repository.getTeams())
 	})
 )

@@ -60,8 +60,8 @@ from teamMembers tm where tm.teamId = t.teamId
 				d1.run
 			),
 		upsertUser: ({ email }: Pick<User, 'email'>) =>
-			Effect.gen(function* () {
-				return yield* d1.batch([
+			d1
+				.batch([
 					d1.prepare('insert into users (email) values (?) on conflict (email) do update set email = email returning *').bind(email),
 					d1
 						.prepare(
@@ -85,11 +85,11 @@ not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from
 `
 						)
 						.bind(email)
-				]).pipe(
+				])
+				.pipe(
 					Effect.map((results) => results[0].results[0]),
 					Effect.flatMap(Schema.decodeUnknown(User))
 				)
-			})
 	}
 })
 
