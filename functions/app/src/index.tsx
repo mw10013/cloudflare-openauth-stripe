@@ -12,7 +12,8 @@ import { Effect, Layer, ManagedRuntime, Schema } from 'effect'
 import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
-import Stripe from 'stripe'
+import { Stripe as StripeClass } from 'stripe'
+import type { Stripe as StripeNs } from 'stripe'
 import { bind, D1, layer as d1Layer } from './D1'
 import { Repository } from './Repository'
 import { SessionData, Team, User, UserSubject } from './schemas'
@@ -23,7 +24,7 @@ type HonoEnv = {
 		runtime: ReturnType<typeof makeRuntime>
 		sessionData: SessionData
 		dbService: ReturnType<typeof createDbService>
-		stripe: Stripe
+		stripe: StripeClass
 		client: Client
 		redirectUri: string
 	}
@@ -35,7 +36,9 @@ export const subjects = createSubjects({
 
 export const makeRuntime = (env: Env) => {
 	const D1Live = d1Layer({ db: env.D1 })
-	const Live = Repository.Live.pipe(Layer.provide(D1Live), Layer.provideMerge(D1Live))
+	const RepositoryLive = Repository.Live.pipe(Layer.provide(D1Live))
+	// const StripeLive = 
+	const Live = Layer.mergeAll(RepositoryLive, D1Live)
 	return ManagedRuntime.make(Live)
 }
 
@@ -120,7 +123,7 @@ export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const runtime = makeRuntime(env)
 		const dbService = createDbService(env.D1)
-		const stripe = new Stripe(env.STRIPE_SECRET_KEY)
+		const stripe = new StripeClass(env.STRIPE_SECRET_KEY)
 		const openAuth = createOpenAuth({ env, dbService })
 		const app = new Hono()
 		app.route('/', openAuth)
@@ -229,7 +232,7 @@ function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<ty
 	})
 }
 
-function createApi({ env, dbService, stripe }: { env: Env; dbService: ReturnType<typeof createDbService>; stripe: Stripe }) {
+function createApi({ env, dbService, stripe }: { env: Env; dbService: ReturnType<typeof createDbService>; stripe: StripeClass }) {
 	const app = new Hono<HonoEnv>()
 	app.get('/api/stripe/checkout', async (c) => {
 		const sessionId = c.req.query('sessionId')
@@ -256,7 +259,7 @@ function createApi({ env, dbService, stripe }: { env: Env; dbService: ReturnType
 		try {
 			const body = await c.req.text()
 			const event = await stripe.webhooks.constructEventAsync(body, signature, env.STRIPE_WEBHOOK_SECRET)
-			const allowedEvents: Stripe.Event.Type[] = [
+			const allowedEvents: StripeNs.Event.Type[] = [
 				'checkout.session.completed',
 				'customer.subscription.created',
 				'customer.subscription.updated',
@@ -317,7 +320,7 @@ function createFrontend({
 	runtime: ReturnType<typeof makeRuntime>
 	openAuth: ReturnType<typeof createOpenAuth>
 	dbService: ReturnType<typeof createDbService>
-	stripe: Stripe
+	stripe: StripeClass
 }) {
 	const app = new Hono<HonoEnv>()
 
@@ -656,7 +659,7 @@ async function syncStripeData({
 	dbService
 }: {
 	customerId: string
-	stripe: Stripe
+	stripe: StripeClass
 	dbService: ReturnType<typeof createDbService>
 }) {
 	console.log({ log: 'syncStripeData', customerId })
@@ -761,6 +764,7 @@ const adminPost = handler((c) =>
 		switch (intent) {
 			case 'effect':
 				actionData = { data: yield* Repository.getTeamForUser({ userId: 2 }) }
+				// actionData = { data: yield* Repository.foo() }
 				break
 
 			case 'effect_1':

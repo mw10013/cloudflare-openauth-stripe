@@ -10,7 +10,7 @@ export const make = ({ db }: { db: D1Database }) => ({
 
 export class D1 extends Effect.Tag('D1')<D1, ReturnType<typeof make>>() {}
 
-export const layer = ({ db }: { db: D1Database }): Layer.Layer<D1, never> => Layer.succeed(D1, make({ db }))
+export const layer = ({ db }: { db: D1Database }) => Layer.succeed(D1, make({ db }))
 
 export const bind = dual<
 	(...values: unknown[]) => <E, R>(self: Effect.Effect<D1PreparedStatement, E, R>) => Effect.Effect<D1PreparedStatement, E, R>,
