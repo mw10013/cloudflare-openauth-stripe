@@ -55,19 +55,32 @@ export const TeamWithTeamMembers = Schema.Struct({
 })
 export type TeamWithTeamMembers = Schema.Schema.Type<typeof TeamWithTeamMembers>
 
+// export const DataFromResult = <A, I>(DataSchema: Schema.Schema<A, I>) =>
+// 	Schema.NullOr(
+// 		Schema.transform(
+// 			Schema.Struct({
+// 				data: Schema.String
+// 			}),
+// 			Schema.parseJson(DataSchema),
+// 			{
+// 				strict: true,
+// 				decode: (result) => result.data,
+// 				encode: (value) => ({ data: value })
+// 			}
+// 		)
+// 	)
+
 export const DataFromResult = <A, I>(DataSchema: Schema.Schema<A, I>) =>
-	Schema.NullOr(
-		Schema.transform(
-			Schema.Struct({
-				data: Schema.String
-			}),
-			Schema.parseJson(DataSchema),
-			{
-				strict: true,
-				decode: (result) => result.data,
-				encode: (value) => ({ data: value })
-			}
-		)
+	Schema.transform(
+		Schema.Struct({
+			data: Schema.String
+		}),
+		Schema.parseJson(DataSchema),
+		{
+			strict: true,
+			decode: (result) => result.data,
+			encode: (value) => ({ data: value })
+		}
 	)
 
 export const TeamResult = Schema.NullOr(Team)

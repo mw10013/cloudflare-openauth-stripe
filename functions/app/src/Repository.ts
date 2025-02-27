@@ -19,6 +19,7 @@ select json_group_array(json_object(
 	)) as data from teams t`
 				),
 				d1.first,
+				Effect.andThen(Effect.fromNullable),
 				Effect.flatMap(Schema.decodeUnknown(TeamsResult))
 			),
 		getTeamForUser: ({ userId }: Pick<User, 'userId'>) =>
@@ -27,6 +28,7 @@ select json_group_array(json_object(
 					.prepare(`select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")`)
 					.bind(userId),
 				d1.first,
+				Effect.andThen(Effect.fromNullable),
 				Effect.flatMap(Schema.decodeUnknown(TeamResult))
 			),
 		updateStripeCustomerId: ({ teamId, stripeCustomerId }: Pick<Team, 'teamId' | 'stripeCustomerId'>) =>
