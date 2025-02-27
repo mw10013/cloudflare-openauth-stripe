@@ -637,28 +637,31 @@ const dashboardLoaderData = (c: HonoContext<HonoEnv>) =>
 		Effect.map((team) => ({ team, sessionData: c.var.sessionData }))
 	)
 
-const dashboardPost = async (c: HonoContext<HonoEnv>) => {
-	const program = Effect.gen(function* () {
-		const repository = yield* Repository
-		if (!c.var.sessionData.sessionUser) throw new Error('Missing sessionUser')
-		return yield* repository.getTeamForUser(c.var.sessionData.sessionUser)
+const dashboardPost = handler((c) =>
+	Effect.gen(function* () {
+		const team = yield* pipe(
+			Effect.fromNullable(c.var.sessionData.sessionUser),
+			Effect.catchTag('NoSuchElementException', () => Effect.fail('Missing sessionUser')),
+			Effect.flatMap((user) => Repository.getTeamForUser(user)),
+			Effect.andThen(Effect.fromNullable),
+			Effect.catchTag('NoSuchElementException', () => Effect.fail('Missing team'))
+		)
+		if (!team.stripeCustomerId || !team.stripeProductId) {
+			return c.redirect('/pricing')
+		}
+		return yield* Stripe.getBillingPortalConfiguration().pipe(
+			Effect.flatMap((configuration) =>
+				Stripe.createBillingPortalSession({
+					customer: team.stripeCustomerId!,
+					return_url: `${new URL(c.req.url).origin}/dashboard`,
+					configuration: configuration.id
+				})
+			),
+			Effect.andThen(Effect.fromNullable),
+			Effect.andThen((session) => c.redirect(session.url))
+		)
 	})
-	const team = await c.var.runtime.runPromise(program)
-	if (!team) throw new Error('Missing team')
-
-	if (!team.stripeCustomerId || !team.stripeProductId) {
-		return c.redirect('/pricing')
-	}
-	const stripe = c.var.stripe
-	const configurations = await stripe.billingPortal.configurations.list()
-	if (configurations.data.length === 0) throw new Error('Missing billing portal configuration')
-	const session = await stripe.billingPortal.sessions.create({
-		customer: team.stripeCustomerId,
-		return_url: `${new URL(c.req.url).origin}/dashboard`,
-		configuration: configurations.data[0].id
-	})
-	return c.redirect(session.url)
-}
+)
 
 async function syncStripeData({
 	customerId,
@@ -721,8 +724,8 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 					</button>
 				</form>
 				<form action="/admin" method="post">
-					<button name="intent" value="billing_portal_configurations" className="btn btn-outline">
-						Billing Portal Configs
+					<button name="intent" value="billing_portal_configuration" className="btn btn-outline">
+						Billing Portal Config
 					</button>
 				</form>
 				<div className="card bg-base-100 w-96 shadow-sm">
@@ -791,8 +794,8 @@ const adminPost = handler((c) =>
 			case 'teams':
 				actionData = { teams: yield* Repository.getTeams() }
 				break
-			case 'billing_portal_configurations':
-				actionData = { configurations: yield* Stripe.getBillingPortalConfigurations() }
+			case 'billing_portal_configuration':
+				actionData = { configuration: yield* Stripe.getBillingPortalConfiguration() }
 				break
 			case 'customer_subscription':
 				{
