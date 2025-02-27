@@ -564,14 +564,7 @@ const pricingPost = async (c: HonoContext<HonoEnv>) => {
 	const formData = await c.req.formData()
 	const priceId = formData.get('priceId')
 	if (!(typeof priceId === 'string' && priceId)) throw new Error('Missing priceId.')
-
-	const program = Effect.gen(function* () {
-		const repository = yield* Repository
-		return yield* repository.getTeamForUser2(sessionUser)
-	})
-	const team = await c.var.runtime.runPromise(program)
-	if (!team) throw new Error('Missing team')
-
+	const team = await c.var.runtime.runPromise(Repository.getRequiredTeamForUser(sessionUser))
 	const [stripeCustomerId, stripeSubscriptionId] = await ensureStripeCustomerId(team)
 	if (stripeSubscriptionId) {
 		const configurations = await c.var.stripe.billingPortal.configurations.list()
@@ -628,28 +621,15 @@ const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashbo
 }
 
 const dashboardLoaderData = (c: HonoContext<HonoEnv>) =>
-	pipe(
-		Effect.fromNullable(c.var.sessionData.sessionUser),
-		Effect.flatMap((user) => Repository.getTeamForUser(user)),
-		Effect.flatMap(
-			Option.match({
-				onNone: () => Effect.fail('Missing team'),
-				onSome: (team) => Effect.succeed({ team, sessionData: c.var.sessionData })
-			})
-		)
+	Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
+		Effect.flatMap((user) => Repository.getRequiredTeamForUser(user)),
+		Effect.map((team) => ({ team, sessionData: c.var.sessionData }))
 	)
 
 const dashboardPost = handler((c) =>
 	Effect.gen(function* () {
-		const team = yield* pipe(
-			Effect.fromNullable(c.var.sessionData.sessionUser),
-			Effect.flatMap((user) => Repository.getTeamForUser(user)),
-			Effect.flatMap(
-				Option.match({
-					onNone: () => Effect.fail('Missing team'),
-					onSome: (v) => Effect.succeed(v)
-				})
-			)
+		const team = yield* Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
+			Effect.flatMap((user) => Repository.getRequiredTeamForUser(user))
 		)
 		if (!team.stripeCustomerId || !team.stripeProductId) {
 			return c.redirect('/pricing')
@@ -662,8 +642,7 @@ const dashboardPost = handler((c) =>
 					configuration: configuration.id
 				})
 			),
-			Effect.andThen(Effect.fromNullable),
-			Effect.andThen((session) => c.redirect(session.url))
+			Effect.map((session) => c.redirect(session.url))
 		)
 	})
 )
@@ -778,7 +757,7 @@ const adminPost = handler((c) =>
 		let actionData = {}
 		switch (intent) {
 			case 'effect':
-				actionData = { data: yield* Repository.getTeamForUser({ userId: 2 }) }
+				actionData = { data: yield* Repository.getRequiredTeamForUser({ userId: 2 }) }
 				break
 
 			case 'effect_1':

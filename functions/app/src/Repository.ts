@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, pipe, Schema } from 'effect'
+import { Effect, Layer, Option, ParseResult, pipe, Schema } from 'effect'
 import { D1 } from './D1'
 import { Team, TeamResult, TeamsResult, User } from './schemas'
 
@@ -19,31 +19,17 @@ select json_group_array(json_object(
 	)) as data from teams t`
 				),
 				d1.first,
-				Effect.andThen(Effect.fromNullable),
+				Effect.flatMap(Effect.fromNullable),
 				Effect.flatMap(Schema.decodeUnknown(TeamsResult))
 			),
-		getTeamForUser2: ({ userId }: Pick<User, 'userId'>) =>
+		getRequiredTeamForUser: ({ userId }: Pick<User, 'userId'>) =>
 			pipe(
 				d1
 					.prepare(`select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")`)
 					.bind(userId),
 				d1.first,
-				Effect.andThen(Effect.fromNullable),
-				Effect.flatMap(Schema.decodeUnknown(TeamResult))
-			),
-		getTeamForUser: ({ userId }: Pick<User, 'userId'>) =>
-			pipe(
-				d1
-					.prepare(`select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")`)
-					.bind(userId),
-				d1.first,
-				Effect.map(Option.fromNullable),
-				Effect.flatMap(
-					Option.match({
-						onNone: () => Effect.succeed(Option.none()),
-						onSome: (v) => Schema.decodeUnknown(Team)(v).pipe(Effect.map(Option.some))
-					})
-				)
+				Effect.flatMap(Option.fromNullable),
+				Effect.flatMap(Schema.decodeUnknown(Team))
 			),
 		updateStripeCustomerId: ({ teamId, stripeCustomerId }: Pick<Team, 'teamId' | 'stripeCustomerId'>) =>
 			pipe(d1.prepare('update teams set stripeCustomerId = ? where teamId = ?').bind(stripeCustomerId, teamId), d1.run),
