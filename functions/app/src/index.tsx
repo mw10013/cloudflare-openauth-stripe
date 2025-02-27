@@ -9,7 +9,7 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { Cause, Effect, Layer, ManagedRuntime, pipe, Schema } from 'effect'
+import { Cause, Effect, Layer, ManagedRuntime, Option, pipe, Schema } from 'effect'
 import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
@@ -567,7 +567,7 @@ const pricingPost = async (c: HonoContext<HonoEnv>) => {
 
 	const program = Effect.gen(function* () {
 		const repository = yield* Repository
-		return yield* repository.getTeamForUser(sessionUser)
+		return yield* repository.getTeamForUser2(sessionUser)
 	})
 	const team = await c.var.runtime.runPromise(program)
 	if (!team) throw new Error('Missing team')
@@ -630,21 +630,26 @@ const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashbo
 const dashboardLoaderData = (c: HonoContext<HonoEnv>) =>
 	pipe(
 		Effect.fromNullable(c.var.sessionData.sessionUser),
-		Effect.catchTag('NoSuchElementException', () => Effect.fail('Missing sessionUser')),
 		Effect.flatMap((user) => Repository.getTeamForUser(user)),
-		Effect.andThen(Effect.fromNullable),
-		Effect.catchTag('NoSuchElementException', () => Effect.fail('Missing team')),
-		Effect.map((team) => ({ team, sessionData: c.var.sessionData }))
+		Effect.flatMap(
+			Option.match({
+				onNone: () => Effect.fail('Missing team'),
+				onSome: (team) => Effect.succeed({ team, sessionData: c.var.sessionData })
+			})
+		)
 	)
 
 const dashboardPost = handler((c) =>
 	Effect.gen(function* () {
 		const team = yield* pipe(
 			Effect.fromNullable(c.var.sessionData.sessionUser),
-			Effect.catchTag('NoSuchElementException', () => Effect.fail('Missing sessionUser')),
 			Effect.flatMap((user) => Repository.getTeamForUser(user)),
-			Effect.andThen(Effect.fromNullable),
-			Effect.catchTag('NoSuchElementException', () => Effect.fail('Missing team'))
+			Effect.flatMap(
+				Option.match({
+					onNone: () => Effect.fail('Missing team'),
+					onSome: (v) => Effect.succeed(v)
+				})
+			)
 		)
 		if (!team.stripeCustomerId || !team.stripeProductId) {
 			return c.redirect('/pricing')
