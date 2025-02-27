@@ -9,7 +9,7 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { Effect, Layer, ManagedRuntime, pipe, Schema } from 'effect'
+import { Cause, Effect, Layer, ManagedRuntime, pipe, Schema } from 'effect'
 import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
@@ -52,7 +52,9 @@ export const handler =
 		) => Effect.Effect<A | Promise<A>, E, ManagedRuntime.ManagedRuntime.Context<Parameters<Handler<HonoEnv>>[0]['var']['runtime']>>
 	) =>
 	(...args: Parameters<Handler<HonoEnv>>) =>
-		args[0].var.runtime.runPromise(h(...args)).then((v) => v) // then so we return Promise<A> instead of Promise<A | Promise<A>>
+		args[0].var.runtime
+			.runPromise(h(...args).pipe(Effect.catchAllCause((cause) => Effect.succeed(args[0].json({ pretty: Cause.pretty(cause), cause })))))
+			.then((v) => v) // then so we return Promise<A> instead of Promise<A | Promise<A>>
 
 export function createDbService(db: Env['D1']) {
 	return {
