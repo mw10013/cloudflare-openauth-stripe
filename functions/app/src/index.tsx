@@ -425,7 +425,11 @@ function createFrontend({
 			return new Response(e.toString())
 		}
 	})
-	app.get('/pricing', (c) => c.render(<Pricing />))
+	app.get(
+		'/pricing',
+		handler((c) => pricingLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Pricing loaderData={loaderData} />))))
+	)
+
 	app.post('/pricing', pricingPost)
 	app.get(
 		'/dashboard',
@@ -513,15 +517,11 @@ const Home: FC = () => {
 	)
 }
 
-const Pricing: FC = async () => {
-	const c = useRequestContext<HonoEnv>()
-	const stripe = c.var.stripe
-	const priceList = await stripe.prices.list({ lookup_keys: ['base', 'plus'], expand: ['data.product'] })
-	const prices = priceList.data.sort((a, b) => (a.lookup_key && b.lookup_key ? a.lookup_key.localeCompare(b.lookup_key) : 0))
+const Pricing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof pricingLoaderData>> }> = async ({ loaderData }) => {
 	return (
 		<>
 			<div className="mx-auto grid max-w-xl gap-8 md:grid-cols-2">
-				{prices.map((price) => {
+				{loaderData.prices.map((price) => {
 					if (!price.unit_amount) return null
 					return (
 						<div key={price.id} className="card bg-base-100 shadow-sm">
@@ -537,10 +537,12 @@ const Pricing: FC = async () => {
 					)
 				})}
 			</div>
-			<pre>{JSON.stringify({ prices }, null, 2)}</pre>
+			<pre>{JSON.stringify({ loaderData }, null, 2)}</pre>
 		</>
 	)
 }
+
+const pricingLoaderData = (c: HonoContext<HonoEnv>) => Stripe.getPrices().pipe(Effect.map((prices) => ({ prices })))
 
 const pricingPost = async (c: HonoContext<HonoEnv>) => {
 	const sessionUser = c.var.sessionData.sessionUser

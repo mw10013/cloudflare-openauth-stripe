@@ -11,9 +11,13 @@ export const make = ({ STRIPE_SECRET_KEY }: { STRIPE_SECRET_KEY: string }) =>
 		const stripe = new StripeClass(STRIPE_SECRET_KEY)
 		const repository = yield* Repository // Outside of functions so that Repository does not show up in R
 		return {
-			createBillingPortalSession: (
-				props: NonNullable<Pick<StripeTypeNs.BillingPortal.SessionCreateParams, 'customer' | 'return_url'>>
-			) =>
+			getPrices: () =>
+				Effect.tryPromise(() => stripe.prices.list({ lookup_keys: ['base', 'plus'], expand: ['data.product'] })).pipe(
+					Effect.map((priceList) =>
+						priceList.data.sort((a, b) => (a.lookup_key && b.lookup_key ? a.lookup_key.localeCompare(b.lookup_key) : 0))
+					)
+				),
+			createBillingPortalSession: (props: NonNullable<Pick<StripeTypeNs.BillingPortal.SessionCreateParams, 'customer' | 'return_url'>>) =>
 				Effect.tryPromise(() => stripe.billingPortal.configurations.list()).pipe(
 					Effect.filterOrFail(
 						(result) => result.data.length > 0,
