@@ -429,7 +429,6 @@ function createFrontend({
 		'/pricing',
 		handler((c) => pricingLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Pricing loaderData={loaderData} />))))
 	)
-
 	app.post('/pricing', pricingPost)
 	app.get(
 		'/dashboard',
