@@ -1,5 +1,5 @@
 import type { Stripe as StripeTypeNs } from 'stripe'
-import { Effect, Layer } from 'effect'
+import { Effect, identity, Layer, Option, Predicate } from 'effect'
 import { Stripe as StripeClass } from 'stripe'
 import { Repository } from './Repository'
 
@@ -14,6 +14,11 @@ export const make = ({ STRIPE_SECRET_KEY }: { STRIPE_SECRET_KEY: string }) =>
 	Effect.gen(function* () {
 		const stripe = new StripeClass(STRIPE_SECRET_KEY)
 		const repository = yield* Repository // Outside of functions so that Repository does not show up in R
+		const getSubscriptionForCustomer = (customerId: NonNullable<StripeTypeNs.SubscriptionListParams['customer']>) =>
+			Effect.tryPromise(() =>
+				stripe.subscriptions.list({ customer: customerId, limit: 1, status: 'all', expand: ['data.items', 'data.items.data.price'] })
+			).pipe(Effect.map((result) => (result.data.length === 0 ? Option.none() : Option.some(result.data[0]))))
+
 		return {
 			getPrices: () =>
 				Effect.tryPromise(() => stripe.prices.list({ lookup_keys: ['base', 'plus'], expand: ['data.product'] })).pipe(
@@ -44,10 +49,7 @@ export const make = ({ STRIPE_SECRET_KEY }: { STRIPE_SECRET_KEY: string }) =>
 						)
 					)
 				),
-			getSubscriptionForCustomer: (customerId: NonNullable<StripeTypeNs.SubscriptionListParams['customer']>) =>
-				Effect.tryPromise(() =>
-					stripe.subscriptions.list({ customer: customerId, limit: 1, status: 'all', expand: ['data.items', 'data.items.data.price'] })
-				).pipe(Effect.map((result) => (result.data.length === 0 ? null : result.data[0]))),
+			getSubscriptionForCustomer,
 			// https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#checkout-flow
 			ensureStripeCustomerId: ({ userId, email }: { userId: number; email: string }) =>
 				Effect.gen(function* () {
@@ -100,7 +102,26 @@ export const make = ({ STRIPE_SECRET_KEY }: { STRIPE_SECRET_KEY: string }) =>
 							trial_period_days: 14
 						}
 					})
-				)
+				),
+			getCheckoutSession: (sessionId: string) =>
+				Effect.tryPromise(() => stripe.checkout.sessions.retrieve(sessionId, { expand: ['customer'] })),
+			syncStripData: (customerId: string) =>
+				Effect.gen(function* () {
+					// We do not handle multiple subscriptions.
+					const subscription = yield* getSubscriptionForCustomer(customerId).pipe(Effect.flatMap(identity))
+					const stripeProductId = subscription.items.data[0].price.product
+					const planName = subscription.items.data[0].price.lookup_key
+					if (!Predicate.isString(stripeProductId) || !Predicate.isString(planName)) {
+						return yield* Effect.fail(new Error('Invalid types: price product and lookup key must be strings'))
+					}
+					return yield* Repository.updateStripeSubscription({
+						stripeCustomerId: customerId,
+						stripeSubscriptionId: subscription.id,
+						stripeProductId,
+						planName,
+						subscriptionStatus: subscription.status
+					})
+				})
 		}
 	})
 
