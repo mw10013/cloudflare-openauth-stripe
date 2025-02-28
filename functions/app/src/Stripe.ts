@@ -11,17 +11,24 @@ export const make = ({ STRIPE_SECRET_KEY }: { STRIPE_SECRET_KEY: string }) =>
 		const stripe = new StripeClass(STRIPE_SECRET_KEY)
 		const repository = yield* Repository // Outside of functions so that Repository does not show up in R
 		return {
-			getBillingPortalConfiguration: () =>
+			createBillingPortalSession: (
+				props: NonNullable<Pick<StripeTypeNs.BillingPortal.SessionCreateParams, 'customer' | 'return_url'>>
+			) =>
 				Effect.tryPromise(() => stripe.billingPortal.configurations.list()).pipe(
 					Effect.filterOrFail(
 						(result) => result.data.length > 0,
 						() => new Error('No billing portal configuration found')
 					),
-					Effect.map((result) => result.data[0])
+					Effect.map((result) => result.data[0]),
+					Effect.flatMap((configuration) =>
+						Effect.tryPromise(() =>
+							stripe.billingPortal.sessions.create({
+								...props,
+								configuration: configuration.id
+							})
+						)
+					)
 				),
-			createBillingPortalSession: (
-				props: Pick<StripeTypeNs.BillingPortal.SessionCreateParams, 'customer' | 'return_url' | 'configuration'>
-			) => Effect.tryPromise(() => stripe.billingPortal.sessions.create(props)),
 			getSubscriptionForCustomer: (customerId: NonNullable<StripeTypeNs.SubscriptionListParams['customer']>) =>
 				Effect.tryPromise(() =>
 					stripe.subscriptions.list({ customer: customerId, limit: 1, status: 'all', expand: ['data.items', 'data.items.data.price'] })

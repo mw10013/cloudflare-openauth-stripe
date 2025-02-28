@@ -634,16 +634,10 @@ const dashboardPost = handler((c) =>
 		if (!team.stripeCustomerId || !team.stripeProductId) {
 			return c.redirect('/pricing')
 		}
-		return yield* Stripe.getBillingPortalConfiguration().pipe(
-			Effect.flatMap((configuration) =>
-				Stripe.createBillingPortalSession({
-					customer: team.stripeCustomerId!,
-					return_url: `${new URL(c.req.url).origin}/dashboard`,
-					configuration: configuration.id
-				})
-			),
-			Effect.map((session) => c.redirect(session.url))
-		)
+		return yield* Stripe.createBillingPortalSession({
+			customer: team.stripeCustomerId,
+			return_url: `${new URL(c.req.url).origin}/dashboard`
+		}).pipe(Effect.map((session) => c.redirect(session.url)))
 	})
 )
 
@@ -705,11 +699,6 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 				<form action="/admin" method="post">
 					<button name="intent" value="teams" className="btn btn-outline">
 						Teams
-					</button>
-				</form>
-				<form action="/admin" method="post">
-					<button name="intent" value="billing_portal_configuration" className="btn btn-outline">
-						Billing Portal Config
 					</button>
 				</form>
 				<div className="card bg-base-100 w-96 shadow-sm">
@@ -777,9 +766,6 @@ const adminPost = handler((c) =>
 				break
 			case 'teams':
 				actionData = { teams: yield* Repository.getTeams() }
-				break
-			case 'billing_portal_configuration':
-				actionData = { configuration: yield* Stripe.getBillingPortalConfiguration() }
 				break
 			case 'customer_subscription':
 				{
