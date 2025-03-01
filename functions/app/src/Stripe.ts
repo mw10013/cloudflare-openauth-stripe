@@ -17,7 +17,7 @@ export const make = ({ STRIPE_SECRET_KEY }: { STRIPE_SECRET_KEY: string }) =>
 		const getSubscriptionForCustomer = (customerId: NonNullable<StripeTypeNs.SubscriptionListParams['customer']>) =>
 			Effect.tryPromise(() =>
 				stripe.subscriptions.list({ customer: customerId, limit: 1, status: 'all', expand: ['data.items', 'data.items.data.price'] })
-			).pipe(Effect.map((result) => (result.data.length === 0 ? Option.none() : Option.some(result.data[0]))))
+			).pipe(Effect.map((result) => Option.fromNullable(result.data[0])))
 
 		return {
 			getPrices: () =>
@@ -108,19 +108,49 @@ export const make = ({ STRIPE_SECRET_KEY }: { STRIPE_SECRET_KEY: string }) =>
 			syncStripData: (customerId: string) =>
 				Effect.gen(function* () {
 					// We do not handle multiple subscriptions.
-					const subscription = yield* getSubscriptionForCustomer(customerId).pipe(Effect.flatMap(identity))
-					const stripeProductId = subscription.items.data[0].price.product
-					const planName = subscription.items.data[0].price.lookup_key
-					if (!Predicate.isString(stripeProductId) || !Predicate.isString(planName)) {
-						return yield* Effect.fail(new Error('Invalid types: price product and lookup key must be strings'))
-					}
-					return yield* Repository.updateStripeSubscription({
-						stripeCustomerId: customerId,
-						stripeSubscriptionId: subscription.id,
-						stripeProductId,
-						planName,
-						subscriptionStatus: subscription.status
+					// Stripe test environment deletes stale subscriptions.
+					const subscriptionOption = yield* getSubscriptionForCustomer(customerId)
+					return yield* Option.match(subscriptionOption, {
+						onNone: () =>
+							Repository.updateStripeSubscription({
+								stripeCustomerId: customerId,
+								stripeSubscriptionId: null,
+								stripeProductId: null,
+								planName: null,
+								subscriptionStatus: null
+							}),
+						onSome: (subscription) => {
+							const stripeProductId = subscription.items.data[0].price.product
+							const planName = subscription.items.data[0].price.lookup_key
+							if (!Predicate.isString(stripeProductId) || !Predicate.isString(planName)) {
+								return Effect.fail(new Error('Invalid types: price product and lookup key must be strings'))
+							}
+							return Repository.updateStripeSubscription({
+								stripeCustomerId: customerId,
+								stripeSubscriptionId: subscription.id,
+								stripeProductId,
+								planName,
+								subscriptionStatus: subscription.status
+							})
+						}
 					})
+
+					// if (typeof subscriptionItem.price.product !== 'string') throw new Error('Invalid product')
+					// if (typeof subscriptionItem.price.lookup_key !== 'string') throw new Error('Invalid lookup_key')
+
+					// const subscription = yield* getSubscriptionForCustomer(customerId).pipe(Effect.flatMap(identity))
+					// const stripeProductId = subscription.items.data[0].price.product
+					// const planName = subscription.items.data[0].price.lookup_key
+					// if (!Predicate.isString(stripeProductId) || !Predicate.isString(planName)) {
+					// 	return yield* Effect.fail(new Error('Invalid types: price product and lookup key must be strings'))
+					// }
+					// return yield* Repository.updateStripeSubscription({
+					// 	stripeCustomerId: customerId,
+					// 	stripeSubscriptionId: subscription.id,
+					// 	stripeProductId,
+					// 	planName,
+					// 	subscriptionStatus: subscription.status
+					// })
 				})
 		}
 	})

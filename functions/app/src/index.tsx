@@ -814,7 +814,7 @@ const adminPost = handler((c) =>
 				{
 					const customerId = formData.get('customerId')
 					if (!(typeof customerId === 'string' && customerId)) throw new Error('Invalid customerId')
-					const subscription = yield* Stripe.getSubscriptionForCustomer(customerId).pipe(Effect.andThen(Effect.fromNullable))
+					const subscription = yield* Stripe.getSubscriptionForCustomer(customerId)
 					actionData = {
 						subscription
 					}

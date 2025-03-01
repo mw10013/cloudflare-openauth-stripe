@@ -39,12 +39,9 @@ select json_group_array(json_object(
 			stripeProductId,
 			planName,
 			subscriptionStatus
-		}: Pick<
-			{
-				[K in keyof Team]: NonNullable<Team[K]>
-			},
-			'stripeCustomerId' | 'stripeSubscriptionId' | 'stripeProductId' | 'planName' | 'subscriptionStatus'
-		>) =>
+		}: Pick<Team, 'stripeSubscriptionId' | 'stripeProductId' | 'planName' | 'subscriptionStatus'> & {
+			stripeCustomerId: NonNullable<Team['stripeCustomerId']>
+		}) =>
 			pipe(
 				d1
 					.prepare(
