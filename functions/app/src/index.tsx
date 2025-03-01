@@ -9,7 +9,7 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { Cause, Effect, Layer, ManagedRuntime, Option, pipe, Schema } from 'effect'
+import { Cause, Console, Effect, Layer, ManagedRuntime, Option, pipe, Predicate, Schema } from 'effect'
 import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
@@ -238,24 +238,47 @@ function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<ty
 
 function createApi({ env, dbService, stripe }: { env: Env; dbService: ReturnType<typeof createDbService>; stripe: StripeClass }) {
 	const app = new Hono<HonoEnv>()
-	app.get('/api/stripe/checkout', async (c) => {
-		const sessionId = c.req.query('sessionId')
-		if (!sessionId) return c.redirect('/pricing')
+	app.get(
+		'/api/stripe/checkout',
+		handler((c) =>
+			Effect.gen(function* () {
+				const sessionId = c.req.query('sessionId')
+				if (!sessionId) return c.redirect('/pricing')
 
-		const session = await stripe.checkout.sessions.retrieve(sessionId, {
-			expand: ['customer']
-		})
-		const customer = session.customer
-		if (!customer || typeof customer === 'string') {
-			throw new Error('Invalid customer data from Stripe.')
-		}
-		await syncStripeData({
-			customerId: customer.id,
-			stripe,
-			dbService
-		})
-		return c.redirect('/dashboard')
-	})
+				console.log({ log: '/api/stripe/checkout', sessionId })
+
+				yield* Stripe.getCheckoutSession(sessionId).pipe(
+					Effect.tap((session) => Console.log('hello tap')),
+					Effect.tap((session) => Console.log({ session })),
+					Effect.map((session) => session.customer),
+					Effect.filterOrFail(
+						(customer) => Predicate.isString(customer),
+						() => new Error('Invalid customer data from Stripe')
+					),
+					Effect.flatMap((customerId) => Stripe.syncStripData(customerId))
+				)
+				return c.redirect('/dashboard')
+			})
+		)
+	)
+	// app.get('/api/stripe/checkout1', async (c) => {
+	// 	const sessionId = c.req.query('sessionId')
+	// 	if (!sessionId) return c.redirect('/pricing')
+
+	// 	const session = await stripe.checkout.sessions.retrieve(sessionId, {
+	// 		expand: ['customer']
+	// 	})
+	// 	const customer = session.customer
+	// 	if (!customer || typeof customer === 'string') {
+	// 		throw new Error('Invalid customer data from Stripe.')
+	// 	}
+	// 	await syncStripeData({
+	// 		customerId: customer.id,
+	// 		stripe,
+	// 		dbService
+	// 	})
+	// 	return c.redirect('/dashboard')
+	// })
 	app.post('/api/stripe/webhook', async (c) => {
 		const signature = c.req.header('stripe-signature')
 		// console.log({ log: 'stripe webhook', signature, STRIPE_WEBHOOK_SECRET: env.STRIPE_WEBHOOK_SECRET })
