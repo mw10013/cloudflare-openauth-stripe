@@ -259,41 +259,19 @@ function createApi({
 			Effect.gen(function* () {
 				const sessionId = c.req.query('sessionId')
 				if (!sessionId) return c.redirect('/pricing')
-
-				console.log({ log: '/api/stripe/checkout', sessionId })
-
 				yield* Stripe.getCheckoutSession(sessionId).pipe(
-					Effect.tap(() => Console.log('hello tap')),
 					Effect.tap((session) => Console.log({ session })),
-					Effect.map((session) => session.customer),
-					Effect.filterOrFail(
-						(customer) => Predicate.isString(customer),
-						() => new Error('Invalid customer data from Stripe')
+					Effect.flatMap((session) =>
+						Option.fromNullable(session.customer).pipe(
+							Option.filterMap((v) => (v !== null && typeof v !== 'string' ? Option.some(v) : Option.none()))
+						)
 					),
-					Effect.flatMap((customerId) => Stripe.syncStripData(customerId))
+					Effect.flatMap((customer) => Stripe.syncStripData(customer.id))
 				)
 				return c.redirect('/dashboard')
 			})
 		)
 	)
-	// app.get('/api/stripe/checkout1', async (c) => {
-	// 	const sessionId = c.req.query('sessionId')
-	// 	if (!sessionId) return c.redirect('/pricing')
-
-	// 	const session = await stripe.checkout.sessions.retrieve(sessionId, {
-	// 		expand: ['customer']
-	// 	})
-	// 	const customer = session.customer
-	// 	if (!customer || typeof customer === 'string') {
-	// 		throw new Error('Invalid customer data from Stripe.')
-	// 	}
-	// 	await syncStripeData({
-	// 		customerId: customer.id,
-	// 		stripe,
-	// 		dbService
-	// 	})
-	// 	return c.redirect('/dashboard')
-	// })
 	app.post('/api/stripe/webhook', async (c) => {
 		const signature = c.req.header('stripe-signature')
 		// console.log({ log: 'stripe webhook', signature, STRIPE_WEBHOOK_SECRET: env.STRIPE_WEBHOOK_SECRET })
