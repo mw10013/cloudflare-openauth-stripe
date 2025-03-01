@@ -131,7 +131,7 @@ export default {
 		const openAuth = createOpenAuth({ env, dbService })
 		const app = new Hono()
 		app.route('/', openAuth)
-		app.route('/', createApi({ env, dbService, stripe }))
+		app.route('/', createApi({ env, runtime, dbService, stripe }))
 		app.route('/', createFrontend({ env, ctx, openAuth, dbService, stripe, runtime })) // Last to isolate middleware
 		const response = await app.fetch(request, env, ctx)
 		ctx.waitUntil(runtime.dispose())
@@ -236,8 +236,23 @@ function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<ty
 	})
 }
 
-function createApi({ env, dbService, stripe }: { env: Env; dbService: ReturnType<typeof createDbService>; stripe: StripeClass }) {
+function createApi({
+	env,
+	runtime,
+	dbService,
+	stripe
+}: {
+	env: Env
+	runtime: ReturnType<typeof makeRuntime>
+	dbService: ReturnType<typeof createDbService>
+	stripe: StripeClass
+}) {
 	const app = new Hono<HonoEnv>()
+	app.use(async (c, next) => {
+		c.set('runtime', runtime)
+		await next()
+	})
+
 	app.get(
 		'/api/stripe/checkout',
 		handler((c) =>
@@ -248,7 +263,7 @@ function createApi({ env, dbService, stripe }: { env: Env; dbService: ReturnType
 				console.log({ log: '/api/stripe/checkout', sessionId })
 
 				yield* Stripe.getCheckoutSession(sessionId).pipe(
-					Effect.tap((session) => Console.log('hello tap')),
+					Effect.tap(() => Console.log('hello tap')),
 					Effect.tap((session) => Console.log({ session })),
 					Effect.map((session) => session.customer),
 					Effect.filterOrFail(
@@ -728,6 +743,22 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 				<div className="card bg-base-100 w-96 shadow-sm">
 					<form action="/admin" method="post">
 						<div className="card-body">
+							<h2 className="card-title">Sync Stripe Data</h2>
+							<fieldset className="fieldset">
+								<legend className="fieldset-legend">Customer Id</legend>
+								<input type="text" name="customerId" className="input" />
+							</fieldset>
+							<div className="card-actions justify-end">
+								<button name="intent" value="sync_stripe_data" className="btn btn-primary">
+									Submit
+								</button>
+							</div>
+						</div>
+					</form>
+				</div>
+				<div className="card bg-base-100 w-96 shadow-sm">
+					<form action="/admin" method="post">
+						<div className="card-body">
 							<h2 className="card-title">Customer Subscription</h2>
 							<fieldset className="fieldset">
 								<legend className="fieldset-legend">Customer Id</legend>
@@ -790,6 +821,16 @@ const adminPost = handler((c) =>
 				break
 			case 'teams':
 				actionData = { teams: yield* Repository.getTeams() }
+				break
+			case 'sync_stripe_data':
+				{
+					const customerId = formData.get('customerId')
+					if (!(typeof customerId === 'string' && customerId)) throw new Error('Invalid customerId')
+					yield* Stripe.syncStripData(customerId)
+					actionData = {
+						message: 'Stripe data synced.'
+					}
+				}
 				break
 			case 'customer_subscription':
 				{
