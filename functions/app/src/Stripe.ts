@@ -1,5 +1,5 @@
 import type { Stripe as StripeTypeNs } from 'stripe'
-import { Effect, identity, Layer, Option, Predicate } from 'effect'
+import { Console, Effect, identity, Layer, Option, Predicate } from 'effect'
 import { Stripe as StripeClass } from 'stripe'
 import { Repository } from './Repository'
 
@@ -14,6 +14,26 @@ export const make = ({ STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET }: { STRIPE_SECR
 	Effect.gen(function* () {
 		const stripe = new StripeClass(STRIPE_SECRET_KEY)
 		const repository = yield* Repository // Outside of functions so that Repository does not show up in R
+		const allowedEvents: StripeTypeNs.Event.Type[] = [
+			'checkout.session.completed',
+			'customer.subscription.created',
+			'customer.subscription.updated',
+			'customer.subscription.deleted',
+			'customer.subscription.paused',
+			'customer.subscription.resumed',
+			'customer.subscription.pending_update_applied',
+			'customer.subscription.pending_update_expired',
+			'customer.subscription.trial_will_end',
+			'invoice.paid',
+			'invoice.payment_failed',
+			'invoice.payment_action_required',
+			'invoice.upcoming',
+			'invoice.marked_uncollectible',
+			'invoice.payment_succeeded',
+			'payment_intent.succeeded',
+			'payment_intent.payment_failed',
+			'payment_intent.canceled'
+		]
 		const getSubscriptionForCustomer = (customerId: NonNullable<StripeTypeNs.SubscriptionListParams['customer']>) =>
 			Effect.tryPromise(() =>
 				stripe.subscriptions.list({ customer: customerId, limit: 1, status: 'all', expand: ['data.items', 'data.items.data.price'] })
@@ -26,7 +46,7 @@ export const make = ({ STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET }: { STRIPE_SECR
 					Option.match(subscriptionOption, {
 						onNone: () =>
 							// Stripe test environment deletes stale subscriptions.
-							Repository.updateStripeSubscription({
+							repository.updateStripeSubscription({
 								stripeCustomerId: customerId,
 								stripeSubscriptionId: null,
 								stripeProductId: null,
@@ -36,21 +56,19 @@ export const make = ({ STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET }: { STRIPE_SECR
 						onSome: (subscription) => {
 							const stripeProductId = subscription.items.data[0].price.product
 							const planName = subscription.items.data[0].price.lookup_key
-							if (!Predicate.isString(stripeProductId) || !Predicate.isString(planName)) {
-								return Effect.fail(new Error('Invalid types: price product and lookup key must be strings'))
-							}
-							return Repository.updateStripeSubscription({
-								stripeCustomerId: customerId,
-								stripeSubscriptionId: subscription.id,
-								stripeProductId,
-								planName,
-								subscriptionStatus: subscription.status
-							})
+							return Predicate.isString(stripeProductId) && Predicate.isString(planName)
+								? repository.updateStripeSubscription({
+										stripeCustomerId: customerId,
+										stripeSubscriptionId: subscription.id,
+										stripeProductId,
+										planName,
+										subscriptionStatus: subscription.status
+									})
+								: Effect.fail(new Error('Invalid types: price product and lookup key must be strings'))
 						}
-					})
+					}).pipe(Effect.asVoid)
 				)
 			)
-
 		return {
 			getPrices: () =>
 				Effect.tryPromise(() => stripe.prices.list({ lookup_keys: ['base', 'plus'], expand: ['data.product'] })).pipe(
@@ -148,84 +166,28 @@ export const make = ({ STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET }: { STRIPE_SECR
 				Effect.tryPromise(() => stripe.checkout.sessions.retrieve(sessionId, { expand: ['customer'] })),
 			syncStripData,
 			processWebhook: (body: string, signature: string) =>
-				Effect.gen(function* () {
-					const event = yield* Effect.tryPromise(() => stripe.webhooks.constructEventAsync(body, signature, STRIPE_WEBHOOK_SECRET))
-					const allowedEvents: StripeTypeNs.Event.Type[] = [
-						'checkout.session.completed',
-						'customer.subscription.created',
-						'customer.subscription.updated',
-						'customer.subscription.deleted',
-						'customer.subscription.paused',
-						'customer.subscription.resumed',
-						'customer.subscription.pending_update_applied',
-						'customer.subscription.pending_update_expired',
-						'customer.subscription.trial_will_end',
-						'invoice.paid',
-						'invoice.payment_failed',
-						'invoice.payment_action_required',
-						'invoice.upcoming',
-						'invoice.marked_uncollectible',
-						'invoice.payment_succeeded',
-						'payment_intent.succeeded',
-						'payment_intent.payment_failed',
-						'payment_intent.canceled'
-					]
-					// console.log({ log: 'stripe webhook', eventType: event.type, allow: allowedEvents.includes(event.type) })
-					if (!allowedEvents.includes(event.type)) return
-
-					// All the events I track have a customerId
-					const { customer: customerId } = event?.data?.object as {
-						customer: string // Sadly TypeScript does not know this
-					}
-
-					// This helps make it typesafe and also lets me know if my assumption is wrong
-					if (typeof customerId !== 'string') {
-						return yield* Effect.fail(new Error(`[STRIPE HOOK][CANCER] ID isn't string.\nEvent type: ${event.type}`))
-					}
-					yield* syncStripData(customerId)
-				})
+				Effect.tryPromise(() => stripe.webhooks.constructEventAsync(body, signature, STRIPE_WEBHOOK_SECRET)).pipe(
+					Effect.map((event) => ({
+						event,
+						allowedOption: Option.liftPredicate<StripeTypeNs.Event>((event) => allowedEvents.includes(event.type))(event)
+					})),
+					Effect.flatMap(({ event, allowedOption }) =>
+						Option.match(allowedOption, {
+							onNone: () => Console.log(`stripe webhook: ${event.type} is not allowed`),
+							onSome: (event) =>
+								// All allowed events should have a customerId but TypeScript does not know this
+								Effect.succeed((event.data.object as { customer: string }).customer).pipe(
+									Effect.filterOrFail(
+										Predicate.isString, // Ensure our assumption is correct.
+										() => new Error(`[STRIPE HOOK][CANCER] ID isn't string.\nEvent type: ${event.type}`)
+									),
+									Effect.flatMap(syncStripData)
+								)
+						})
+					)
+				)
 		}
 	})
-
-// const event = await stripe.webhooks.constructEventAsync(body, signature, env.STRIPE_WEBHOOK_SECRET)
-// const allowedEvents: StripeTypeNs.Event.Type[] = [
-// 	'checkout.session.completed',
-// 	'customer.subscription.created',
-// 	'customer.subscription.updated',
-// 	'customer.subscription.deleted',
-// 	'customer.subscription.paused',
-// 	'customer.subscription.resumed',
-// 	'customer.subscription.pending_update_applied',
-// 	'customer.subscription.pending_update_expired',
-// 	'customer.subscription.trial_will_end',
-// 	'invoice.paid',
-// 	'invoice.payment_failed',
-// 	'invoice.payment_action_required',
-// 	'invoice.upcoming',
-// 	'invoice.marked_uncollectible',
-// 	'invoice.payment_succeeded',
-// 	'payment_intent.succeeded',
-// 	'payment_intent.payment_failed',
-// 	'payment_intent.canceled'
-// ]
-// console.log({ log: 'stripe webhook', eventType: event.type, allow: allowedEvents.includes(event.type) })
-// if (!allowedEvents.includes(event.type)) return c.text('', 200)
-
-// // All the events I track have a customerId
-// const { customer: customerId } = event?.data?.object as {
-// 	customer: string // Sadly TypeScript does not know this
-// }
-
-// // This helps make it typesafe and also lets me know if my assumption is wrong
-// if (typeof customerId !== 'string') {
-// 	throw new Error(`[STRIPE HOOK][CANCER] ID isn't string.\nEvent type: ${event.type}`)
-// }
-
-// await syncStripeData({
-// 	customerId,
-// 	stripe,
-// 	dbService
-// })
 
 export class Stripe extends Effect.Tag('Stripe')<Stripe, Effect.Effect.Success<ReturnType<typeof make>>>() {}
 
