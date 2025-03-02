@@ -259,15 +259,7 @@ function createApi({
 			Effect.gen(function* () {
 				const sessionId = c.req.query('sessionId')
 				if (!sessionId) return c.redirect('/pricing')
-				yield* Stripe.getCheckoutSession(sessionId).pipe(
-					Effect.tap((session) => Console.log({ session })),
-					Effect.flatMap((session) =>
-						Option.fromNullable(session.customer).pipe(
-							Option.filterMap((v) => (v !== null && typeof v !== 'string' ? Option.some(v) : Option.none()))
-						)
-					),
-					Effect.flatMap((customer) => Stripe.syncStripData(customer.id))
-				)
+				yield* Stripe.finalizeCheckoutSession(sessionId)
 				return c.redirect('/dashboard')
 			})
 		)

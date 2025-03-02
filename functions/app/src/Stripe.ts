@@ -19,6 +19,38 @@ export const make = ({ STRIPE_SECRET_KEY }: { STRIPE_SECRET_KEY: string }) =>
 				stripe.subscriptions.list({ customer: customerId, limit: 1, status: 'all', expand: ['data.items', 'data.items.data.price'] })
 			).pipe(Effect.map((result) => Option.fromNullable(result.data[0])))
 
+		const syncStripData = (customerId: string) =>
+			// We do not handle multiple subscriptions.
+			getSubscriptionForCustomer(customerId).pipe(
+				Effect.flatMap((subscriptionOption) =>
+					Option.match(subscriptionOption, {
+						onNone: () =>
+							// Stripe test environment deletes stale subscriptions.
+							Repository.updateStripeSubscription({
+								stripeCustomerId: customerId,
+								stripeSubscriptionId: null,
+								stripeProductId: null,
+								planName: null,
+								subscriptionStatus: null
+							}),
+						onSome: (subscription) => {
+							const stripeProductId = subscription.items.data[0].price.product
+							const planName = subscription.items.data[0].price.lookup_key
+							if (!Predicate.isString(stripeProductId) || !Predicate.isString(planName)) {
+								return Effect.fail(new Error('Invalid types: price product and lookup key must be strings'))
+							}
+							return Repository.updateStripeSubscription({
+								stripeCustomerId: customerId,
+								stripeSubscriptionId: subscription.id,
+								stripeProductId,
+								planName,
+								subscriptionStatus: subscription.status
+							})
+						}
+					})
+				)
+			)
+
 		return {
 			getPrices: () =>
 				Effect.tryPromise(() => stripe.prices.list({ lookup_keys: ['base', 'plus'], expand: ['data.product'] })).pipe(
@@ -103,39 +135,18 @@ export const make = ({ STRIPE_SECRET_KEY }: { STRIPE_SECRET_KEY: string }) =>
 						}
 					})
 				),
+			finalizeCheckoutSession: (sessionId: string) =>
+				Effect.tryPromise(() => stripe.checkout.sessions.retrieve(sessionId, { expand: ['customer'] })).pipe(
+					Effect.flatMap((session) =>
+						Option.fromNullable(session.customer).pipe(
+							Option.filterMap((v) => (v !== null && typeof v !== 'string' ? Option.some(v) : Option.none()))
+						)
+					),
+					Effect.flatMap((customer) => syncStripData(customer.id))
+				),
 			getCheckoutSession: (sessionId: string) =>
 				Effect.tryPromise(() => stripe.checkout.sessions.retrieve(sessionId, { expand: ['customer'] })),
-			syncStripData: (customerId: string) =>
-				// We do not handle multiple subscriptions.
-				getSubscriptionForCustomer(customerId).pipe(
-					Effect.flatMap((subscriptionOption) =>
-						Option.match(subscriptionOption, {
-							onNone: () =>
-								// Stripe test environment deletes stale subscriptions.
-								Repository.updateStripeSubscription({
-									stripeCustomerId: customerId,
-									stripeSubscriptionId: null,
-									stripeProductId: null,
-									planName: null,
-									subscriptionStatus: null
-								}),
-							onSome: (subscription) => {
-								const stripeProductId = subscription.items.data[0].price.product
-								const planName = subscription.items.data[0].price.lookup_key
-								if (!Predicate.isString(stripeProductId) || !Predicate.isString(planName)) {
-									return Effect.fail(new Error('Invalid types: price product and lookup key must be strings'))
-								}
-								return Repository.updateStripeSubscription({
-									stripeCustomerId: customerId,
-									stripeSubscriptionId: subscription.id,
-									stripeProductId,
-									planName,
-									subscriptionStatus: subscription.status
-								})
-							}
-						})
-					)
-				)
+			syncStripData
 		}
 	})
 
