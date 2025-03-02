@@ -131,7 +131,7 @@ export default {
 		const openAuth = createOpenAuth({ env, dbService })
 		const app = new Hono()
 		app.route('/', openAuth)
-		app.route('/', createApi({ env, runtime, dbService, stripe }))
+		app.route('/', createApi({ runtime }))
 		app.route('/', createFrontend({ env, ctx, openAuth, dbService, stripe, runtime })) // Last to isolate middleware
 		const response = await app.fetch(request, env, ctx)
 		ctx.waitUntil(runtime.dispose())
@@ -236,17 +236,7 @@ function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<ty
 	})
 }
 
-function createApi({
-	env,
-	runtime,
-	dbService,
-	stripe
-}: {
-	env: Env
-	runtime: ReturnType<typeof makeRuntime>
-	dbService: ReturnType<typeof createDbService>
-	stripe: StripeClass
-}) {
+function createApi({ runtime }: { runtime: ReturnType<typeof makeRuntime> }) {
 	const app = new Hono<HonoEnv>()
 	app.use(async (c, next) => {
 		c.set('runtime', runtime)
