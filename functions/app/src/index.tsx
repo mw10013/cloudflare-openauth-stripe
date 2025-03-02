@@ -264,58 +264,23 @@ function createApi({
 			})
 		)
 	)
-	app.post('/api/stripe/webhook', async (c) => {
-		const signature = c.req.header('stripe-signature')
-		// console.log({ log: 'stripe webhook', signature, STRIPE_WEBHOOK_SECRET: env.STRIPE_WEBHOOK_SECRET })
-		if (!signature) return c.text('', 400)
-		try {
-			const body = await c.req.text()
-			const event = await stripe.webhooks.constructEventAsync(body, signature, env.STRIPE_WEBHOOK_SECRET)
-			const allowedEvents: StripeTypeNs.Event.Type[] = [
-				'checkout.session.completed',
-				'customer.subscription.created',
-				'customer.subscription.updated',
-				'customer.subscription.deleted',
-				'customer.subscription.paused',
-				'customer.subscription.resumed',
-				'customer.subscription.pending_update_applied',
-				'customer.subscription.pending_update_expired',
-				'customer.subscription.trial_will_end',
-				'invoice.paid',
-				'invoice.payment_failed',
-				'invoice.payment_action_required',
-				'invoice.upcoming',
-				'invoice.marked_uncollectible',
-				'invoice.payment_succeeded',
-				'payment_intent.succeeded',
-				'payment_intent.payment_failed',
-				'payment_intent.canceled'
-			]
-			console.log({ log: 'stripe webhook', eventType: event.type, allow: allowedEvents.includes(event.type) })
-			if (!allowedEvents.includes(event.type)) return c.text('', 200)
-
-			// All the events I track have a customerId
-			const { customer: customerId } = event?.data?.object as {
-				customer: string // Sadly TypeScript does not know this
-			}
-
-			// This helps make it typesafe and also lets me know if my assumption is wrong
-			if (typeof customerId !== 'string') {
-				throw new Error(`[STRIPE HOOK][CANCER] ID isn't string.\nEvent type: ${event.type}`)
-			}
-
-			await syncStripeData({
-				customerId,
-				stripe,
-				dbService
+	app.post(
+		'/api/stripe/webhook',
+		handler((c) =>
+			Effect.gen(function* () {
+				const signature = c.req.header('stripe-signature')
+				if (!signature) return c.text('', 400)
+				const body = yield* Effect.tryPromise(() => c.req.text())
+				return yield* Stripe.processWebhook(body, signature).pipe(
+					Effect.map(() => c.text('', 200)),
+					Effect.tapError((error) =>
+						Console.log(`Stripe webhook failed: ${error instanceof Error ? error.message : 'Internal server error'}`)
+					),
+					Effect.orElseSucceed(() => c.text('', 400))
+				)
 			})
-			return c.text('', 200)
-		} catch (err) {
-			const errorMessage = `Stripe webhook failed: ${err instanceof Error ? err.message : 'Internal server error'}`
-			console.log(errorMessage)
-			return c.text(errorMessage, 400)
-		}
-	})
+		)
+	)
 	return app
 }
 

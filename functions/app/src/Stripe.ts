@@ -10,7 +10,7 @@ type T = Pick<
 	'customer' | 'return_url'
 >
 
-export const make = ({ STRIPE_SECRET_KEY }: { STRIPE_SECRET_KEY: string }) =>
+export const make = ({ STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET }: { STRIPE_SECRET_KEY: string; STRIPE_WEBHOOK_SECRET: string }) =>
 	Effect.gen(function* () {
 		const stripe = new StripeClass(STRIPE_SECRET_KEY)
 		const repository = yield* Repository // Outside of functions so that Repository does not show up in R
@@ -146,10 +146,88 @@ export const make = ({ STRIPE_SECRET_KEY }: { STRIPE_SECRET_KEY: string }) =>
 				),
 			getCheckoutSession: (sessionId: string) =>
 				Effect.tryPromise(() => stripe.checkout.sessions.retrieve(sessionId, { expand: ['customer'] })),
-			syncStripData
+			syncStripData,
+			processWebhook: (body: string, signature: string) =>
+				Effect.gen(function* () {
+					const event = yield* Effect.tryPromise(() => stripe.webhooks.constructEventAsync(body, signature, STRIPE_WEBHOOK_SECRET))
+					const allowedEvents: StripeTypeNs.Event.Type[] = [
+						'checkout.session.completed',
+						'customer.subscription.created',
+						'customer.subscription.updated',
+						'customer.subscription.deleted',
+						'customer.subscription.paused',
+						'customer.subscription.resumed',
+						'customer.subscription.pending_update_applied',
+						'customer.subscription.pending_update_expired',
+						'customer.subscription.trial_will_end',
+						'invoice.paid',
+						'invoice.payment_failed',
+						'invoice.payment_action_required',
+						'invoice.upcoming',
+						'invoice.marked_uncollectible',
+						'invoice.payment_succeeded',
+						'payment_intent.succeeded',
+						'payment_intent.payment_failed',
+						'payment_intent.canceled'
+					]
+					// console.log({ log: 'stripe webhook', eventType: event.type, allow: allowedEvents.includes(event.type) })
+					if (!allowedEvents.includes(event.type)) return
+
+					// All the events I track have a customerId
+					const { customer: customerId } = event?.data?.object as {
+						customer: string // Sadly TypeScript does not know this
+					}
+
+					// This helps make it typesafe and also lets me know if my assumption is wrong
+					if (typeof customerId !== 'string') {
+						return yield* Effect.fail(new Error(`[STRIPE HOOK][CANCER] ID isn't string.\nEvent type: ${event.type}`))
+					}
+					yield* syncStripData(customerId)
+				})
 		}
 	})
 
+// const event = await stripe.webhooks.constructEventAsync(body, signature, env.STRIPE_WEBHOOK_SECRET)
+// const allowedEvents: StripeTypeNs.Event.Type[] = [
+// 	'checkout.session.completed',
+// 	'customer.subscription.created',
+// 	'customer.subscription.updated',
+// 	'customer.subscription.deleted',
+// 	'customer.subscription.paused',
+// 	'customer.subscription.resumed',
+// 	'customer.subscription.pending_update_applied',
+// 	'customer.subscription.pending_update_expired',
+// 	'customer.subscription.trial_will_end',
+// 	'invoice.paid',
+// 	'invoice.payment_failed',
+// 	'invoice.payment_action_required',
+// 	'invoice.upcoming',
+// 	'invoice.marked_uncollectible',
+// 	'invoice.payment_succeeded',
+// 	'payment_intent.succeeded',
+// 	'payment_intent.payment_failed',
+// 	'payment_intent.canceled'
+// ]
+// console.log({ log: 'stripe webhook', eventType: event.type, allow: allowedEvents.includes(event.type) })
+// if (!allowedEvents.includes(event.type)) return c.text('', 200)
+
+// // All the events I track have a customerId
+// const { customer: customerId } = event?.data?.object as {
+// 	customer: string // Sadly TypeScript does not know this
+// }
+
+// // This helps make it typesafe and also lets me know if my assumption is wrong
+// if (typeof customerId !== 'string') {
+// 	throw new Error(`[STRIPE HOOK][CANCER] ID isn't string.\nEvent type: ${event.type}`)
+// }
+
+// await syncStripeData({
+// 	customerId,
+// 	stripe,
+// 	dbService
+// })
+
 export class Stripe extends Effect.Tag('Stripe')<Stripe, Effect.Effect.Success<ReturnType<typeof make>>>() {}
 
-export const layer = ({ STRIPE_SECRET_KEY }: { STRIPE_SECRET_KEY: string }) => Layer.effect(Stripe, make({ STRIPE_SECRET_KEY }))
+export const layer = ({ STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET }: { STRIPE_SECRET_KEY: string; STRIPE_WEBHOOK_SECRET: string }) =>
+	Layer.effect(Stripe, make({ STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET }))
