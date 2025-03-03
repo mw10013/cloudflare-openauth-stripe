@@ -15,7 +15,7 @@ import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import * as D1Ns from './D1'
 import { D1 } from './D1'
 import { Repository } from './Repository'
-import { SessionData, Team, User, UserSubject } from './schemas'
+import { SessionData, UserSubject } from './schemas'
 import * as StripeNs from './Stripe'
 import { Stripe } from './Stripe'
 
@@ -53,89 +53,21 @@ export const handler =
 			.runPromise(h(...args).pipe(Effect.catchAllCause((cause) => Effect.succeed(args[0].json({ pretty: Cause.pretty(cause), cause })))))
 			.then((v) => v) // then so we return Promise<A> instead of Promise<A | Promise<A>>
 
-export function createDbService(db: Env['D1']) {
-	return {
-		upsertUser: async ({ email }: { email: string }) => {
-			const [
-				{
-					results: [user]
-				}
-			] = await db.batch([
-				db.prepare('insert into users (email) values (?) on conflict (email) do update set email = email returning *').bind(email),
-				db
-					.prepare(
-						`
-insert into teams (name) 
-select 'Team' 
-where exists (select 1 from users u where u.email = ?1 and role = "user") and
-not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from users u where u.email = ?1 and role = "user")
-)
-`
-					)
-					.bind(email),
-				db
-					.prepare(
-						`
-insert into teamMembers (userId, teamId, teamMemberRole)
-select (select userId from users where email = ?1), last_insert_rowid(), 'owner'
-where exists (select 1 from users u where u.email = ?1 and role = "user") and
-not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from users u where u.email = ?1)
-)
-`
-					)
-					.bind(email)
-			])
-			return Schema.decodeUnknownSync(User)(user)
-		},
-		updateStripeCustomerId: async ({
-			teamId,
-			stripeCustomerId
-		}: Pick<
-			{
-				[K in keyof Team]: NonNullable<Team[K]>
-			},
-			'teamId' | 'stripeCustomerId'
-		>) => {
-			await db.prepare('update teams set stripeCustomerId = ? where teamId = ?').bind(stripeCustomerId, teamId).run()
-		},
-		updateStripeSubscription: async ({
-			stripeCustomerId,
-			stripeSubscriptionId,
-			stripeProductId,
-			planName,
-			subscriptionStatus
-		}: Pick<
-			{
-				[K in keyof Team]: NonNullable<Team[K]>
-			},
-			'stripeCustomerId' | 'stripeSubscriptionId' | 'stripeProductId' | 'planName' | 'subscriptionStatus'
-		>) => {
-			await db
-				.prepare(
-					'update teams set stripeSubscriptionId = ?, stripeProductId = ?, planName = ?, subscriptionStatus = ? where stripeCustomerId = ?'
-				)
-				.bind(stripeSubscriptionId, stripeProductId, planName, subscriptionStatus, stripeCustomerId)
-				.run()
-		}
-	}
-}
-
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const runtime = makeRuntime(env)
-		const dbService = createDbService(env.D1)
-		const openAuth = createOpenAuth({ env, dbService })
+		const openAuth = createOpenAuth({ env, runtime })
 		const app = new Hono()
 		app.route('/', openAuth)
 		app.route('/', createApi({ runtime }))
-		app.route('/', createFrontend({ env, ctx, openAuth, runtime })) // Last to isolate middleware
+		app.route('/', createFrontend({ env, ctx, runtime, openAuth })) // Last to isolate middleware
 		const response = await app.fetch(request, env, ctx)
 		ctx.waitUntil(runtime.dispose())
 		return response
 	}
 } satisfies ExportedHandler<Env>
 
-function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<typeof createDbService> }) {
+function createOpenAuth({ env, runtime }: { env: Env; runtime: HonoEnv['Variables']['runtime'] }) {
 	const { request, ...codeUi } = CodeUI({
 		copy: {
 			code_placeholder: 'Code (check Worker logs)'
@@ -222,7 +154,7 @@ function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<ty
 		},
 		success: async (ctx, value) => {
 			const email = value.claims.email
-			const user = await dbService.upsertUser({ email })
+			const user = await runtime.runPromise(Repository.upsertUser({ email }))
 			return ctx.subject('user', {
 				userId: user.userId,
 				email,
@@ -232,7 +164,7 @@ function createOpenAuth({ env, dbService }: { env: Env; dbService: ReturnType<ty
 	})
 }
 
-function createApi({ runtime }: { runtime: ReturnType<typeof makeRuntime> }) {
+function createApi({ runtime }: { runtime: HonoEnv['Variables']['runtime'] }) {
 	const app = new Hono<HonoEnv>()
 	app.use(async (c, next) => {
 		c.set('runtime', runtime)
@@ -278,7 +210,7 @@ function createFrontend({
 }: {
 	env: Env
 	ctx: ExecutionContext
-	runtime: ReturnType<typeof makeRuntime>
+	runtime: HonoEnv['Variables']['runtime']
 	openAuth: ReturnType<typeof createOpenAuth>
 }) {
 	const app = new Hono<HonoEnv>()
