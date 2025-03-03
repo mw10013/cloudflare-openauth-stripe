@@ -1,5 +1,4 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
-import type { Stripe as StripeTypeNs } from 'stripe'
 import { issuer } from '@openauthjs/openauth'
 import { Client, createClient } from '@openauthjs/openauth/client'
 import { CodeProvider } from '@openauthjs/openauth/provider/code'
@@ -13,20 +12,18 @@ import { Cause, Console, Effect, Layer, ManagedRuntime, Option, pipe, Predicate,
 import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
-import { Stripe as StripeClass } from 'stripe'
 import * as D1Ns from './D1'
 import { D1 } from './D1'
 import { Repository } from './Repository'
 import { SessionData, Team, User, UserSubject } from './schemas'
-import { Stripe, layer as stripeLayer } from './Stripe'
+import * as StripeNs from './Stripe'
+import { Stripe } from './Stripe'
 
 type HonoEnv = {
 	Bindings: Env
 	Variables: {
 		runtime: ReturnType<typeof makeRuntime>
 		sessionData: SessionData
-		dbService: ReturnType<typeof createDbService>
-		stripe: StripeClass
 		client: Client
 		redirectUri: string
 	}
@@ -39,7 +36,7 @@ export const subjects = createSubjects({
 export const makeRuntime = (env: Env) => {
 	const D1Live = D1Ns.layer({ db: env.D1 })
 	const RepositoryLive = Repository.Live.pipe(Layer.provide(D1Live))
-	const StripeLive = stripeLayer(env).pipe(Layer.provide(RepositoryLive))
+	const StripeLive = StripeNs.layer(env).pipe(Layer.provide(RepositoryLive))
 	const Live = Layer.mergeAll(StripeLive, RepositoryLive, D1Live)
 	return ManagedRuntime.make(Live)
 }
@@ -127,12 +124,11 @@ export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const runtime = makeRuntime(env)
 		const dbService = createDbService(env.D1)
-		const stripe = new StripeClass(env.STRIPE_SECRET_KEY)
 		const openAuth = createOpenAuth({ env, dbService })
 		const app = new Hono()
 		app.route('/', openAuth)
 		app.route('/', createApi({ runtime }))
-		app.route('/', createFrontend({ env, ctx, openAuth, dbService, stripe, runtime })) // Last to isolate middleware
+		app.route('/', createFrontend({ env, ctx, openAuth, runtime })) // Last to isolate middleware
 		const response = await app.fetch(request, env, ctx)
 		ctx.waitUntil(runtime.dispose())
 		return response
@@ -278,16 +274,12 @@ function createFrontend({
 	env,
 	ctx,
 	runtime,
-	openAuth,
-	dbService,
-	stripe
+	openAuth
 }: {
 	env: Env
 	ctx: ExecutionContext
 	runtime: ReturnType<typeof makeRuntime>
 	openAuth: ReturnType<typeof createOpenAuth>
-	dbService: ReturnType<typeof createDbService>
-	stripe: StripeClass
 }) {
 	const app = new Hono<HonoEnv>()
 
@@ -306,8 +298,6 @@ function createFrontend({
 		console.log({ sessionData })
 
 		c.set('runtime', runtime)
-		c.set('dbService', dbService)
-		c.set('stripe', stripe)
 
 		const { origin } = new URL(c.req.url)
 		const client = createClient({
@@ -506,63 +496,38 @@ const Pricing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof pricingL
 
 const pricingLoaderData = (c: HonoContext<HonoEnv>) => Stripe.getPrices().pipe(Effect.map((prices) => ({ prices })))
 
-const pricingPost = async (c: HonoContext<HonoEnv>) => {
-	const sessionUser = c.var.sessionData.sessionUser
-	if (!sessionUser) return c.redirect('/authenticate')
-	if (sessionUser.role !== 'user') throw new Error('Only users can subscribe')
-	// https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#checkout-flow
-	const ensureStripeCustomerId = async (team: Team) => {
-		if (team.stripeCustomerId) return [team.stripeCustomerId, team.stripeSubscriptionId] as const
-		const customer = await c.var.stripe.customers.create({
-			email: sessionUser.email,
-			metadata: {
-				userId: sessionUser.userId // DO NOT FORGET THIS
-			}
-		})
-		await c.var.dbService.updateStripeCustomerId({
-			teamId: team.teamId,
-			stripeCustomerId: customer.id
-		})
-		return [customer.id, null] as const
-	}
-	const formData = await c.req.formData()
-	const priceId = formData.get('priceId')
-	if (!(typeof priceId === 'string' && priceId)) throw new Error('Missing priceId.')
-	const team = await c.var.runtime.runPromise(Repository.getRequiredTeamForUser(sessionUser))
-	const [stripeCustomerId, stripeSubscriptionId] = await ensureStripeCustomerId(team)
-	if (stripeSubscriptionId) {
-		const configurations = await c.var.stripe.billingPortal.configurations.list()
-		if (configurations.data.length === 0) throw new Error('Missing billing portal configuration')
-		const session = await c.var.stripe.billingPortal.sessions.create({
-			customer: stripeCustomerId,
-			return_url: `${new URL(c.req.url).origin}/dashboard`,
-			configuration: configurations.data[0].id
-		})
-		return c.redirect(session.url)
-	} else {
+const pricingPost = handler((c) =>
+	Effect.gen(function* () {
 		const { origin } = new URL(c.req.url)
-		const session = await c.var.stripe.checkout.sessions.create({
-			payment_method_types: ['card'],
-			line_items: [
-				{
-					price: priceId,
-					quantity: 1
-				}
-			],
-			mode: 'subscription',
-			success_url: `${origin}/api/stripe/checkout?sessionId={CHECKOUT_SESSION_ID}`,
-			cancel_url: `${origin}/pricing`,
-			customer: stripeCustomerId,
-			client_reference_id: sessionUser.userId.toString(),
-			allow_promotion_codes: true,
-			subscription_data: {
-				trial_period_days: 14
-			}
+		const sessionUser = c.var.sessionData.sessionUser
+		if (!sessionUser) return c.redirect('/authenticate')
+		if (sessionUser.role !== 'user') return yield* Effect.fail(new Error('Only users can subscribe'))
+		// https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#checkout-flow
+		const formData = yield* Effect.tryPromise(() => c.req.formData())
+		const priceId = formData.get('priceId')
+		if (!(typeof priceId === 'string' && priceId)) return yield* Effect.fail(new Error('Missing priceId.'))
+		const { stripeCustomerId, stripeSubscriptionId } = yield* Stripe.ensureStripeCustomerId({
+			userId: sessionUser.userId,
+			email: sessionUser.email
 		})
-		if (!session.url) throw new Error('Missing session.url')
-		return c.redirect(session.url)
-	}
-}
+		return stripeSubscriptionId
+			? yield* Stripe.createBillingPortalSession({
+					customer: stripeCustomerId,
+					return_url: `${new URL(c.req.url).origin}/dashboard`
+				}).pipe(Effect.map((session) => c.redirect(session.url)))
+			: yield* Stripe.createCheckoutSession({
+					customer: stripeCustomerId,
+					success_url: `${origin}/api/stripe/checkout?sessionId={CHECKOUT_SESSION_ID}`,
+					cancel_url: `${origin}/pricing`,
+					client_reference_id: sessionUser.userId.toString(),
+					price: priceId
+				}).pipe(
+					Effect.flatMap((session) =>
+						typeof session.url === 'string' ? Effect.succeed(c.redirect(session.url)) : Effect.fail(new Error('Missing session url'))
+					)
+				)
+	})
+)
 
 const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashboardLoaderData>> }> = async ({ loaderData }) => {
 	return (
@@ -604,41 +569,6 @@ const dashboardPost = handler((c) =>
 		}).pipe(Effect.map((session) => c.redirect(session.url)))
 	})
 )
-
-async function syncStripeData({
-	customerId,
-	stripe,
-	dbService
-}: {
-	customerId: string
-	stripe: StripeClass
-	dbService: ReturnType<typeof createDbService>
-}) {
-	console.log({ log: 'syncStripeData', customerId })
-	const subscriptions = await stripe.subscriptions.list({
-		customer: customerId,
-		limit: 1,
-		status: 'all',
-		expand: ['data.items', 'data.items.data.price']
-	})
-	if (subscriptions.data.length === 0) {
-		console.log(`syncStripeData: No subscriptions found for customer ${customerId}`)
-		return
-	}
-
-	// If a user can have multiple subscriptions, that's your problem
-	const subscription = subscriptions.data[0]
-	const subscriptionItem = subscription.items.data[0]
-	if (typeof subscriptionItem.price.product !== 'string') throw new Error('Invalid product')
-	if (typeof subscriptionItem.price.lookup_key !== 'string') throw new Error('Invalid lookup_key')
-	await dbService.updateStripeSubscription({
-		stripeCustomerId: customerId,
-		stripeSubscriptionId: subscription.id,
-		stripeProductId: subscriptionItem.price.product,
-		planName: subscriptionItem.price.lookup_key,
-		subscriptionStatus: subscription.status
-	})
-}
 
 const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 	return (

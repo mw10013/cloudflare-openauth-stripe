@@ -1,14 +1,7 @@
 import type { Stripe as StripeTypeNs } from 'stripe'
-import { Console, Effect, identity, Layer, Option, Predicate } from 'effect'
+import { Console, Effect, Layer, Option, Predicate } from 'effect'
 import { Stripe as StripeClass } from 'stripe'
 import { Repository } from './Repository'
-
-type T = Pick<
-	{
-		[K in keyof StripeTypeNs.BillingPortal.SessionCreateParams]-?: NonNullable<StripeTypeNs.BillingPortal.SessionCreateParams[K]>
-	},
-	'customer' | 'return_url'
->
 
 export const make = ({ STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET }: { STRIPE_SECRET_KEY: string; STRIPE_WEBHOOK_SECRET: string }) =>
 	Effect.gen(function* () {
