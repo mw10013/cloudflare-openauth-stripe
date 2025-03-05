@@ -8,16 +8,21 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { Cause, Console, Effect, Layer, ManagedRuntime, Option, pipe, Predicate, Schema } from 'effect'
+import { Cause, Console, Data, Effect, Layer, ManagedRuntime, Option, ParseResult, pipe, Predicate, Schema } from 'effect'
 import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import * as D1Ns from './D1'
 import { D1 } from './D1'
 import { Repository } from './Repository'
-import { SessionData, UserSubject } from './schemas'
+import { FormDataSchema, SessionData, UserSubject } from './schemas'
 import * as StripeNs from './Stripe'
 import { Stripe } from './Stripe'
+
+// https://github.com/epicweb-dev/invariant/blob/main/README.md
+class InvariantError extends Data.TaggedError('InvariantError')<{ message: string }> {}
+
+class InvariantResponseError extends Data.TaggedError('InvariantResponseError')<{ message: string; response: Response }> {}
 
 type HonoEnv = {
 	Bindings: Env
@@ -428,37 +433,60 @@ const Pricing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof pricingL
 
 const pricingLoaderData = (c: HonoContext<HonoEnv>) => Stripe.getPrices().pipe(Effect.map((prices) => ({ prices })))
 
+// https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#checkout-flow
 const pricingPost = handler((c) =>
-	Effect.gen(function* () {
-		const { origin } = new URL(c.req.url)
-		const sessionUser = c.var.sessionData.sessionUser
-		if (!sessionUser) return c.redirect('/authenticate')
-		if (sessionUser.role !== 'user') return yield* Effect.fail(new Error('Only users can subscribe'))
-		// https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#checkout-flow
-		const formData = yield* Effect.tryPromise(() => c.req.formData())
-		const priceId = formData.get('priceId')
-		if (!(typeof priceId === 'string' && priceId)) return yield* Effect.fail(new Error('Missing priceId.'))
-		const { stripeCustomerId, stripeSubscriptionId } = yield* Stripe.ensureStripeCustomerId({
-			userId: sessionUser.userId,
-			email: sessionUser.email
-		})
-		return stripeSubscriptionId
-			? yield* Stripe.createBillingPortalSession({
-					customer: stripeCustomerId,
-					return_url: `${new URL(c.req.url).origin}/dashboard`
-				}).pipe(Effect.map((session) => c.redirect(session.url)))
-			: yield* Stripe.createCheckoutSession({
-					customer: stripeCustomerId,
-					success_url: `${origin}/api/stripe/checkout?sessionId={CHECKOUT_SESSION_ID}`,
-					cancel_url: `${origin}/pricing`,
-					client_reference_id: sessionUser.userId.toString(),
-					price: priceId
-				}).pipe(
-					Effect.flatMap((session) =>
-						typeof session.url === 'string' ? Effect.succeed(c.redirect(session.url)) : Effect.fail(new Error('Missing session url'))
+	Effect.all({
+		sessionUser: Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
+			Effect.mapError(
+				() =>
+					new InvariantResponseError({
+						message: 'Missing session user',
+						response: c.redirect('/authenticate')
+					})
+			),
+			Effect.filterOrFail(
+				(sessionUser): sessionUser is typeof sessionUser & { role: 'user' } => sessionUser.role === 'user',
+				() => new InvariantError({ message: 'Only users can subscribe' })
+			)
+		),
+		priceId: Effect.tryPromise(() => c.req.formData()).pipe(
+			Effect.flatMap(
+				Schema.decode(FormDataSchema(Schema.Struct({ priceId: Schema.NonEmptyString }).annotations({ identifier: 'Price ID' })))
+			),
+			Effect.map((formData) => formData.priceId)
+		)
+	}).pipe(
+		Effect.flatMap((props) =>
+			Stripe.ensureStripeCustomerId({
+				userId: props.sessionUser.userId,
+				email: props.sessionUser.email
+			}).pipe(
+				Effect.map((stripeCustomerProps) => ({
+					origin: new URL(c.req.url).origin,
+					...props,
+					...stripeCustomerProps
+				}))
+			)
+		),
+		Effect.flatMap(({ origin, sessionUser, priceId, stripeSubscriptionId, stripeCustomerId }) =>
+			stripeSubscriptionId
+				? Stripe.createBillingPortalSession({
+						customer: stripeCustomerId,
+						return_url: `${origin}/dashboard`
+					}).pipe(Effect.map((session) => c.redirect(session.url)))
+				: Stripe.createCheckoutSession({
+						customer: stripeCustomerId,
+						success_url: `${origin}/api/stripe/checkout?sessionId={CHECKOUT_SESSION_ID}`,
+						cancel_url: `${origin}/pricing`,
+						client_reference_id: sessionUser.userId.toString(),
+						price: priceId
+					}).pipe(
+						Effect.flatMap((session) =>
+							typeof session.url === 'string' ? Effect.succeed(c.redirect(session.url)) : Effect.fail(new Error('Missing session url'))
+						)
 					)
-				)
-	})
+		)
+	)
 )
 
 const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashboardLoaderData>> }> = async ({ loaderData }) => {
