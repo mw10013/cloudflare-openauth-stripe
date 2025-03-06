@@ -8,7 +8,7 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { Cause, Console, Data, Effect, Layer, ManagedRuntime, Option, ParseResult, pipe, Predicate, Schema } from 'effect'
+import { Cause, Chunk, Console, Data, Effect, Layer, ManagedRuntime, Option, ParseResult, pipe, Predicate, Schema } from 'effect'
 import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
@@ -54,9 +54,76 @@ export const handler =
 		) => Effect.Effect<A | Promise<A>, E, ManagedRuntime.ManagedRuntime.Context<Parameters<Handler<HonoEnv>>[0]['var']['runtime']>>
 	) =>
 	(...args: Parameters<Handler<HonoEnv>>) =>
-		args[0].var.runtime
-			.runPromise(h(...args).pipe(Effect.catchAllCause((cause) => Effect.succeed(args[0].json({ pretty: Cause.pretty(cause), cause })))))
-			.then((v) => v) // then so we return Promise<A> instead of Promise<A | Promise<A>>
+		h(...args).pipe(
+			// Effect.catchAllCause((cause) => Effect.succeed(args[0].json({ pretty: Cause.pretty(cause), cause }))),
+			Effect.catchAllCause((cause) => {
+				const failures = Cause.failures(cause)
+				const defects = Cause.defects(cause)
+
+				const failuresHtml = Chunk.isEmpty(failures)
+					? ''
+					: `<div class="failures">
+						<h2>Failures</h2>
+						<ul>
+							${Chunk.join(
+								Chunk.map(
+									failures,
+									(error) =>
+										`<li>${
+											typeof error === 'object' && error !== null && 'message' in error
+												? String(error.message).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+												: String(error).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+										}</li>`
+								),
+								''
+							)}
+						</ul>
+					</div>`
+
+				const defectsHtml = Chunk.isEmpty(defects)
+					? ''
+					: `<div class="defects">
+						<h2>Defects</h2>
+						<ul>
+							${Chunk.join(
+								Chunk.map(defects, (defect) => `<li>${String(defect).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`),
+								''
+							)}
+						</ul>
+					</div>`
+
+				// Combine into a complete HTML page
+				const html = `
+					<!DOCTYPE html>
+					<html>
+					<head>
+						<title>Error Occurred</title>
+						<style>
+							body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+							h1 { color: #e53e3e; }
+							.failures { background: #fff5f5; border-left: 4px solid #fc8181; padding: 1rem; margin: 1rem 0; }
+							.defects { background: #fff5f5; border-left: 4px solid #f56565; padding: 1rem; margin: 1rem 0; }
+							pre { background: #f7fafc; padding: 1rem; overflow-x: auto; }
+						</style>
+					</head>
+					<body>
+						<h1>An Error Occurred</h1>
+						${failuresHtml}
+						${defectsHtml}
+						<div>
+							<h2>Full Error Details</h2>
+							<pre>${Cause.pretty(cause).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+						</div>
+					</body>
+					</html>
+				`
+
+				// Return HTML response
+				return Effect.succeed(args[0].html(html))
+			}),
+			args[0].var.runtime.runPromise,
+			(thenable) => thenable.then((v) => v) // then so we return Promise<A> instead of Promise<A | Promise<A>>
+		)
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
@@ -433,10 +500,10 @@ const Pricing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof pricingL
 
 const pricingLoaderData = (c: HonoContext<HonoEnv>) => Stripe.getPrices().pipe(Effect.map((prices) => ({ prices })))
 
-// https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#checkout-flow
 const pricingPost = handler((c) =>
-	Effect.all({
-		sessionUser: Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
+	Effect.gen(function* () {
+		// https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#checkout-flow
+		const sessionUser = yield* Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
 			Effect.mapError(
 				() =>
 					new InvariantResponseError({
@@ -448,45 +515,35 @@ const pricingPost = handler((c) =>
 				(sessionUser): sessionUser is typeof sessionUser & { role: 'user' } => sessionUser.role === 'user',
 				() => new InvariantError({ message: 'Only users can subscribe' })
 			)
-		),
-		priceId: Effect.tryPromise(() => c.req.formData()).pipe(
+		)
+		const priceId = yield* Effect.tryPromise(() => c.req.formData()).pipe(
 			Effect.flatMap(
 				Schema.decode(FormDataSchema(Schema.Struct({ priceId: Schema.NonEmptyString }).annotations({ identifier: 'Price ID' })))
 			),
 			Effect.map((formData) => formData.priceId)
 		)
-	}).pipe(
-		Effect.flatMap((props) =>
-			Stripe.ensureStripeCustomerId({
-				userId: props.sessionUser.userId,
-				email: props.sessionUser.email
-			}).pipe(
-				Effect.map((stripeCustomerProps) => ({
-					origin: new URL(c.req.url).origin,
-					...props,
-					...stripeCustomerProps
-				}))
-			)
-		),
-		Effect.flatMap(({ origin, sessionUser, priceId, stripeSubscriptionId, stripeCustomerId }) =>
-			stripeSubscriptionId
-				? Stripe.createBillingPortalSession({
-						customer: stripeCustomerId,
-						return_url: `${origin}/dashboard`
-					}).pipe(Effect.map((session) => c.redirect(session.url)))
-				: Stripe.createCheckoutSession({
-						customer: stripeCustomerId,
-						success_url: `${origin}/api/stripe/checkout?sessionId={CHECKOUT_SESSION_ID}`,
-						cancel_url: `${origin}/pricing`,
-						client_reference_id: sessionUser.userId.toString(),
-						price: priceId
-					}).pipe(
-						Effect.flatMap((session) =>
-							typeof session.url === 'string' ? Effect.succeed(c.redirect(session.url)) : Effect.fail(new Error('Missing session url'))
-						)
+		const { stripeCustomerId, stripeSubscriptionId } = yield* Stripe.ensureStripeCustomerId({
+			userId: sessionUser.userId,
+			email: sessionUser.email
+		})
+		const { origin } = new URL(c.req.url)
+		return yield* stripeSubscriptionId
+			? Stripe.createBillingPortalSession({
+					customer: stripeCustomerId,
+					return_url: `${origin}/dashboard`
+				}).pipe(Effect.map((session) => c.redirect(session.url)))
+			: Stripe.createCheckoutSession({
+					customer: stripeCustomerId,
+					success_url: `${origin}/api/stripe/checkout?sessionId={CHECKOUT_SESSION_ID}`,
+					cancel_url: `${origin}/pricing`,
+					client_reference_id: sessionUser.userId.toString(),
+					price: priceId
+				}).pipe(
+					Effect.flatMap((session) =>
+						typeof session.url === 'string' ? Effect.succeed(c.redirect(session.url)) : Effect.fail(new Error('Missing session url'))
 					)
-		)
-	)
+				)
+	})
 )
 
 const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashboardLoaderData>> }> = async ({ loaderData }) => {
