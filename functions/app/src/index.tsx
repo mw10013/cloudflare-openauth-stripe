@@ -19,11 +19,6 @@ import { FormDataSchema, SessionData, UserSubject } from './schemas'
 import * as StripeNs from './Stripe'
 import { Stripe } from './Stripe'
 
-// https://github.com/epicweb-dev/invariant/blob/main/README.md
-class InvariantError extends Data.TaggedError('InvariantError')<{ message: string }> {}
-
-class InvariantResponseError extends Data.TaggedError('InvariantResponseError')<{ message: string; response: Response }> {}
-
 type HonoEnv = {
 	Bindings: Env
 	Variables: {
@@ -46,6 +41,10 @@ export const makeRuntime = (env: Env) => {
 	return ManagedRuntime.make(Live)
 }
 
+// https://github.com/epicweb-dev/invariant/blob/main/README.md
+class InvariantError extends Data.TaggedError('InvariantError')<{ message: string }> {}
+class InvariantResponseError extends Data.TaggedError('InvariantResponseError')<{ message: string; response: Response }> {}
+
 // The success type of the effect is A | Promise<A> to accomodate Hono functions that return Reponse | Promise<Response>
 export const handler =
 	<A, E>(
@@ -55,7 +54,12 @@ export const handler =
 	) =>
 	(...args: Parameters<Handler<HonoEnv>>) =>
 		h(...args).pipe(
-			// Effect.catchAllCause((cause) => Effect.succeed(args[0].json({ pretty: Cause.pretty(cause), cause }))),
+			Effect.catchAll((error) => {
+				if (error instanceof InvariantResponseError) {
+					return Effect.succeed(error.response)
+				}
+				return Effect.fail(error)
+			}),
 			Effect.catchAllCause((cause) => {
 				const failures = Cause.failures(cause)
 				const defects = Cause.defects(cause)
