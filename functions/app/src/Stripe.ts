@@ -1,11 +1,12 @@
 import type { Stripe as StripeTypeNs } from 'stripe'
-import { Console, Effect, Layer, Option, Predicate } from 'effect'
+import { Config, Console, Effect, Layer, Option, Predicate, Redacted } from 'effect'
 import { Stripe as StripeClass } from 'stripe'
 import { Repository } from './Repository'
 
-export const make = ({ STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET }: { STRIPE_SECRET_KEY: string; STRIPE_WEBHOOK_SECRET: string }) =>
+export const make = () =>
 	Effect.gen(function* () {
-		const stripe = new StripeClass(STRIPE_SECRET_KEY)
+		const stripeSecretKeyRedacted = yield* Config.redacted('STRIPE_SECRET_KEY')
+		const stripe = new StripeClass(Redacted.value(stripeSecretKeyRedacted))
 		const repository = yield* Repository // Outside of functions so that Repository does not show up in R
 		const allowedEvents: StripeTypeNs.Event.Type[] = [
 			'checkout.session.completed',
@@ -159,7 +160,10 @@ export const make = ({ STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET }: { STRIPE_SECR
 				Effect.tryPromise(() => stripe.checkout.sessions.retrieve(sessionId, { expand: ['customer'] })),
 			syncStripData,
 			processWebhook: (body: string, signature: string) =>
-				Effect.tryPromise(() => stripe.webhooks.constructEventAsync(body, signature, STRIPE_WEBHOOK_SECRET)).pipe(
+				Config.redacted('STRIPE_WEBHOOK_SECRET').pipe(
+					Effect.flatMap((stripeWebhookSecretRedacted) =>
+						Effect.tryPromise(() => stripe.webhooks.constructEventAsync(body, signature, Redacted.value(stripeWebhookSecretRedacted)))
+					),
 					Effect.map((event) => ({
 						event,
 						allowedOption: Option.liftPredicate<StripeTypeNs.Event>((event) => allowedEvents.includes(event.type))(event)
@@ -184,5 +188,4 @@ export const make = ({ STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET }: { STRIPE_SECR
 
 export class Stripe extends Effect.Tag('Stripe')<Stripe, Effect.Effect.Success<ReturnType<typeof make>>>() {}
 
-export const layer = ({ STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET }: { STRIPE_SECRET_KEY: string; STRIPE_WEBHOOK_SECRET: string }) =>
-	Layer.effect(Stripe, make({ STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET }))
+export const layer = () => Layer.effect(Stripe, make())

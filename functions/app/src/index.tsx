@@ -8,7 +8,22 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { Cause, Chunk, Console, Data, Effect, Layer, ManagedRuntime, Option, ParseResult, pipe, Predicate, Schema } from 'effect'
+import {
+	Cause,
+	Chunk,
+	ConfigProvider,
+	Console,
+	Data,
+	Effect,
+	Layer,
+	ManagedRuntime,
+	Option,
+	ParseResult,
+	pipe,
+	Predicate,
+	Record,
+	Schema
+} from 'effect'
 import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
@@ -34,10 +49,19 @@ export const subjects = createSubjects({
 })
 
 export const makeRuntime = (env: Env) => {
+	// https://github.com/philschonholzer/groupli.app/blob/main/src/adapter/config/index.ts
+	const ConfigLive = pipe(
+		env,
+		({ KV, D1, ASSETS, ...envVars }) => envVars,
+		Record.toEntries,
+		(env) => new Map(env),
+		ConfigProvider.fromMap,
+		Layer.setConfigProvider
+	)
 	const D1Live = D1Ns.layer({ db: env.D1 })
 	const RepositoryLive = Repository.Live.pipe(Layer.provide(D1Live))
-	const StripeLive = StripeNs.layer(env).pipe(Layer.provide(RepositoryLive))
-	const Live = Layer.mergeAll(StripeLive, RepositoryLive, D1Live)
+	const StripeLive = StripeNs.layer().pipe(Layer.provide(RepositoryLive))
+	const Live = Layer.mergeAll(StripeLive, RepositoryLive, D1Live).pipe(Layer.provide(ConfigLive))
 	return ManagedRuntime.make(Live)
 }
 
