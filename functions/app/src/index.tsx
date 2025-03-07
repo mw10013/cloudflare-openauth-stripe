@@ -51,14 +51,15 @@ export const subjects = createSubjects({
 export const makeRuntime = (env: Env) => {
 	// https://github.com/philschonholzer/groupli.app/blob/main/src/adapter/config/index.ts
 	const ConfigLive = pipe(
-		env,
-		({ KV, D1, ASSETS, ...envVars }) => envVars,
+		env as unknown as Record<string, string>,
+		// ({ KV, D1, ASSETS, ...envVars }) => envVars,
 		Record.toEntries,
-		(env) => new Map(env),
+		(tuples) => new Map(tuples),
 		ConfigProvider.fromMap,
 		Layer.setConfigProvider
 	)
-	const D1Live = D1Ns.layer({ db: env.D1 })
+	// const D1Live = D1Ns.layer({ db: env.D1 })
+	const D1Live = D1.Default
 	const RepositoryLive = Repository.Live.pipe(Layer.provide(D1Live))
 	const StripeLive = StripeNs.layer().pipe(Layer.provide(RepositoryLive))
 	const Live = Layer.mergeAll(StripeLive, RepositoryLive, D1Live).pipe(Layer.provide(ConfigLive))
