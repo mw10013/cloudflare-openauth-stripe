@@ -57,13 +57,7 @@ export const makeRuntime = (env: Env) => {
 		ConfigProvider.fromMap,
 		Layer.setConfigProvider
 	)
-	// const D1Live = D1Ns.layer({ db: env.D1 })
-	const D1Live = D1.Default
-	// const RepositoryLive = Repository.Live.pipe(Layer.provide(D1Live))
-	const RepositoryLive = Repository.Default
-	const StripeLive = StripeNs.layer().pipe(Layer.provide(RepositoryLive))
-	const Live = Layer.mergeAll(StripeLive, RepositoryLive, D1Live).pipe(Layer.provide(ConfigLive))
-	return ManagedRuntime.make(Live)
+	return Layer.mergeAll(Stripe.Default, Repository.Default, D1.Default).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
 }
 
 // https://github.com/epicweb-dev/invariant/blob/main/README.md
