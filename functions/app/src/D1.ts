@@ -1,5 +1,10 @@
-import { Cause, Config, ConfigError, Console, Effect, Either, Predicate } from 'effect'
+import { Cause, Config, ConfigError, Console, Data, Effect, Either, Predicate, Schedule } from 'effect'
 import { dual } from 'effect/Function'
+
+class D1Error extends Data.TaggedError('D1Error')<{
+	message: string
+	cause: Error
+}> {}
 
 export class D1 extends Effect.Service<D1>()('D1', {
 	accessors: true,
@@ -12,27 +17,20 @@ export class D1 extends Effect.Service<D1>()('D1', {
 			)
 		)
 		const retry = <A, E, R>(self: Effect.Effect<A, E, R>) =>
-			Effect.tapError(self, (error) =>
-				Effect.gen(function* () {
-					if (Cause.isUnknownException(error)) {
-						const cause = Predicate.isError(error.cause) ? error.cause : null
-						yield* Console.log('Unknown exception:', {
-							error,
-							cause,
-							causeName: cause?.name,
-							causeMessage: cause?.message,
-							causeCause: cause?.cause
-						})
-					} else {
-						yield* Console.log(error)
-					}
-				})
+			Effect.mapError(self, (error) =>
+				// https://developers.cloudflare.com/d1/observability/debug-d1/#error-list
+				Cause.isUnknownException(error) && Predicate.isError(error.cause) && error.cause.message.startsWith('D1_')
+					? new D1Error({ message: error.cause.message, cause: error.cause })
+					: error
 			).pipe(
-				Effect.mapError((error) =>
-					// https://developers.cloudflare.com/d1/observability/debug-d1/#error-list
-					Cause.isUnknownException(error) && Predicate.isError(error.cause) && error.cause.message.startsWith('D1_') ? error.cause : error
-				)
+				Effect.tapError((error) => Console.log(error)),
+				Effect.retry({
+					while: (error) => Predicate.isTagged(error, 'D1Error') && !['no such table'].some((pattern) => error.message.includes(pattern)),
+					times: 2,
+					schedule: Schedule.exponential('1 second')
+				})
 			)
+
 		return {
 			prepare: (query: string) => db.prepare(query),
 			batch: (statements: D1PreparedStatement[]) => Effect.tryPromise(() => db.batch(statements)).pipe(retry),
