@@ -1,4 +1,4 @@
-import { Cause, Config, ConfigError, Console, Effect, Either } from 'effect'
+import { Cause, Config, ConfigError, Console, Effect, Either, Predicate } from 'effect'
 import { dual } from 'effect/Function'
 
 export class D1 extends Effect.Service<D1>()('D1', {
@@ -12,11 +12,32 @@ export class D1 extends Effect.Service<D1>()('D1', {
 			)
 		)
 		const retry = <A, E, R>(self: Effect.Effect<A, E, R>) =>
-			Effect.tapError(self, (error) => Console.log(error)).pipe(Effect.tapErrorCause((cause) => Console.log('Cause:', Cause.pretty(cause))))
+			Effect.tapError(self, (error) =>
+				Effect.gen(function* () {
+					if (Cause.isUnknownException(error)) {
+						const cause = Predicate.isError(error.cause) ? error.cause : null
+						yield* Console.log('Unknown exception:', {
+							error,
+							cause,
+							causeName: cause?.name,
+							causeMessage: cause?.message,
+							causeCause: cause?.cause
+						})
+					} else {
+						yield* Console.log(error)
+					}
+				})
+			).pipe(
+				Effect.mapError((error) =>
+					// https://developers.cloudflare.com/d1/observability/debug-d1/#error-list
+					Cause.isUnknownException(error) && Predicate.isError(error.cause) && error.cause.message.startsWith('D1_') ? error.cause : error
+				)
+			)
 		return {
 			prepare: (query: string) => db.prepare(query),
 			batch: (statements: D1PreparedStatement[]) => Effect.tryPromise(() => db.batch(statements)).pipe(retry),
 			run: (statement: D1PreparedStatement) => Effect.tryPromise(() => statement.run()).pipe(retry),
+			// run: (statement: D1PreparedStatement) => Effect.tryPromise({ try: () => statement.run(), catch: (error) => error }).pipe(retry),
 			first: (statement: D1PreparedStatement) => Effect.tryPromise(() => statement.first()).pipe(retry)
 		}
 	})
