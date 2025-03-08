@@ -1,4 +1,4 @@
-import { Config, ConfigError, Effect, Either, Layer } from 'effect'
+import { Cause, Config, ConfigError, Console, Effect, Either } from 'effect'
 import { dual } from 'effect/Function'
 
 export class D1 extends Effect.Service<D1>()('D1', {
@@ -11,11 +11,13 @@ export class D1 extends Effect.Service<D1>()('D1', {
 					: Either.left(ConfigError.InvalidData([], `Expected a D1 database but received ${value}`))
 			)
 		)
+		const retry = <A, E, R>(self: Effect.Effect<A, E, R>) =>
+			Effect.tapError(self, (error) => Console.log(error)).pipe(Effect.tapErrorCause((cause) => Console.log('Cause:', Cause.pretty(cause))))
 		return {
 			prepare: (query: string) => db.prepare(query),
-			batch: (statements: D1PreparedStatement[]) => Effect.tryPromise(() => db.batch(statements)),
-			run: (statement: D1PreparedStatement) => Effect.tryPromise(() => statement.run()),
-			first: (statement: D1PreparedStatement) => Effect.tryPromise(() => statement.first())
+			batch: (statements: D1PreparedStatement[]) => Effect.tryPromise(() => db.batch(statements)).pipe(retry),
+			run: (statement: D1PreparedStatement) => Effect.tryPromise(() => statement.run()).pipe(retry),
+			first: (statement: D1PreparedStatement) => Effect.tryPromise(() => statement.first()).pipe(retry)
 		}
 	})
 }) {}

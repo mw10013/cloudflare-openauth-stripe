@@ -8,22 +8,7 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import {
-	Cause,
-	Chunk,
-	ConfigProvider,
-	Console,
-	Data,
-	Effect,
-	Layer,
-	ManagedRuntime,
-	Option,
-	ParseResult,
-	pipe,
-	Predicate,
-	Record,
-	Schema
-} from 'effect'
+import { Cause, Chunk, ConfigProvider, Console, Data, Effect, Layer, ManagedRuntime, pipe, Record, Schema } from 'effect'
 import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
@@ -31,7 +16,6 @@ import * as D1Ns from './D1'
 import { D1 } from './D1'
 import { Repository } from './Repository'
 import { FormDataSchema, SessionData, UserSubject } from './schemas'
-import * as StripeNs from './Stripe'
 import { Stripe } from './Stripe'
 
 type HonoEnv = {
@@ -94,7 +78,14 @@ export const handler =
 									(error) =>
 										`<li>${
 											typeof error === 'object' && error !== null && 'message' in error
-												? String(error.message).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+												? String(error.message).replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+													('cause' in error && error.cause
+														? `<br>Cause: ${
+																typeof error.cause === 'object' && error.cause !== null && 'message' in error.cause
+																	? String(error.cause.message).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+																	: String(error.cause).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+															}`
+														: '')
 												: String(error).replace(/</g, '&lt;').replace(/>/g, '&gt;')
 										}</li>`
 								),
@@ -696,9 +687,10 @@ const adminPost = handler((c) =>
 		let actionData = {}
 		switch (intent) {
 			case 'effect':
-				actionData = { data: yield* Repository.getRequiredTeamForUser({ userId: 2 }) }
+				{
+					actionData = { data: yield* D1.prepare('select * from userss').pipe(Effect.flatMap(D1.run)) }
+				}
 				break
-
 			case 'effect_1':
 				actionData = { result: yield* D1.prepare('select * from users').pipe(Effect.andThen(D1.run)) }
 				break
