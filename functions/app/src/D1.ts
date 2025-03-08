@@ -1,10 +1,18 @@
-import { Config, Effect, Layer } from 'effect'
+import { Config, ConfigError, Effect, Either, Layer } from 'effect'
 import { dual } from 'effect/Function'
 
 export class D1 extends Effect.Service<D1>()('D1', {
 	accessors: true,
 	effect: Effect.gen(function* () {
-		const db = (yield* Config.string('D1')) as unknown as D1Database
+		// const db = yield* Config.string('D1') as unknown as D1Database
+		const db = yield* Config.string('D1').pipe(
+			Config.mapOrFail((value) =>
+				// (value as unknown) instanceof D1Database
+				value !== null && typeof value === 'object' && 'prepare' in value && typeof (value as any).prepare === 'function'
+					? Either.right(value as unknown as D1Database)
+					: Either.left(ConfigError.InvalidData(['D1'], `Expected D1Database but got ${typeof value}`))
+			)
+		)
 		return {
 			prepare: (query: string) => db.prepare(query),
 			batch: (statements: D1PreparedStatement[]) => Effect.tryPromise(() => db.batch(statements)),
@@ -27,19 +35,8 @@ export class D1 extends Effect.Service<D1>()('D1', {
 
 export const bind = dual<
 	(...values: unknown[]) => <E, R>(self: Effect.Effect<D1PreparedStatement, E, R>) => Effect.Effect<D1PreparedStatement, E, R>,
-	<E, R>(self: Effect.Effect<D1PreparedStatement, E, R>, ...values: unknown[]) => Effect.Effect<D1PreparedStatement, E, R>
+	<E, R>(...args: [Effect.Effect<D1PreparedStatement, E, R>, ...unknown[]]) => Effect.Effect<D1PreparedStatement, E, R>
 >(
 	(args) => Effect.isEffect(args[0]),
 	(self, ...values) => Effect.map(self, (stmt) => stmt.bind(...values))
 )
-
-// class Repository extends Effect.Service<Repository>()("Repository", {
-//  accessors: true,
-//  effect: Effect.gen(function() {
-//    const db = yield* Config.instanceOf(D1Database)("D1")
-//    return {
-//      getUsers: () =>
-//        Effect.tryPromise(() => db.run(`select * from users`))
-//    }
-//  })
-// })
