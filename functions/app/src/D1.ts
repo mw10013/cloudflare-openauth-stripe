@@ -4,13 +4,11 @@ import { dual } from 'effect/Function'
 export class D1 extends Effect.Service<D1>()('D1', {
 	accessors: true,
 	effect: Effect.gen(function* () {
-		// const db = yield* Config.string('D1') as unknown as D1Database
 		const db = yield* Config.string('D1').pipe(
 			Config.mapOrFail((value) =>
-				// (value as unknown) instanceof D1Database
 				value !== null && typeof value === 'object' && 'prepare' in value && typeof (value as any).prepare === 'function'
 					? Either.right(value as unknown as D1Database)
-					: Either.left(ConfigError.InvalidData(['D1'], `Expected D1Database but got ${typeof value}`))
+					: Either.left(ConfigError.InvalidData([], `Expected a D1 database but received ${value}`))
 			)
 		)
 		return {

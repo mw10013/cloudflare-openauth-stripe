@@ -52,7 +52,6 @@ export const makeRuntime = (env: Env) => {
 	// https://github.com/philschonholzer/groupli.app/blob/main/src/adapter/config/index.ts
 	const ConfigLive = pipe(
 		env as unknown as Record<string, string>,
-		// ({ KV, D1, ASSETS, ...envVars }) => envVars,
 		Record.toEntries,
 		(tuples) => new Map(tuples),
 		ConfigProvider.fromMap,
@@ -60,7 +59,8 @@ export const makeRuntime = (env: Env) => {
 	)
 	// const D1Live = D1Ns.layer({ db: env.D1 })
 	const D1Live = D1.Default
-	const RepositoryLive = Repository.Live.pipe(Layer.provide(D1Live))
+	// const RepositoryLive = Repository.Live.pipe(Layer.provide(D1Live))
+	const RepositoryLive = Repository.Default
 	const StripeLive = StripeNs.layer().pipe(Layer.provide(RepositoryLive))
 	const Live = Layer.mergeAll(StripeLive, RepositoryLive, D1Live).pipe(Layer.provide(ConfigLive))
 	return ManagedRuntime.make(Live)
