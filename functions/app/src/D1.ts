@@ -25,7 +25,7 @@ export class D1 extends Effect.Service<D1>()('D1', {
 						? new D1Error({ message: error.cause.message, cause: error.cause })
 						: error
 				),
-				Effect.tapError((error) => Console.log(error)),
+				Effect.tapError((error) => Effect.log(error)),
 				Effect.retry({
 					// https://www.sqlite.org/rescode.html
 					while: (error) =>

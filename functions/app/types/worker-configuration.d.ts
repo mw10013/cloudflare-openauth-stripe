@@ -3,6 +3,7 @@
 interface Env {
 	KV: KVNamespace;
 	ENVIRONMENT: "local" | "staging" | "production";
+	LOG_LEVEL: "Debug" | "Info";
 	COOKIE_SECRET: string;
 	STRIPE_SECRET_KEY: string;
 	STRIPE_WEBHOOK_SECRET: string;

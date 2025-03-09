@@ -16,7 +16,8 @@
 		"enabled": true
 	},
 	"vars": {
-		"ENVIRONMENT": "local"
+		"ENVIRONMENT": "local",
+		"LOG_LEVEL": "Debug"
 		// "OPENAUTH_ISSUER": "http://localhost:8788"
 	},
 	"d1_databases": [
@@ -41,7 +42,8 @@
 	"env": {
 		"staging": {
 			"vars": {
-				"ENVIRONMENT": "staging"
+				"ENVIRONMENT": "staging",
+				"LOG_LEVEL": "Debug"
 				// "OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-staging.devxo.workers.dev"
 			},
 			"d1_databases": [
@@ -66,7 +68,8 @@
 		},
 		"production": {
 			"vars": {
-				"ENVIRONMENT": "production"
+				"ENVIRONMENT": "production",
+				"LOG_LEVEL": "Info"
 				// "OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-production.devxo.workers.dev"
 			},
 			"d1_databases": [

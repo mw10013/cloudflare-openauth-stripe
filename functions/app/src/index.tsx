@@ -8,7 +8,7 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { Cause, Chunk, ConfigProvider, Console, Data, Effect, Layer, ManagedRuntime, pipe, Record, Schema } from 'effect'
+import { Cause, Chunk, Config, Console, Data, Effect, Layer, Logger, LogLevel, ManagedRuntime, pipe, Record, Schema } from 'effect'
 import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
@@ -34,8 +34,17 @@ export const subjects = createSubjects({
 })
 
 export const makeRuntime = (env: Env) => {
+	const LogLevelLive = Config.logLevel('LOG_LEVEL').pipe(
+		Config.withDefault(LogLevel.Info),
+		Effect.map((level) => Logger.minimumLogLevel(level)),
+		Layer.unwrapEffect
+	)
 	const ConfigLive = ConfigEx.fromObject(env)
-	return Layer.mergeAll(Stripe.Default, Repository.Default, D1.Default).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
+	return Layer.mergeAll(Stripe.Default, Repository.Default, D1.Default).pipe(
+		Layer.provide(LogLevelLive),
+		Layer.provide(ConfigLive),
+		ManagedRuntime.make
+	)
 }
 
 // https://github.com/epicweb-dev/invariant/blob/main/README.md
