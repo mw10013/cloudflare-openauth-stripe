@@ -682,13 +682,40 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 
 const adminPost = handler((c) =>
 	Effect.gen(function* () {
-		const formData = yield* Effect.tryPromise(() => c.req.formData())
-		const intent = formData.get('intent')
+		const AdminFormDataSchema = FormDataSchema(
+			Schema.Union(
+				Schema.Struct({
+					intent: Schema.Literal('effect')
+				}),
+				Schema.Struct({
+					intent: Schema.Literal('effect_1')
+				}),
+				Schema.Struct({
+					intent: Schema.Literal('effect_2')
+				}),
+				Schema.Struct({
+					intent: Schema.Literal('teams')
+				}),
+				Schema.Struct({
+					intent: Schema.Literal('sync_stripe_data'),
+					customerId: Schema.NonEmptyString
+				}),
+				Schema.Struct({
+					intent: Schema.Literal('customer_subscription'),
+					customerId: Schema.NonEmptyString
+				}),
+				Schema.Struct({
+					intent: Schema.Literal('create_user'),
+					email: Schema.NonEmptyString
+				})
+			)
+		)
+		const formData = yield* Effect.tryPromise(() => c.req.formData()).pipe(Effect.flatMap(Schema.decode(AdminFormDataSchema)))
 		let actionData = {}
-		switch (intent) {
+		switch (formData.intent) {
 			case 'effect':
 				{
-					actionData = { data: yield* D1.prepare('select * from userss').pipe(Effect.flatMap(D1.run)) }
+					actionData = { data: yield* D1.prepare('insert into users (name, email) values ("joe", "u@u.com")').pipe(Effect.flatMap(D1.run)) }
 				}
 				break
 			case 'effect_1':
@@ -711,9 +738,7 @@ const adminPost = handler((c) =>
 				break
 			case 'sync_stripe_data':
 				{
-					const customerId = formData.get('customerId')
-					if (!(typeof customerId === 'string' && customerId)) throw new Error('Invalid customerId')
-					yield* Stripe.syncStripData(customerId)
+					yield* Stripe.syncStripData(formData.customerId)
 					actionData = {
 						message: 'Stripe data synced.'
 					}
@@ -721,9 +746,7 @@ const adminPost = handler((c) =>
 				break
 			case 'customer_subscription':
 				{
-					const customerId = formData.get('customerId')
-					if (!(typeof customerId === 'string' && customerId)) throw new Error('Invalid customerId')
-					const subscription = yield* Stripe.getSubscriptionForCustomer(customerId)
+					const subscription = yield* Stripe.getSubscriptionForCustomer(formData.customerId)
 					actionData = {
 						subscription
 					}
@@ -731,14 +754,12 @@ const adminPost = handler((c) =>
 				break
 			case 'create_user':
 				{
-					const email = formData.get('email')
-					if (!(typeof email === 'string' && email)) throw new Error('Invalid email')
-					actionData = { user: yield* Repository.upsertUser({ email }) }
+					actionData = { user: yield* Repository.upsertUser({ email: formData.email }) }
 				}
 				break
 			default:
 				throw new Error('Invalid intent')
 		}
-		return c.render(<Admin actionData={{ intent, ...actionData }} />)
+		return c.render(<Admin actionData={{ intent: formData.intent, ...actionData }} />)
 	})
 )

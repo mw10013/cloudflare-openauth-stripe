@@ -1,7 +1,7 @@
 import { Cause, Config, ConfigError, Console, Data, Effect, Either, Predicate, Schedule } from 'effect'
 import { dual } from 'effect/Function'
 
-class D1Error extends Data.TaggedError('D1Error')<{
+export class D1Error extends Data.TaggedError('D1Error')<{
 	message: string
 	cause: Error
 }> {}
@@ -25,7 +25,10 @@ export class D1 extends Effect.Service<D1>()('D1', {
 			).pipe(
 				Effect.tapError((error) => Console.log(error)),
 				Effect.retry({
-					while: (error) => Predicate.isTagged(error, 'D1Error') && !['no such table'].some((pattern) => error.message.includes(pattern)),
+					// https://www.sqlite.org/rescode.html
+					while: (error) =>
+						Predicate.isTagged(error, 'D1Error') &&
+						!['SQLITE_CONSTRAINT', 'SQLITE_ERROR', 'SQLITE_MISMATCH'].some((pattern) => error.message.includes(pattern)),
 					times: 2,
 					schedule: Schedule.exponential('1 second')
 				})
@@ -35,7 +38,6 @@ export class D1 extends Effect.Service<D1>()('D1', {
 			prepare: (query: string) => db.prepare(query),
 			batch: (statements: D1PreparedStatement[]) => Effect.tryPromise(() => db.batch(statements)).pipe(retry),
 			run: (statement: D1PreparedStatement) => Effect.tryPromise(() => statement.run()).pipe(retry),
-			// run: (statement: D1PreparedStatement) => Effect.tryPromise({ try: () => statement.run(), catch: (error) => error }).pipe(retry),
 			first: (statement: D1PreparedStatement) => Effect.tryPromise(() => statement.first()).pipe(retry)
 		}
 	})
