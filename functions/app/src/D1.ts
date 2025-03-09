@@ -16,13 +16,14 @@ export class D1 extends Effect.Service<D1>()('D1', {
 					: Either.left(ConfigError.InvalidData([], `Expected a D1 database but received ${value}`))
 			)
 		)
-		const retry = <A, E, R>(self: Effect.Effect<A, E, R>) =>
-			Effect.mapError(self, (error) =>
-				// https://developers.cloudflare.com/d1/observability/debug-d1/#error-list
-				Cause.isUnknownException(error) && Predicate.isError(error.cause) && error.cause.message.startsWith('D1_')
-					? new D1Error({ message: error.cause.message, cause: error.cause })
-					: error
-			).pipe(
+		const tryPromise = <A>(evaluate: (signal: AbortSignal) => PromiseLike<A>) =>
+			Effect.tryPromise(evaluate).pipe(
+				Effect.mapError((error) =>
+					// https://developers.cloudflare.com/d1/observability/debug-d1/#error-list
+					Cause.isUnknownException(error) && Predicate.isError(error.cause) && error.cause.message.startsWith('D1_')
+						? new D1Error({ message: error.cause.message, cause: error.cause })
+						: error
+				),
 				Effect.tapError((error) => Console.log(error)),
 				Effect.retry({
 					// https://www.sqlite.org/rescode.html
@@ -33,15 +34,22 @@ export class D1 extends Effect.Service<D1>()('D1', {
 					schedule: Schedule.exponential('1 second')
 				})
 			)
-
 		return {
 			prepare: (query: string) => db.prepare(query),
-			batch: (statements: D1PreparedStatement[]) => Effect.tryPromise(() => db.batch(statements)).pipe(retry),
-			run: (statement: D1PreparedStatement) => Effect.tryPromise(() => statement.run()).pipe(retry),
-			first: (statement: D1PreparedStatement) => Effect.tryPromise(() => statement.first()).pipe(retry)
+			batch: (statements: D1PreparedStatement[]) => tryPromise(() => db.batch(statements)),
+			run: (statement: D1PreparedStatement) => tryPromise(() => statement.run()),
+			first: (statement: D1PreparedStatement) => tryPromise(() => statement.first())
 		}
 	})
 }) {}
+
+export const bind = dual<
+	(...values: unknown[]) => <E, R>(self: Effect.Effect<D1PreparedStatement, E, R>) => Effect.Effect<D1PreparedStatement, E, R>,
+	<E, R>(...args: [Effect.Effect<D1PreparedStatement, E, R>, ...unknown[]]) => Effect.Effect<D1PreparedStatement, E, R>
+>(
+	(args) => Effect.isEffect(args[0]),
+	(self, ...values) => Effect.map(self, (stmt) => stmt.bind(...values))
+)
 
 // export const make = ({ db }: { db: D1Database }) => ({
 // 	prepare: (query: string) => db.prepare(query),
@@ -54,10 +62,3 @@ export class D1 extends Effect.Service<D1>()('D1', {
 
 // export const layer = ({ db }: { db: D1Database }) => Layer.succeed(D1, make({ db }))
 
-export const bind = dual<
-	(...values: unknown[]) => <E, R>(self: Effect.Effect<D1PreparedStatement, E, R>) => Effect.Effect<D1PreparedStatement, E, R>,
-	<E, R>(...args: [Effect.Effect<D1PreparedStatement, E, R>, ...unknown[]]) => Effect.Effect<D1PreparedStatement, E, R>
->(
-	(args) => Effect.isEffect(args[0]),
-	(self, ...values) => Effect.map(self, (stmt) => stmt.bind(...values))
-)
