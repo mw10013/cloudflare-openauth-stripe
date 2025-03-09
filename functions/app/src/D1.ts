@@ -1,5 +1,6 @@
 import { Cause, Config, ConfigError, Console, Data, Effect, Either, Predicate, Schedule } from 'effect'
 import { dual } from 'effect/Function'
+import * as ConfigEx from './ConfigEx'
 
 export class D1Error extends Data.TaggedError('D1Error')<{
 	message: string
@@ -9,11 +10,11 @@ export class D1Error extends Data.TaggedError('D1Error')<{
 export class D1 extends Effect.Service<D1>()('D1', {
 	accessors: true,
 	effect: Effect.gen(function* () {
-		const db = yield* Config.string('D1').pipe(
-			Config.mapOrFail((value) =>
-				value !== null && typeof value === 'object' && 'prepare' in value && typeof (value as any).prepare === 'function'
-					? Either.right(value as unknown as D1Database)
-					: Either.left(ConfigError.InvalidData([], `Expected a D1 database but received ${value}`))
+		const db = yield* ConfigEx.object('D1').pipe(
+			Config.mapOrFail((object) =>
+				'prepare' in object && typeof object.prepare === 'function' && 'batch' in object && typeof object.batch === 'function'
+					? Either.right(object as D1Database)
+					: Either.left(ConfigError.InvalidData([], `Expected a D1 database but received ${object}`))
 			)
 		)
 		const tryPromise = <A>(evaluate: (signal: AbortSignal) => PromiseLike<A>) =>
@@ -61,4 +62,3 @@ export const bind = dual<
 // export class D1 extends Effect.Tag('D1')<D1, ReturnType<typeof make>>() {}
 
 // export const layer = ({ db }: { db: D1Database }) => Layer.succeed(D1, make({ db }))
-

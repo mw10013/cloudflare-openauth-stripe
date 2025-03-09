@@ -12,6 +12,7 @@ import { Cause, Chunk, ConfigProvider, Console, Data, Effect, Layer, ManagedRunt
 import { Handler, Hono, Context as HonoContext } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
+import * as ConfigEx from './ConfigEx'
 import * as D1Ns from './D1'
 import { D1 } from './D1'
 import { Repository } from './Repository'
@@ -33,14 +34,7 @@ export const subjects = createSubjects({
 })
 
 export const makeRuntime = (env: Env) => {
-	// https://github.com/philschonholzer/groupli.app/blob/main/src/adapter/config/index.ts
-	const ConfigLive = pipe(
-		env as unknown as Record<string, string>,
-		Record.toEntries,
-		(tuples) => new Map(tuples),
-		ConfigProvider.fromMap,
-		Layer.setConfigProvider
-	)
+	const ConfigLive = ConfigEx.fromObject(env)
 	return Layer.mergeAll(Stripe.Default, Repository.Default, D1.Default).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
 }
 
