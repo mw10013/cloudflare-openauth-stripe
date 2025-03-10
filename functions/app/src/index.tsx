@@ -40,7 +40,7 @@ export const makeRuntime = (env: Env) => {
 		Layer.unwrapEffect
 	)
 	const ConfigLive = ConfigEx.fromObject(env)
-	return Layer.mergeAll(Stripe.Default, Repository.Default, D1.Default).pipe(
+	return Layer.mergeAll(Stripe.Default, Repository.Default, D1.Default, env.ENVIRONMENT === 'local' ? Logger.pretty : Logger.json).pipe(
 		Layer.provide(LogLevelLive),
 		Layer.provide(ConfigLive),
 		ManagedRuntime.make
@@ -717,11 +717,11 @@ const adminPost = handler((c) =>
 		let actionData = {}
 		switch (formData.intent) {
 			case 'effect':
-				{
-					actionData = { data: yield* D1.prepare('insert into users (name, email) values ("joe", "u@u.com")').pipe(Effect.flatMap(D1.run)) }
-				}
+				actionData = { data: yield* D1.prepare('insert into users (name, email) values ("joe", "u@u.com")').pipe(Effect.flatMap(D1.run)) }
 				break
 			case 'effect_1':
+				yield* Effect.log('Effect 1', 'msg2', 'msg3')
+				yield* Effect.logDebug('Effect 1 debug')
 				actionData = { result: yield* D1.prepare('select * from users').pipe(Effect.andThen(D1.run)) }
 				break
 			case 'effect_2':
