@@ -2,10 +2,12 @@ packages:
   - 'functions/*'
 
 catalog:
+  '@cloudflare/vite-plugin': 0.1.9
   '@openauthjs/openauth': 0.4.3
   '@paralleldrive/cuid2': 2.2.2
   effect: 3.13.9
   hono: 4.7.4
   stripe: 17.6.0
   typescript: 5.7.3
-  wrangler: 3.112.1
+  vite: 6.2.1
+  wrangler: 3.112.0
