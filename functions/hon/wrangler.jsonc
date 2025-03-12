@@ -1,7 +1,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "hon",
-	"main": "src/index.ts",
+	"main": "src/index.tsx",
 	"compatibility_date": "2025-03-11",
 	"observability": {
 		"enabled": true,
