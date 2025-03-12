@@ -1,0 +1,15 @@
+{
+	"compilerOptions": {
+		"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"strict": true,
+		"skipLibCheck": true,
+		"lib": ["ESNext"],
+		"types": ["./types/runtime.d.ts", "./types/worker-configuration.d.ts"],
+		"jsx": "react-jsx",
+		"jsxImportSource": "hono/jsx"
+	},
+	"include": ["src"]
+}
