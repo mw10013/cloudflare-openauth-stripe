@@ -20,7 +20,7 @@
   - Build configuration
     - Deploy command: pnpm -F worker exec wrangler deploy --env production
   - Build watch paths
-    - Include paths: functions/worker/_ functions/shared/_
+    - Include paths: functions/worker/\* functions/shared/\*
 - Update app/wrangler.jsonc OPENAUTH_ISSUER
 - pnpm -F app build
 - pnpm -F app exec wrangler deploy --env production
@@ -33,7 +33,7 @@
     - Build command: pnpm -F app build
     - Deploy command: pnpm -F app exec wrangler deploy --env production
   - Build watch paths
-    - Include paths: functions/app/_ functions/shared/_
+    - Include paths: functions/app/\* functions/shared/\*
 - pnpm -F worker exec wrangler tail cloudflare-openauth-stripe-app-production
 
 ## Deploy (staging)
