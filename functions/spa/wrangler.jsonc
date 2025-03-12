@@ -1,0 +1,13 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "hono-spa-react",
+	"main": "src/index.tsx",
+	"compatibility_date": "2025-02-14",
+	"assets": {
+		// "directory": "./public",
+		"not_found_handling": "none"
+	},
+	"vars": {
+		"MY_VAR": "hello"
+	}
+}

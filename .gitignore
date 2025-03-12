@@ -29,3 +29,4 @@ playwright-report/
 .cache/
 .DS_Store
 .tmp/
+.nc

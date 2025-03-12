@@ -4,6 +4,8 @@
 - https://esbuild.github.io/content-types/#jsx
 - https://esbuild.github.io/api/#jsx
 
+- https://github.com/tailwindlabs/tailwindcss/discussions/16937
+
 ## Deploy
 
 - CLOUDFLARE_ENV=production pnpm -F hon build
@@ -15,3 +17,4 @@
     - Deploy command: pnpm -F hon exec wrangler deploy
   - Build watch paths
     - Include paths: functions/hon/\*
+`

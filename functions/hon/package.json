@@ -5,6 +5,7 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
+		"build:PRODUCTION": "CLOUDFLARE_ENV=production vite build",
 		"preview": "vite preview",
 		"dev-": "wrangler dev",
 		"deploy-": "wrangler deploy --minify",
@@ -17,6 +18,8 @@
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "catalog:",
+		"@tailwindcss/vite": "catalog:",
+		"tailwindcss": "catalog:",
 		"typescript": "catalog:",
 		"vite": "catalog:",
 		"wrangler": "catalog:"

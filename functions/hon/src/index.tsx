@@ -1,6 +1,8 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
 import { Hono } from 'hono'
 
+// import tailwindStyles from './tailwind.css?url'
+
 const app = new Hono<{
 	Bindings: Env
 }>()
@@ -8,7 +10,13 @@ const app = new Hono<{
 const Layout: FC<PropsWithChildren<{}>> = (props) => {
 	return (
 		<html>
-			<body>{props.children}</body>
+			<head>
+				<meta charset="UTF-8" />
+				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+				{/* <link href={tailwindStyles} rel="stylesheet" /> */}
+				<title>Hon App</title>
+			</head>
+			<body className="p-6">{props.children}</body>
 		</html>
 	)
 }
@@ -16,7 +24,8 @@ const Layout: FC<PropsWithChildren<{}>> = (props) => {
 const Top: FC<{ messages: string[] }> = (props: { messages: string[] }) => {
 	return (
 		<Layout>
-			<h1>Hello Hono!</h1>
+			<h1 className="text-3xl font-bold underline">Hello tailwind!</h1>
+			{/* <p>{tailwindStyles}</p> */}
 			<ul>
 				{props.messages.map((message) => {
 					return <li>{message}</li>
