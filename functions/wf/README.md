@@ -1,3 +1,21 @@
+
+- pnpm -F wf exec wrangler workflows trigger workflows-starter '{"hello":"world"}'
+- pnpm -F wf exec wrangler workflows instances describe workflows-starter latest
+- pnpm -F wf exec wrangler workflows instances describe workflows-starter <ID>
+- curl https://wf.devxo.workers.dev
+
+- Below was in package.json and not sure why it's needed.
+
+```js
+	"pnpm": {
+		"overrides": {
+			"esbuild": "0.21.4"
+		}
+	}
+```
+
+
+
 # Cloudflare Workflows
 
 This is the starter template for Workflows, a durable execution engine built on top of Cloudflare Workers.

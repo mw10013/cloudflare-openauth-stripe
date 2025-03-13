@@ -1,5 +1,5 @@
 {
-	"name": "workflows-starter",
+	"name": "wf",
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
@@ -7,7 +7,8 @@
 		"start": "wrangler dev",
 		"clean": "rm -rf node_modules && rm -rf .wrangler",
 		"typecheck": "tsc --noEmit",
-		"typegen": "wrangler types ./types/worker-configuration.d.ts"
+		"typegen": "wrangler types ./types/worker-configuration.d.ts",
+		"wf:list": "wrangler workflows list"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "4.20250312.0",
