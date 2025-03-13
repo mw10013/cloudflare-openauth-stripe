@@ -22,7 +22,7 @@ const Layout: FC<PropsWithChildren<{}>> = (props) => {
 app.get('/', (c) =>
 	c.html(
 		<Layout>
-			<h1 className="text-3xl font-bold text-blue-800">Hon App</h1>
+			<h1 className="text-3xl font-bold text-purple-800">Hon App</h1>
 			<p>ENVIRONMENT: {c.env.ENVIRONMENT}</p>
 			<p>MODE: {import.meta.env.MODE}</p>
 		</Layout>
