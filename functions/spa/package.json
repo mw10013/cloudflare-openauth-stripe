@@ -5,8 +5,9 @@
 		"dev": "vite",
 		"build": "vite build --mode client && vite build",
 		"preview": "vite preview",
+		"deploy": "wrangler deploy",
 		"preview-": "wrangler dev",
-		"deploy": "$npm_execpath run build && wrangler deploy server-build/index.js",
+		"deploy-": "$npm_execpath run build && wrangler deploy server-build/index.js",
 		"clean": "rm -rf node_modules && rm -rf .wrangler"
 	},
 	"dependencies": {
