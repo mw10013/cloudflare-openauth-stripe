@@ -4,9 +4,9 @@
 	"main": "src/index.tsx",
 	"compatibility_date": "2025-03-11",
 	"assets": {
-		"not_found_handling": "single-page-application"
+		"not_found_handling": "none"
+		// https://github.com/cloudflare/workers-sdk/tree/main/packages/vite-plugin-cloudflare#create-your-worker-config-file-1
 		// "directory": "./public",
-		// "binding": "ASSETS"
 	},
 
 	"observability": {
