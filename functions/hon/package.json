@@ -10,7 +10,7 @@
 		"preview": "vite preview",
 		"clean": "rm -rf node_modules && rm -rf .wrangler",
 		"typecheck": "tsc --noEmit",
-		"typegen": "wrangler types ./types/worker-configuration.d.ts --experimental-include-runtime ./types/runtime.d.ts"
+		"typegen": "wrangler types ./types/worker-configuration.d.ts"
 	},
 	"dependencies": {
 		"hono": "catalog:"
