@@ -9,8 +9,8 @@
 	"compatibility_date": "2025-01-21",
 	"compatibility_flags": ["nodejs_compat"],
 	"assets": {
-		"binding": "ASSETS",
-		"directory": "./public"
+		// https://github.com/cloudflare/workers-sdk/tree/main/packages/vite-plugin-cloudflare#create-your-worker-config-file-1
+		"not_found_handling": "none"
 	},
 	"observability": {
 		"enabled": true

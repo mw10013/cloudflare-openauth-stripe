@@ -3,10 +3,11 @@
 	"type": "module",
 	"private": true,
 	"scripts": {
-		"dev": "wrangler dev",
-		"dev:all-": "wrangler dev -c wrangler.jsonc -c ../worker/wrangler.jsonc",
-		"tailwind": "tailwindcss -i src/tailwind.css -o public/tailwind.css --watch",
-		"build": "tailwindcss -i src/tailwind.css -o public/tailwind.css",
+		"dev": "vite",
+		"build": "pnpm build:tailwind && vite build",
+		"build:tailwind": "tailwindcss -i src/tailwind.css -o dist/client/tailwind.css",
+		"buildp": "pnpm build:tailwind && CLOUDFLARE_ENV=production vite build",
+		"preview": "vite preview",
 		"clean": "rm -rf node_modules && rm -rf .wrangler",
 		"typecheck": "tsc --noEmit",
 		"typegen": "wrangler types ./types/worker-configuration.d.ts --experimental-include-runtime ./types/runtime.d.ts",
@@ -24,13 +25,16 @@
 		"script": "node --env-file=.dev.vars"
 	},
 	"devDependencies": {
+		"@cloudflare/vite-plugin": "catalog:",
 		"@tailwindcss/cli": "catalog:",
 		"@tailwindcss/typography": "^0.5.16",
+		"@tailwindcss/vite": "catalog:",
 		"daisyui": "5.0.0-beta.2",
 		"jsonc-parser": "^3.3.1",
 		"tailwindcss": "catalog:",
 		"typescript": "catalog:",
 		"wrangler": "catalog:",
+		"vite": "catalog:",
 		"zx": "^8.3.1"
 	},
 	"dependencies": {

@@ -8,9 +8,6 @@
 		"build:tailwind": "tailwindcss -i src/tailwind.css -o dist/client/tailwind.css",
 		"buildp": "pnpm build:tailwind && CLOUDFLARE_ENV=production vite build",
 		"preview": "vite preview",
-		"deploy": "wrangler deploy",
-		"dev-": "wrangler dev",
-		"deploy-": "wrangler deploy --minify",
 		"clean": "rm -rf node_modules && rm -rf .wrangler",
 		"typecheck": "tsc --noEmit",
 		"typegen": "wrangler types ./types/worker-configuration.d.ts --experimental-include-runtime ./types/runtime.d.ts"

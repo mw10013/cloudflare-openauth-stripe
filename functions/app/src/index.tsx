@@ -177,6 +177,7 @@ function createOpenAuth({ env, runtime }: { env: Env; runtime: HonoEnv['Variable
 			reuse: 0 // https://github.com/openauthjs/openauth/issues/133#issuecomment-2614264698
 		},
 		storage: CloudflareStorage({
+			// @ts-expect-error TS2322: This error is expected due to type mismatch with KVNamespace
 			namespace: env.KV
 		}),
 		subjects,
@@ -431,7 +432,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 			<head>
 				<meta charset="UTF-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-				<link href="/tailwind.css" rel="stylesheet" />
+				<link href={import.meta.env.MODE === 'development' ? '/src/tailwind.css' : '/tailwind.css'} rel="stylesheet"></link>
 				<title>COS App</title>
 			</head>
 			<body>

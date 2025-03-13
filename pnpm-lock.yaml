@@ -81,12 +81,18 @@ importers:
         specifier: 'catalog:'
         version: 17.6.0
     devDependencies:
+      '@cloudflare/vite-plugin':
+        specifier: 'catalog:'
+        version: 0.1.9(vite@6.2.1(@types/node@22.12.0)(jiti@2.4.2)(lightningcss@1.29.2))(workerd@1.20250310.0)(wrangler@3.114.1(@cloudflare/workers-types@4.20250311.0))
       '@tailwindcss/cli':
         specifier: 'catalog:'
         version: 4.0.14
       '@tailwindcss/typography':
         specifier: ^0.5.16
         version: 0.5.16(tailwindcss@4.0.14)
+      '@tailwindcss/vite':
+        specifier: 'catalog:'
+        version: 4.0.13(vite@6.2.1(@types/node@22.12.0)(jiti@2.4.2)(lightningcss@1.29.2))
       daisyui:
         specifier: 5.0.0-beta.2
         version: 5.0.0-beta.2
@@ -99,6 +105,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.7.3
+      vite:
+        specifier: 'catalog:'
+        version: 6.2.1(@types/node@22.12.0)(jiti@2.4.2)(lightningcss@1.29.2)
       wrangler:
         specifier: 'catalog:'
         version: 3.114.1(@cloudflare/workers-types@4.20250311.0)
