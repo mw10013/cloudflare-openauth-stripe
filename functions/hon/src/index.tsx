@@ -1,6 +1,5 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
 import { Hono } from 'hono'
-
 // import tailwindStyles from './tailwind.css?url'
 
 const app = new Hono<{
@@ -13,6 +12,7 @@ const Layout: FC<PropsWithChildren<{}>> = (props) => {
 			<head>
 				<meta charset="UTF-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+				<link href="/src/tailwind.css" rel="stylesheet"></link>
 				{/* <link href={tailwindStyles} rel="stylesheet" /> */}
 				<title>Hon App</title>
 			</head>
@@ -39,6 +39,13 @@ app.get('/', (c) => {
 	const messages = ['Good Morning', 'Good Evening', 'Good Night', c.env.ENVIRONMENT]
 	return c.html(<Top messages={messages} />)
 })
+app.get('/foo', (c) =>
+	c.html(
+		<Layout>
+			<h1 className="text-purple-500">FOO</h1>
+		</Layout>
+	)
+)
 
 // app.get('/', (c) => {
 // 	return c.text(`Hello vite-plugin-cloudflare [${c.env.ENVIRONMENT}]`)
