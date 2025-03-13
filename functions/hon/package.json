@@ -4,8 +4,9 @@
 	"private": true,
 	"scripts": {
 		"dev": "vite",
-		"build": "vite build",
-		"buildp": "CLOUDFLARE_ENV=production vite build",
+		"build": "pnpm build:tailwind && vite build",
+		"build:tailwind": "tailwindcss -i src/tailwind.css -o dist/client/tailwind.css",
+		"buildp": "pnpm build:tailwind && CLOUDFLARE_ENV=production vite build",
 		"preview": "vite preview",
 		"deploy": "wrangler deploy",
 		"dev-": "wrangler dev",
@@ -19,6 +20,7 @@
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "catalog:",
+		"@tailwindcss/cli": "catalog:",
 		"@tailwindcss/vite": "catalog:",
 		"tailwindcss": "catalog:",
 		"typescript": "catalog:",

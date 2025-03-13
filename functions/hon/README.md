@@ -17,4 +17,12 @@
     - Deploy command: pnpm -F hon exec wrangler deploy
   - Build watch paths
     - Include paths: functions/hon/\*
-`
+
+## Tailwind
+
+- The tailwind vite plugin is used during development and works with vite to keep src/tailwind.css up to date in memory.
+- The tailwind cli is used during build to create dist/client/tailwind.css.
+
+```tsx
+<link href={import.meta.env.MODE === 'development' ? '/src/tailwind.css' : '/tailwind.css'} rel="stylesheet"></link>
+```
