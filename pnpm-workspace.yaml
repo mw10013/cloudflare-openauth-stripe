@@ -7,6 +7,7 @@ catalog:
   '@paralleldrive/cuid2': 2.2.2
   '@tailwindcss/cli': 4.0.14
   '@tailwindcss/vite': 4.0.13
+  daisyui: 5.0.3  
   effect: 3.13.9
   hono: 4.7.4
   stripe: 17.6.0

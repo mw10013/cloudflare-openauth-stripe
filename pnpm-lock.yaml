@@ -21,6 +21,9 @@ catalogs:
     '@tailwindcss/vite':
       specifier: 4.0.13
       version: 4.0.13
+    daisyui:
+      specifier: 5.0.3
+      version: 5.0.3
     effect:
       specifier: 3.13.9
       version: 3.13.9
@@ -94,8 +97,8 @@ importers:
         specifier: 'catalog:'
         version: 4.0.13(vite@6.2.1(@types/node@22.12.0)(jiti@2.4.2)(lightningcss@1.29.2))
       daisyui:
-        specifier: 5.0.0-beta.2
-        version: 5.0.0-beta.2
+        specifier: 'catalog:'
+        version: 5.0.3
       jsonc-parser:
         specifier: ^3.3.1
         version: 3.3.1
@@ -1271,8 +1274,8 @@ packages:
   csstype@3.1.3:
     resolution: {integrity: sha512-M1uQkMl8rQK/szD0LNhtqxIPLpimGm8sOBwU7lLnCpSbTyY3yeU1Vc7l4KT5zT4s/yOxHH5O7tIuuLOCnLADRw==}
 
-  daisyui@5.0.0-beta.2:
-    resolution: {integrity: sha512-H1gXtcQhjcKze3UBq23dJUyKYIxHrVIKb6XtDfnSh6Ft4d0BMfPOwuvzIsuEe5PkbBm9kZH0ny+aQqiDosqpPQ==}
+  daisyui@5.0.3:
+    resolution: {integrity: sha512-27dou80uFNgxVcmQNzS8QFBoE1/01u7N0smdGqA2pHbaRPTFoHdJfXNzilpvt/0jAVu8cMEhrVPoYxpdxLwumA==}
 
   data-uri-to-buffer@2.0.2:
     resolution: {integrity: sha512-ND9qDTLc6diwj+Xe5cdAgVTbLVdXbtxTJRXRhli8Mowuaan+0EJOtdqJ0QCHNSSPyoXGx9HX2/VMnKeC34AChA==}
@@ -2746,7 +2749,7 @@ snapshots:
 
   csstype@3.1.3: {}
 
-  daisyui@5.0.0-beta.2: {}
+  daisyui@5.0.3: {}
 
   data-uri-to-buffer@2.0.2: {}
 
