@@ -1,7 +1,7 @@
 // vite.config.ts
 
 import { cloudflare } from '@cloudflare/vite-plugin'
-// import tailwindcss from '@tailwindcss/vite'
+import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 
 // export default defineConfig(({ isSsrBuild }) => ({
@@ -16,10 +16,6 @@ import { defineConfig } from 'vite'
 // 	plugins: [tailwindcss(), cloudflare()]
 // }))
 
-// export default defineConfig({
-// 	plugins: [tailwindcss(), cloudflare()]
-// })
-
 export default defineConfig({
-	plugins: [cloudflare()]
+	plugins: [tailwindcss(), cloudflare()]
 })

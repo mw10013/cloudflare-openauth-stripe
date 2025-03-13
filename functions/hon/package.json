@@ -5,8 +5,9 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
-		"build:PRODUCTION": "CLOUDFLARE_ENV=production vite build",
+		"buildp": "CLOUDFLARE_ENV=production vite build",
 		"preview": "vite preview",
+		"deploy": "wrangler deploy",
 		"dev-": "wrangler dev",
 		"deploy-": "wrangler deploy --minify",
 		"clean": "rm -rf node_modules && rm -rf .wrangler",
