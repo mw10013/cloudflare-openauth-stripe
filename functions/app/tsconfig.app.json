@@ -17,7 +17,7 @@
 		/* Specify how TypeScript looks up a file from a given module specifier. */
 		"moduleResolution": "Bundler",
 		/* Specify type package names to be included without being referenced in a source file. */
-		"types": ["./types/runtime.d.ts", "./types/worker-configuration.d.ts", "vite/client"],
+		"types": ["./types/worker-configuration.d.ts", "vite/client"],
 		/* Enable importing .json files */
 		"resolveJsonModule": true,
 

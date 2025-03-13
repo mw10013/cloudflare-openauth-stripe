@@ -6,7 +6,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "cloudflare-openauth-stripe-app",
 	"main": "src/index.tsx",
-	"compatibility_date": "2025-01-21",
+	"compatibility_date": "2025-03-13",
 	"compatibility_flags": ["nodejs_compat"],
 	"assets": {
 		// https://github.com/cloudflare/workers-sdk/tree/main/packages/vite-plugin-cloudflare#create-your-worker-config-file-1
