@@ -10,7 +10,7 @@
 		"preview": "vite preview",
 		"clean": "rm -rf node_modules && rm -rf .wrangler",
 		"typecheck": "tsc --noEmit",
-		"typegen": "wrangler types ./types/worker-configuration.d.ts",
+		"typegen": "wrangler types",
 		"tail:PRODUCTION": "wrangler tail cloudflare-openauth-stripe-app-production",
 		"d1:migrate:list": "wrangler d1 migrations list d1-local --local",
 		"d1:migrate:apply": "wrangler d1 migrations apply d1-local --local",

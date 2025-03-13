@@ -1,4 +1,6 @@
 
+- pnpm -F wf exec wrangler workflows list
+- pnpm -F wf exec wrangler workflows instances list workflows-starter
 - pnpm -F wf exec wrangler workflows trigger workflows-starter '{"hello":"world"}'
 - pnpm -F wf exec wrangler workflows instances describe workflows-starter latest
 - pnpm -F wf exec wrangler workflows instances describe workflows-starter <ID>
