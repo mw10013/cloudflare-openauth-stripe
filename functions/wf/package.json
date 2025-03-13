@@ -1,0 +1,26 @@
+{
+	"name": "workflows-starter",
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"start": "wrangler dev",
+		"clean": "rm -rf node_modules && rm -rf .wrangler",
+		"typecheck": "tsc --noEmit",
+		"typegen": "wrangler types ./types/worker-configuration.d.ts"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "4.20250312.0",
+		"typescript": "catalog:",
+		"wrangler": "catalog:"
+	},
+	"packageManager": "pnpm@9.1.4",
+	"engines": {
+		"pnpm": "^9.1.4"
+	},
+	"pnpm": {
+		"overrides": {
+			"esbuild": "0.21.4"
+		}
+	}
+}
