@@ -17,8 +17,8 @@ import * as D1Ns from './D1'
 import { D1 } from './D1'
 import { Repository } from './Repository'
 import { FormDataSchema, SessionData, UserSubject } from './schemas'
+import { Ses } from './Ses'
 import { Stripe } from './Stripe'
-import { WorkflowEntrypoint, WorkflowStep, WorkflowEvent } from 'cloudflare:workers';
 
 type HonoEnv = {
 	Bindings: Env
@@ -41,11 +41,13 @@ export const makeRuntime = (env: Env) => {
 		Layer.unwrapEffect
 	)
 	const ConfigLive = ConfigEx.fromObject(env)
-	return Layer.mergeAll(Stripe.Default, Repository.Default, D1.Default, env.ENVIRONMENT === 'local' ? Logger.pretty : Logger.json).pipe(
-		Layer.provide(LogLevelLive),
-		Layer.provide(ConfigLive),
-		ManagedRuntime.make
-	)
+	return Layer.mergeAll(
+		Stripe.Default,
+		Repository.Default,
+		D1.Default,
+		Ses.Default,
+		env.ENVIRONMENT === 'local' ? Logger.pretty : Logger.json
+	).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
 }
 
 // https://github.com/epicweb-dev/invariant/blob/main/README.md
@@ -162,14 +164,28 @@ function createOpenAuth({ env, runtime }: { env: Env; runtime: HonoEnv['Variable
 		copy: {
 			code_placeholder: 'Code (check Worker logs)'
 		},
-		sendCode: async (claims, code) => {
-			console.log(claims.email, code)
-			if (env.ENVIRONMENT === 'local') {
-				await env.KV.put(`local:code`, code, {
-					expirationTtl: 60
-				})
-			}
-		}
+		sendCode: (claims, code) =>
+			Effect.gen(function* () {
+				yield* Effect.log(`sendCode: ${claims.email} ${code}`)
+				if (env.ENVIRONMENT === 'local') {
+					yield* Effect.tryPromise(() => env.KV.put(`local:code`, code, { expirationTtl: 60 }))
+				}
+				// Body MUST contain email to help identify complaints.
+				// yield* Ses.sendEmail({
+				// 	to: claims.email,
+				// 	from: yield* Config.nonEmptyString('COMPANY_EMAIL'),
+				// 	subject: 'Your Login Verification Code',
+				// 	html: `Hey ${claims.email},<br><br>Please enter the following code to complete your login: ${code}.<br><br>If the code does not work, please request a new verification code.<br><br>Thanks, Team.`,
+				// 	text: `Hey ${claims.email} - Please enter the following code to complete your login: ${code}. If the code does not work, please request a new verification code. Thanks, Team.`
+				// })
+			}).pipe(runtime.runPromise)
+		// sendCode: async (claims, code) => {
+		// 	console.log(claims.email, code)
+		// 	if (env.ENVIRONMENT === 'local') {
+		// 		await env.KV.put(`local:code`, code, {
+		// 			expirationTtl: 60
+		// 		})
+		// }
 	})
 	return issuer({
 		ttl: {
@@ -243,15 +259,19 @@ function createOpenAuth({ env, runtime }: { env: Env; runtime: HonoEnv['Variable
 				}
 			})
 		},
-		success: async (ctx, value) => {
-			const email = value.claims.email
-			const user = await runtime.runPromise(Repository.upsertUser({ email }))
-			return ctx.subject('user', {
-				userId: user.userId,
-				email,
-				role: user.role
-			})
-		}
+		success: (ctx, value) =>
+			Repository.upsertUser({ email: value.claims.email }).pipe(
+				Effect.flatMap((user) =>
+					Effect.tryPromise(() =>
+						ctx.subject('user', {
+							userId: user.userId,
+							email: user.email,
+							role: user.role
+						})
+					)
+				),
+				runtime.runPromise
+			)
 	})
 }
 

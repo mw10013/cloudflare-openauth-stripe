@@ -18,7 +18,8 @@
 	"vars": {
 		"ENVIRONMENT": "local",
 		"LOG_LEVEL": "Debug",
-		"COMPANY_EMAIL": "hello@motio.so"
+		"COMPANY_EMAIL": "hello@motio.so",
+		"AWS_REGION": "us-east-1"
 		// "OPENAUTH_ISSUER": "http://localhost:8788"
 	},
 	"d1_databases": [
@@ -45,7 +46,8 @@
 			"vars": {
 				"ENVIRONMENT": "staging",
 				"LOG_LEVEL": "Debug",
-				"COMPANY_EMAIL": "hello@motio.so"
+				"COMPANY_EMAIL": "hello@motio.so",
+				"AWS_REGION": "us-east-1"
 				// "OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-staging.devxo.workers.dev"
 			},
 			"d1_databases": [
@@ -72,7 +74,8 @@
 			"vars": {
 				"ENVIRONMENT": "production",
 				"LOG_LEVEL": "Info",
-				"COMPANY_EMAIL": "hello@motio.so"
+				"COMPANY_EMAIL": "hello@motio.so",
+				"AWS_REGION": "us-east-1"
 				// "OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-production.devxo.workers.dev"
 			},
 			"d1_databases": [
