@@ -5,7 +5,7 @@ import 'zx/globals'
 /* Script to reset the D1 database either locally or in an environment on Cloudflare.
 - Delete existing database
 - Create new database
-- Update wrangler.toml files with new database id as necessary
+- Update wrangler.jsonc files with new database id as necessary
 - Runs migrations and seed
 
 Command line args:
@@ -67,9 +67,9 @@ try {
 
 // Create database and extract database id from output.
 const processOutput = await $`pnpm wrangler d1 create ${databaseName}`
-const databaseIdRegex = /database_id\s*=\s*"([a-f0-9-]+)"/
+const databaseIdRegex = /"database_id":\s*"([a-f0-9-]+)"/
 const match = processOutput.stdout.match(databaseIdRegex)
-if (!match) throw new Error('database_id not matched in output of create database command')
+if (!match) throw new Error(`database_id not matched in output of create database command: ${processOutput.stdout}`)
 const databaseId = match[1]
 console.log({ databaseId })
 

@@ -76,9 +76,9 @@ create table users (
 insert into
 	users (name, email, role)
 values
-	('Admin', 'a@a.com', 'admin'),
-	('User (owner)', 'u@u.com', 'user'),
-	('User1 (member)', 'u1@u.com', 'user');
+	('Admin', 'motio@mail.com', 'admin'),
+	('User (owner)', 'motio1@mail.com', 'user'),
+	('User1 (member)', 'motio2@mail.com', 'user');
 
 --> statement-breakpoint
 insert into
@@ -106,7 +106,7 @@ values
 			from
 				users
 			where
-				email = 'u@u.com'
+				email = 'motio1@mail.com'
 		),
 		(
 			select
@@ -123,7 +123,7 @@ values
 			from
 				users
 			where
-				email = 'u1@u.com'
+				email = 'motio1@mail.com'
 		),
 		(
 			select
@@ -160,7 +160,7 @@ values
 			from
 				users
 			where
-				email = 'u1@u.com'
+				email = 'motio2@mail.com'
 		),
 		(
 			select

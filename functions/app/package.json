@@ -40,6 +40,7 @@
 		"zx": "^8.3.1"
 	},
 	"dependencies": {
+		"@aws-sdk/client-ses": "catalog:",
 		"@openauthjs/openauth": "catalog:",
 		"@paralleldrive/cuid2": "catalog:",
 		"effect": "catalog:",

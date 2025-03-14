@@ -17,7 +17,8 @@
 	},
 	"vars": {
 		"ENVIRONMENT": "local",
-		"LOG_LEVEL": "Debug"
+		"LOG_LEVEL": "Debug",
+		"COMPANY_EMAIL": "hello@motio.so"
 		// "OPENAUTH_ISSUER": "http://localhost:8788"
 	},
 	"d1_databases": [
@@ -43,7 +44,8 @@
 		"staging": {
 			"vars": {
 				"ENVIRONMENT": "staging",
-				"LOG_LEVEL": "Debug"
+				"LOG_LEVEL": "Debug",
+				"COMPANY_EMAIL": "hello@motio.so"
 				// "OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-staging.devxo.workers.dev"
 			},
 			"d1_databases": [
@@ -69,14 +71,15 @@
 		"production": {
 			"vars": {
 				"ENVIRONMENT": "production",
-				"LOG_LEVEL": "Info"
+				"LOG_LEVEL": "Info",
+				"COMPANY_EMAIL": "hello@motio.so"
 				// "OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-production.devxo.workers.dev"
 			},
 			"d1_databases": [
 				{
 					"binding": "D1",
 					"database_name": "cloudflare-openauth-stripe-d1-production",
-					"database_id": "46637b75-b54b-4538-a5c8-38c302102459"
+					"database_id": "1fa3af12-6694-4fbc-9e67-0fc8c97c69b8"
 				}
 			],
 			"kv_namespaces": [

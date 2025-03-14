@@ -4,6 +4,7 @@
 
 - CLOUDFLARE_ENV=production pnpm -F app build
 - pnpm -F app exec wrangler deploy
+- pnpm -F app exec wrangler secret put <SECRET> --env production
 - Workers & Pages Settings: cloudflare-openauth-stripe-app-production
   - Git repository: connect to git repo
   - Build configuration

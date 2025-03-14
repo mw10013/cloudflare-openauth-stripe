@@ -18,6 +18,7 @@ import { D1 } from './D1'
 import { Repository } from './Repository'
 import { FormDataSchema, SessionData, UserSubject } from './schemas'
 import { Stripe } from './Stripe'
+import { WorkflowEntrypoint, WorkflowStep, WorkflowEvent } from 'cloudflare:workers';
 
 type HonoEnv = {
 	Bindings: Env
