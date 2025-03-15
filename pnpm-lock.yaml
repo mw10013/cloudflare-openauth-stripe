@@ -80,6 +80,9 @@ importers:
       '@paralleldrive/cuid2':
         specifier: 'catalog:'
         version: 2.2.2
+      aws4fetch:
+        specifier: ^1.0.20
+        version: 1.0.20
       effect:
         specifier: 'catalog:'
         version: 3.13.9

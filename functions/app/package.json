@@ -43,6 +43,7 @@
 		"@aws-sdk/client-ses": "catalog:",
 		"@openauthjs/openauth": "catalog:",
 		"@paralleldrive/cuid2": "catalog:",
+		"aws4fetch": "^1.0.20",
 		"effect": "catalog:",
 		"hono": "catalog:",
 		"stripe": "catalog:"
