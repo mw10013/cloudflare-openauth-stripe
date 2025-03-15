@@ -46,7 +46,8 @@ export const makeRuntime = (env: Env) => {
 		Repository.Default,
 		D1.Default,
 		Ses.Default,
-		env.ENVIRONMENT === 'local' ? Logger.pretty : Logger.json
+		// Logger.pretty doesn't seem to work well.
+		Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
 	).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
 }
 
@@ -171,21 +172,14 @@ function createOpenAuth({ env, runtime }: { env: Env; runtime: HonoEnv['Variable
 					yield* Effect.tryPromise(() => env.KV.put(`local:code`, code, { expirationTtl: 60 }))
 				}
 				// Body MUST contain email to help identify complaints.
-				// yield* Ses.sendEmail({
-				// 	to: claims.email,
-				// 	from: yield* Config.nonEmptyString('COMPANY_EMAIL'),
-				// 	subject: 'Your Login Verification Code',
-				// 	html: `Hey ${claims.email},<br><br>Please enter the following code to complete your login: ${code}.<br><br>If the code does not work, please request a new verification code.<br><br>Thanks, Team.`,
-				// 	text: `Hey ${claims.email} - Please enter the following code to complete your login: ${code}. If the code does not work, please request a new verification code. Thanks, Team.`
-				// })
+				yield* Ses.sendEmail({
+					to: claims.email,
+					from: yield* Config.nonEmptyString('COMPANY_EMAIL'),
+					subject: 'Your Login Verification Code',
+					html: `Hey ${claims.email},<br><br>Please enter the following code to complete your login: ${code}.<br><br>If the code does not work, please request a new verification code.<br><br>Thanks, Team.`,
+					text: `Hey ${claims.email} - Please enter the following code to complete your login: ${code}. If the code does not work, please request a new verification code. Thanks, Team.`
+				})
 			}).pipe(runtime.runPromise)
-		// sendCode: async (claims, code) => {
-		// 	console.log(claims.email, code)
-		// 	if (env.ENVIRONMENT === 'local') {
-		// 		await env.KV.put(`local:code`, code, {
-		// 			expirationTtl: 60
-		// 		})
-		// }
 	})
 	return issuer({
 		ttl: {
