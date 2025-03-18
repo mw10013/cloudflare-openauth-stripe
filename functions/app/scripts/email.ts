@@ -1,16 +1,6 @@
 // import { SendEmailCommand, SendEmailCommandInput, SESClient } from '@aws-sdk/client-ses'
 import * as Ses from '@aws-sdk/client-ses'
 
-// const client = new SESClient({
-//   credentials: {
-//     accessKeyId: Redacted.value(AWS_ACCESS_KEY_ID),
-//     secretAccessKey: Redacted.value(AWS_SECRET_ACCESS_KEY)
-//   },
-//   region: AWS_REGION,
-//   maxAttempts: 2
-// })
-console.log(process.env.AWS_ACCESS_KEY_ID)
-
 const client = new Ses.SESClient({
 	credentials: {
 		// accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
@@ -39,7 +29,7 @@ const sendEmailCommandInput: Ses.SendEmailCommandInput = {
 		},
 		Subject: {
 			Charset: 'UTF-8',
-			Data: 'This is subject'
+			Data: 'This is subject2'
 		}
 	},
 	Source: 'admin@carambaapp.com'
