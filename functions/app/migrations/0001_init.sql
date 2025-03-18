@@ -77,6 +77,7 @@ insert into
 	users (name, email, role)
 values
 	('Admin', 'motio@mail.com', 'admin'),
+	('Admin', 'a@a.com', 'admin'),
 	('User (owner)', 'motio1@mail.com', 'user'),
 	('User1 (member)', 'motio2@mail.com', 'user');
 

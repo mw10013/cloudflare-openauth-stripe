@@ -8,8 +8,24 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { Cause, Chunk, Config, Console, Data, Effect, Layer, Logger, LogLevel, ManagedRuntime, pipe, Record, Schema } from 'effect'
-import { Handler, Hono, Context as HonoContext } from 'hono'
+import {
+	Cause,
+	Chunk,
+	Config,
+	Console,
+	Data,
+	Effect,
+	Layer,
+	Logger,
+	LogLevel,
+	ManagedRuntime,
+	pipe,
+	Predicate,
+	Record,
+	Schema
+} from 'effect'
+import { dual } from 'effect/Function'
+import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import * as ConfigEx from './ConfigEx'
@@ -20,7 +36,7 @@ import { FormDataSchema, SessionData, UserSubject } from './schemas'
 import { Ses } from './Ses'
 import { Stripe } from './Stripe'
 
-type HonoEnv = {
+type AppEnv = {
 	Bindings: Env
 	Variables: {
 		runtime: ReturnType<typeof makeRuntime>
@@ -55,95 +71,99 @@ export const makeRuntime = (env: Env) => {
 class InvariantError extends Data.TaggedError('InvariantError')<{ message: string }> {}
 class InvariantResponseError extends Data.TaggedError('InvariantResponseError')<{ message: string; response: Response }> {}
 
-// The success type of the effect is A | Promise<A> to accomodate Hono functions that return Reponse | Promise<Response>
+export const orErrorResponse: {
+	<A, E, R, Env extends HonoEnv>(c: HonoContext<Env>): (self: Effect.Effect<A, E, R>) => Effect.Effect<A, never, R>
+	<A, E, R, Env extends HonoEnv>(self: Effect.Effect<A, E, R>, c: HonoContext<Env>): Effect.Effect<A, never, R>
+} = dual(2, <a, E, R, Env extends HonoEnv>(self: Effect.Effect<a, E, R>, c: HonoContext<Env>) =>
+	Effect.catchAll(self, (error) => {
+		if (error instanceof InvariantResponseError) {
+			return Effect.succeed(error.response)
+		}
+		return Effect.fail(error)
+	}).pipe(
+		Effect.catchAllCause((cause) => {
+			const failures = Cause.failures(cause)
+			const defects = Cause.defects(cause)
+
+			const failuresHtml = Chunk.isEmpty(failures)
+				? ''
+				: `<div class="failures">
+			<h2>Failures</h2>
+			<ul>
+				${Chunk.join(
+					Chunk.map(
+						failures,
+						(error) =>
+							`<li>${
+								typeof error === 'object' && error !== null && 'message' in error
+									? String(error.message).replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+										('cause' in error && error.cause
+											? `<br>Cause: ${
+													typeof error.cause === 'object' && error.cause !== null && 'message' in error.cause
+														? String(error.cause.message).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+														: String(error.cause).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+												}`
+											: '')
+									: String(error).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+							}</li>`
+					),
+					''
+				)}
+			</ul>
+		</div>`
+
+			const defectsHtml = Chunk.isEmpty(defects)
+				? ''
+				: `<div class="defects">
+			<h2>Defects</h2>
+			<ul>
+				${Chunk.join(
+					Chunk.map(defects, (defect) => `<li>${String(defect).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`),
+					''
+				)}
+			</ul>
+		</div>`
+
+			const html = `
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<title>Error Occurred</title>
+			<style>
+				body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+				h1 { color: #e53e3e; }
+				.failures { background: #fff5f5; border-left: 4px solid #fc8181; padding: 1rem; margin: 1rem 0; }
+				.defects { background: #fff5f5; border-left: 4px solid #f56565; padding: 1rem; margin: 1rem 0; }
+				pre { background: #f7fafc; padding: 1rem; overflow-x: auto; }
+			</style>
+		</head>
+		<body>
+			<h1>An Error Occurred</h1>
+			${failuresHtml}
+			${defectsHtml}
+			<div>
+				<h2>Full Error Details</h2>
+				<pre>${Cause.pretty(cause).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+			</div>
+		</body>
+		</html>
+	`
+			return Effect.succeed(c.html(html))
+		})
+	)
+)
+
 export const handler =
 	<A, E>(
 		h: (
-			...args: Parameters<Handler<HonoEnv>>
-		) => Effect.Effect<A | Promise<A>, E, ManagedRuntime.ManagedRuntime.Context<Parameters<Handler<HonoEnv>>[0]['var']['runtime']>>
+			...args: Parameters<Handler<AppEnv>>
+		) => Effect.Effect<A | Promise<A>, E, ManagedRuntime.ManagedRuntime.Context<Parameters<Handler<AppEnv>>[0]['var']['runtime']>>
 	) =>
-	(...args: Parameters<Handler<HonoEnv>>) =>
+	(...args: Parameters<Handler<AppEnv>>) =>
 		h(...args).pipe(
-			Effect.catchAll((error) => {
-				if (error instanceof InvariantResponseError) {
-					return Effect.succeed(error.response)
-				}
-				return Effect.fail(error)
-			}),
-			Effect.catchAllCause((cause) => {
-				const failures = Cause.failures(cause)
-				const defects = Cause.defects(cause)
-
-				const failuresHtml = Chunk.isEmpty(failures)
-					? ''
-					: `<div class="failures">
-						<h2>Failures</h2>
-						<ul>
-							${Chunk.join(
-								Chunk.map(
-									failures,
-									(error) =>
-										`<li>${
-											typeof error === 'object' && error !== null && 'message' in error
-												? String(error.message).replace(/</g, '&lt;').replace(/>/g, '&gt;') +
-													('cause' in error && error.cause
-														? `<br>Cause: ${
-																typeof error.cause === 'object' && error.cause !== null && 'message' in error.cause
-																	? String(error.cause.message).replace(/</g, '&lt;').replace(/>/g, '&gt;')
-																	: String(error.cause).replace(/</g, '&lt;').replace(/>/g, '&gt;')
-															}`
-														: '')
-												: String(error).replace(/</g, '&lt;').replace(/>/g, '&gt;')
-										}</li>`
-								),
-								''
-							)}
-						</ul>
-					</div>`
-
-				const defectsHtml = Chunk.isEmpty(defects)
-					? ''
-					: `<div class="defects">
-						<h2>Defects</h2>
-						<ul>
-							${Chunk.join(
-								Chunk.map(defects, (defect) => `<li>${String(defect).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`),
-								''
-							)}
-						</ul>
-					</div>`
-
-				// Combine into a complete HTML page
-				const html = `
-					<!DOCTYPE html>
-					<html>
-					<head>
-						<title>Error Occurred</title>
-						<style>
-							body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
-							h1 { color: #e53e3e; }
-							.failures { background: #fff5f5; border-left: 4px solid #fc8181; padding: 1rem; margin: 1rem 0; }
-							.defects { background: #fff5f5; border-left: 4px solid #f56565; padding: 1rem; margin: 1rem 0; }
-							pre { background: #f7fafc; padding: 1rem; overflow-x: auto; }
-						</style>
-					</head>
-					<body>
-						<h1>An Error Occurred</h1>
-						${failuresHtml}
-						${defectsHtml}
-						<div>
-							<h2>Full Error Details</h2>
-							<pre>${Cause.pretty(cause).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
-						</div>
-					</body>
-					</html>
-				`
-
-				// Return HTML response
-				return Effect.succeed(args[0].html(html))
-			}),
-			args[0].var.runtime.runPromise,
-			(thenable) => thenable.then((v) => v) // then so we return Promise<A> instead of Promise<A | Promise<A>>
+			Effect.flatMap((response) => (Predicate.isPromise(response) ? Effect.tryPromise(() => response) : Effect.succeed(response))),
+			orErrorResponse(args[0]),
+			args[0].var.runtime.runPromise
 		)
 
 export default {
@@ -160,7 +180,7 @@ export default {
 	}
 } satisfies ExportedHandler<Env>
 
-function createOpenAuth({ env, runtime }: { env: Env; runtime: HonoEnv['Variables']['runtime'] }) {
+function createOpenAuth({ env, runtime }: { env: Env; runtime: AppEnv['Variables']['runtime'] }) {
 	const { request, ...codeUi } = CodeUI({
 		copy: {
 			code_placeholder: 'Code (check Worker logs)'
@@ -269,8 +289,8 @@ function createOpenAuth({ env, runtime }: { env: Env; runtime: HonoEnv['Variable
 	})
 }
 
-function createApi({ runtime }: { runtime: HonoEnv['Variables']['runtime'] }) {
-	const app = new Hono<HonoEnv>()
+function createApi({ runtime }: { runtime: AppEnv['Variables']['runtime'] }) {
+	const app = new Hono<AppEnv>()
 	app.use(async (c, next) => {
 		c.set('runtime', runtime)
 		await next()
@@ -315,10 +335,10 @@ function createFrontend({
 }: {
 	env: Env
 	ctx: ExecutionContext
-	runtime: HonoEnv['Variables']['runtime']
+	runtime: AppEnv['Variables']['runtime']
 	openAuth: ReturnType<typeof createOpenAuth>
 }) {
-	const app = new Hono<HonoEnv>()
+	const app = new Hono<AppEnv>()
 
 	app.use(async (c, next) => {
 		const cookieSessionId = await getSignedCookie(c, c.env.COOKIE_SECRET, 'sessionId')
@@ -431,7 +451,7 @@ function createFrontend({
 }
 
 const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
-	const ctx = useRequestContext<HonoEnv>()
+	const ctx = useRequestContext<AppEnv>()
 	const ListItems = () => (
 		<>
 			<li>
@@ -496,7 +516,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 }
 
 const Home: FC = () => {
-	const c = useRequestContext<HonoEnv>()
+	const c = useRequestContext<AppEnv>()
 	return (
 		<div className="flex flex-col gap-2">
 			<div>
@@ -531,7 +551,7 @@ const Pricing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof pricingL
 	)
 }
 
-const pricingLoaderData = (c: HonoContext<HonoEnv>) => Stripe.getPrices().pipe(Effect.map((prices) => ({ prices })))
+const pricingLoaderData = (c: HonoContext<AppEnv>) => Stripe.getPrices().pipe(Effect.map((prices) => ({ prices })))
 
 const pricingPost = handler((c) =>
 	Effect.gen(function* () {
@@ -599,7 +619,7 @@ const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashbo
 	)
 }
 
-const dashboardLoaderData = (c: HonoContext<HonoEnv>) =>
+const dashboardLoaderData = (c: HonoContext<AppEnv>) =>
 	Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
 		Effect.flatMap((user) => Repository.getRequiredTeamForUser(user)),
 		Effect.map((team) => ({ team, sessionData: c.var.sessionData }))

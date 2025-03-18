@@ -16,11 +16,11 @@ export class Ses extends Effect.Service<Ses>()('Ses', {
 		const AWS_ACCESS_KEY_ID = yield* Config.redacted('AWS_ACCESS_KEY_ID')
 		const AWS_SECRET_ACCESS_KEY = yield* Config.redacted('AWS_SECRET_ACCESS_KEY')
 		const AWS_REGION = yield* Config.nonEmptyString('AWS_REGION')
-		yield* Effect.log({
-			AWS_ACCESS_KEY_ID: Redacted.value(AWS_ACCESS_KEY_ID),
-			AWS_SECRET_ACCESS_KEY: Redacted.value(AWS_SECRET_ACCESS_KEY),
-			AWS_REGION
-		})
+		// yield* Effect.log({
+		// 	AWS_ACCESS_KEY_ID: Redacted.value(AWS_ACCESS_KEY_ID),
+		// 	AWS_SECRET_ACCESS_KEY: Redacted.value(AWS_SECRET_ACCESS_KEY),
+		// 	AWS_REGION
+		// })
 		const client = new SESClient({
 			credentials: {
 				accessKeyId: Redacted.value(AWS_ACCESS_KEY_ID),
