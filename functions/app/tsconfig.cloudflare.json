@@ -2,7 +2,7 @@
 	"compilerOptions": {
 		/* Visit https://aka.ms/tsconfig.json to read more about this file */
 
-		"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+		"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.cloudflare.tsbuildinfo",
 
 		/* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */
 		"target": "esnext",

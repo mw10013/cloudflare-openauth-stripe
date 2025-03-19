@@ -1,0 +1,51 @@
+{
+	"name": "poc",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "vite",
+		"build": "pnpm build:tailwind && vite build",
+		"build:tailwind": "tailwindcss -i src/tailwind.css -o dist/client/tailwind.css",
+		"buildp": "pnpm build:tailwind && CLOUDFLARE_ENV=production vite build",
+		"preview": "vite preview",
+		"clean": "rm -rf node_modules && rm -rf .wrangler",
+		"typecheck": "tsc --noEmit",
+		"typegen": "wrangler types",
+		"tail:PRODUCTION": "wrangler tail cloudflare-openauth-stripe-app-production",
+		"d1:migrate:list": "wrangler d1 migrations list d1-local --local",
+		"d1:migrate:apply": "wrangler d1 migrations apply d1-local --local",
+		"d1:migrate:list:staging": "wrangler d1 migrations list cloudflare-openauth-stripe-d1-staging --env staging --remote",
+		"d1:migrate:apply:staging": "wrangler d1 migrations apply cloudflare-openauth-stripe-d1-staging --env staging --remote",
+		"d1:migrate:list:PRODUCTION": "wrangler d1 migrations list cloudflare-openauth-stripe-d1-production --env production --remote",
+		"d1:migrate:apply:PRODUCTION": "wrangler d1 migrations apply cloudflare-openauth-stripe-d1-production --env production --remote",
+		"d1:reset": "node scripts/d1-reset.ts",
+		"d1:reset:staging": "node scripts/d1-reset.ts --env staging",
+		"d1:reset:PRODUCTION": "node scripts/d1-reset.ts --env production",
+		"stripe:listen": "stripe listen --load-from-webhooks-api --forward-to localhost:8787",
+		"stripe:seed": "node --env-file=.dev.vars scripts/stripe-seed.ts",
+		"script": "node --env-file=.dev.vars"
+	},
+	"devDependencies": {
+		"@cloudflare/vite-plugin": "catalog:",
+		"@tailwindcss/cli": "catalog:",
+		"@tailwindcss/typography": "^0.5.16",
+		"@tailwindcss/vite": "catalog:",
+		"@types/node": "^22.13.10",
+		"daisyui": "catalog:",
+		"jsonc-parser": "^3.3.1",
+		"tailwindcss": "catalog:",
+		"typescript": "catalog:",
+		"vite": "catalog:",
+		"wrangler": "catalog:",
+		"zx": "^8.3.1"
+	},
+	"dependencies": {
+		"@aws-sdk/client-ses": "catalog:",
+		"@openauthjs/openauth": "catalog:",
+		"@paralleldrive/cuid2": "catalog:",
+		"aws4fetch": "^1.0.20",
+		"effect": "catalog:",
+		"hono": "catalog:",
+		"stripe": "catalog:"
+	}
+}
