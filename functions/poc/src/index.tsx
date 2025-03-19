@@ -1,26 +1,12 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
-import {
-	Cause,
-	Chunk,
-	Config,
-	Console,
-	Data,
-	Effect,
-	Layer,
-	Logger,
-	LogLevel,
-	ManagedRuntime,
-	pipe,
-	Predicate,
-	Record,
-	Schema
-} from 'effect'
+import { Cause, Chunk, Config, Data, Effect, Layer, ManagedRuntime, Predicate, Schema } from 'effect'
 import { dual } from 'effect/Function'
 import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import * as ConfigEx from './ConfigEx'
+import { KV } from './KV'
 import { Poll } from './Poll'
-import { FormDataSchema } from './schemas'
+import { FormDataSchema, Tally } from './schemas'
 
 type AppEnv = {
 	Bindings: Env
@@ -31,10 +17,7 @@ type AppEnv = {
 
 export const makeRuntime = (env: Env) => {
 	const ConfigLive = ConfigEx.fromObject(env)
-	return Layer.mergeAll(
-		Poll.Default
-		// Logger.pretty doesn't seem to work well.
-	).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
+	return Layer.mergeAll(KV.Default, Poll.Default).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
 }
 
 // https://github.com/epicweb-dev/invariant/blob/main/README.md
@@ -152,6 +135,8 @@ export default {
 			'/',
 			handler((c) => homeLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Home loaderData={loaderData} />))))
 		)
+		app.get('/vote', (c) => c.render(<Vote />))
+		app.post('/vote', votePost)
 		// app.get(
 		// 	'/dashboard',
 		// 	handler((c) => dashboardLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Dashboard loaderData={loaderData} />))))
@@ -216,221 +201,76 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 }
 
 const Home: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof homeLoaderData>> }> = ({ loaderData }) => (
-	<div className="items-center flex flex-col gap-2">
-		{/* <h1 className="text-lg font-medium lg:text-2xl">Poll</h1> */}
-		<div className="card bg-base-100 w-96 shadow-sm mt-2">
+	<div className="mt-2 flex flex-col items-center gap-2">
+		<div className="card bg-base-100 w-96 shadow-sm">
 			<div className="card-body">
 				<h2 className="card-title">Tally</h2>
-				<p className="font-medium">Tradition: {loaderData.traditionCount}</p>{' '}
-				<p className="font-medium">Modern: {loaderData.modernCount}</p>
+				<div className="flex flex-col gap-1">
+					<div className="flex gap-1">
+						<p className="font-medium">Tradition</p>
+						<p className="text-sm font-light">{loaderData.traditionCount}</p>
+					</div>
+					<p className="text-sm font-light">Don't break with tradition and keep Config string-based</p>
+				</div>
+				<div className="flex flex-col gap-1">
+					<div className="flex gap-1">
+						<p className="font-medium">Modern</p>
+						<p className="text-sm font-light">{loaderData.modernCount}</p>
+					</div>
+					<p className="text-sm font-light">Embrace modern runtimes and support objects in Config</p>
+				</div>
 			</div>
 		</div>
-		<pre>{JSON.stringify({ loaderData }, null, 2)}</pre>
 	</div>
 )
 
-const homeLoaderData = (c: HonoContext<AppEnv>) => Effect.succeed({ traditionCount: 7, modernCount: 77 })
+const homeLoaderData = (c: HonoContext<AppEnv>) =>
+	Effect.gen(function* () {
+		const key = yield* Config.nonEmptyString('KV_TALLY_KEY')
+		const tally = yield* KV.get(key).pipe(Effect.flatMap(Schema.decodeUnknown(Tally)))
+		return yield* Poll.getTally()
+	})
 
-// const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashboardLoaderData>> }> = async ({ loaderData }) => {
-// 	return (
-// 		<div className="flex flex-col gap-2">
-// 			<h1 className="text-lg font-medium lg:text-2xl">Dashboard</h1>
-// 			<div className="card bg-base-100 w-96 shadow-sm">
-// 				<div className="card-body">
-// 					<h2 className="card-title">Team Subscription</h2>
-// 					<p className="font-medium">Current Plan: {loaderData.team.planName || 'Free'}</p>
-// 					<div className="card-actions justify-end">
-// 						<form action="/dashboard" method="post">
-// 							<button className="btn btn-outline">Manage Subscription</button>
-// 						</form>
-// 					</div>
-// 				</div>
-// 			</div>
-// 			<pre>{JSON.stringify({ loaderData }, null, 2)}</pre>
-// 		</div>
-// 	)
-// }
+const Vote: FC<{ actionData?: { message: string } }> = ({ actionData }) => (
+	<div className="mt-2 flex flex-col items-center gap-2">
+		<div className="card bg-base-100 w-96 shadow-sm">
+			<form action="/vote" method="post">
+				<div className="card-body">
+					<h2 className="card-title text-center">Vote</h2>
+					<p>{actionData?.message}</p>
+					<div className="card-actions justify-between">
+						<button name="intent" value="vote_tradition" className="btn btn-outline">
+							Tradition
+						</button>
+						<button name="intent" value="vote_modern" className="btn btn-outline">
+							Modern
+						</button>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+)
 
-// const dashboardLoaderData = (c: HonoContext<AppEnv>) =>
-// 	Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
-// 		Effect.flatMap((user) => Repository.getRequiredTeamForUser(user)),
-// 		Effect.map((team) => ({ team, sessionData: c.var.sessionData }))
-// 	)
-
-// const dashboardPost = handler((c) =>
-// 	Effect.gen(function* () {
-// 		const team = yield* Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
-// 			Effect.flatMap((user) => Repository.getRequiredTeamForUser(user))
-// 		)
-// 		if (!team.stripeCustomerId || !team.stripeProductId) {
-// 			return c.redirect('/pricing')
-// 		}
-// 		return yield* Stripe.createBillingPortalSession({
-// 			customer: team.stripeCustomerId,
-// 			return_url: `${new URL(c.req.url).origin}/dashboard`
-// 		}).pipe(Effect.map((session) => c.redirect(session.url)))
-// 	})
-// )
-
-// const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
-// 	return (
-// 		<div className="flex flex-col gap-2">
-// 			<h1 className="text-lg font-medium lg:text-2xl">Admin</h1>
-// 			<div className="flex gap-2">
-// 				<form action="/admin" method="post">
-// 					<button name="intent" value="effect" className="btn btn-outline">
-// 						Effect
-// 					</button>
-// 				</form>
-// 				<form action="/admin" method="post">
-// 					<button name="intent" value="effect_1" className="btn btn-outline">
-// 						Effect 1
-// 					</button>
-// 				</form>
-// 				<form action="/admin" method="post">
-// 					<button name="intent" value="effect_2" className="btn btn-outline">
-// 						Effect 2
-// 					</button>
-// 				</form>
-// 				<form action="/admin" method="post">
-// 					<button name="intent" value="teams" className="btn btn-outline">
-// 						Teams
-// 					</button>
-// 				</form>
-// 				<div className="card bg-base-100 w-96 shadow-sm">
-// 					<form action="/admin" method="post">
-// 						<div className="card-body">
-// 							<h2 className="card-title">Sync Stripe Data</h2>
-// 							<fieldset className="fieldset">
-// 								<legend className="fieldset-legend">Customer Id</legend>
-// 								<input type="text" name="customerId" className="input" />
-// 							</fieldset>
-// 							<div className="card-actions justify-end">
-// 								<button name="intent" value="sync_stripe_data" className="btn btn-primary">
-// 									Submit
-// 								</button>
-// 							</div>
-// 						</div>
-// 					</form>
-// 				</div>
-// 				<div className="card bg-base-100 w-96 shadow-sm">
-// 					<form action="/admin" method="post">
-// 						<div className="card-body">
-// 							<h2 className="card-title">Customer Subscription</h2>
-// 							<fieldset className="fieldset">
-// 								<legend className="fieldset-legend">Customer Id</legend>
-// 								<input type="text" name="customerId" className="input" />
-// 							</fieldset>
-// 							<div className="card-actions justify-end">
-// 								<button name="intent" value="customer_subscription" className="btn btn-primary">
-// 									Submit
-// 								</button>
-// 							</div>
-// 						</div>
-// 					</form>
-// 				</div>
-// 				<div className="card bg-base-100 w-96 shadow-sm">
-// 					<form action="/admin" method="post">
-// 						<div className="card-body">
-// 							<h2 className="card-title">Create User</h2>
-// 							<fieldset className="fieldset">
-// 								<legend className="fieldset-legend">Email</legend>
-// 								<input type="email" name="email" className="input" />
-// 							</fieldset>
-// 							<div className="card-actions justify-end">
-// 								<button type="submit" name="intent" value="create_user" className="btn btn-primary">
-// 									Submit
-// 								</button>
-// 							</div>
-// 						</div>
-// 					</form>
-// 				</div>
-// 			</div>
-// 			<pre>{JSON.stringify({ actionData }, null, 2)}</pre>
-// 		</div>
-// 	)
-// }
-
-// const adminPost = handler((c) =>
-// 	Effect.gen(function* () {
-// 		const AdminFormDataSchema = FormDataSchema(
-// 			Schema.Union(
-// 				Schema.Struct({
-// 					intent: Schema.Literal('effect')
-// 				}),
-// 				Schema.Struct({
-// 					intent: Schema.Literal('effect_1')
-// 				}),
-// 				Schema.Struct({
-// 					intent: Schema.Literal('effect_2')
-// 				}),
-// 				Schema.Struct({
-// 					intent: Schema.Literal('teams')
-// 				}),
-// 				Schema.Struct({
-// 					intent: Schema.Literal('sync_stripe_data'),
-// 					customerId: Schema.NonEmptyString
-// 				}),
-// 				Schema.Struct({
-// 					intent: Schema.Literal('customer_subscription'),
-// 					customerId: Schema.NonEmptyString
-// 				}),
-// 				Schema.Struct({
-// 					intent: Schema.Literal('create_user'),
-// 					email: Schema.NonEmptyString
-// 				})
-// 			)
-// 		)
-// 		const formData = yield* Effect.tryPromise(() => c.req.formData()).pipe(Effect.flatMap(Schema.decode(AdminFormDataSchema)))
-// 		let actionData = {}
-// 		switch (formData.intent) {
-// 			case 'effect':
-// 				actionData = { data: yield* D1.prepare('insert into users (name, email) values ("joe", "u@u.com")').pipe(Effect.flatMap(D1.run)) }
-// 				break
-// 			case 'effect_1':
-// 				yield* Effect.log('Effect 1', 'msg2', 'msg3')
-// 				yield* Effect.logDebug('Effect 1 debug')
-// 				actionData = { result: yield* D1.prepare('select * from users').pipe(Effect.andThen(D1.run)) }
-// 				break
-// 			case 'effect_2':
-// 				{
-// 					const stmt = yield* D1.prepare('select * from users where userId = ?')
-// 					actionData = {
-// 						result: yield* D1.batch([
-// 							stmt.bind(1),
-// 							stmt.bind(2),
-// 							yield* D1.prepare('select userId, email from users where userId = ?').pipe(D1Ns.bind(3))
-// 						])
-// 					}
-// 				}
-// 				break
-// 			case 'teams':
-// 				actionData = { teams: yield* Repository.getTeams() }
-// 				break
-// 			case 'sync_stripe_data':
-// 				{
-// 					yield* Stripe.syncStripData(formData.customerId)
-// 					actionData = {
-// 						message: 'Stripe data synced.'
-// 					}
-// 				}
-// 				break
-// 			case 'customer_subscription':
-// 				{
-// 					const subscription = yield* Stripe.getSubscriptionForCustomer(formData.customerId)
-// 					actionData = {
-// 						subscription
-// 					}
-// 				}
-// 				break
-// 			case 'create_user':
-// 				{
-// 					actionData = { user: yield* Repository.upsertUser({ email: formData.email }) }
-// 				}
-// 				break
-// 			default:
-// 				throw new Error('Invalid intent')
-// 		}
-// 		return c.render(<Admin actionData={{ intent: formData.intent, ...actionData }} />)
-// 	})
-// )
+const votePost = handler((c) =>
+	Effect.gen(function* () {
+		const VoteFormDataSchema = FormDataSchema(
+			Schema.Struct({
+				intent: Schema.Literal('vote_tradition', 'vote_modern')
+			})
+		)
+		const formData = yield* Effect.tryPromise(() => c.req.formData()).pipe(Effect.flatMap(Schema.decode(VoteFormDataSchema)))
+		let message
+		switch (formData.intent) {
+			case 'vote_tradition':
+				message = 'You voted tradition.'
+				break
+			case 'vote_modern':
+				message = 'You voted modern.'
+				break
+			default:
+				return yield* Effect.fail(new Error('Invalid intent'))
+		}
+		return c.render(<Vote actionData={{ message }} />)
+	})
+)

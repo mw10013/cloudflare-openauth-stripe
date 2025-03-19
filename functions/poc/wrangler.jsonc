@@ -16,7 +16,8 @@
 		"enabled": true
 	},
 	"vars": {
-		"ENVIRONMENT": "local"
+		"ENVIRONMENT": "local",
+		"KV_TALLY_KEY": "tally"
 	},
 	"kv_namespaces": [
 		{
@@ -27,7 +28,8 @@
 	"env": {
 		"production": {
 			"vars": {
-				"ENVIRONMENT": "production"
+				"ENVIRONMENT": "production",
+				"KV_TALLY_KEY": "tally"
 			},
 			"kv_namespaces": [
 				{

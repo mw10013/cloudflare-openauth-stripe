@@ -4,7 +4,7 @@ export class Poll extends Effect.Service<Poll>()('Poll', {
 	accessors: true,
 	effect: Effect.gen(function* () {
 		return {
-			foo: () => 'bar'
+			getTally: () => Effect.succeed({ traditionCount: 7, modernCount: 77 })
 		}
 	})
 }) {}
