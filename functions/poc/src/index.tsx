@@ -6,7 +6,7 @@ import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import * as ConfigEx from './ConfigEx'
 import { Poll } from './Poll'
-import { FormDataSchema } from './SchemaEx'
+import { FormDataSchema, Tally } from './SchemaEx'
 
 type AppEnv = {
 	Bindings: Env
@@ -248,16 +248,16 @@ const votePost = handler((c) =>
 			})
 		)
 		const formData = yield* Effect.tryPromise(() => c.req.formData()).pipe(Effect.flatMap(Schema.decode(VoteFormDataSchema)))
-		const voterId = c.req.header('x-forwarded-for') || '127.0.0.1'
+		const voterId = `${c.req.header('cf-connecting-ip') || '127.0.0.1'} - ${c.req.header('user-agent') || 'user-agent'}`
 		let message
 		switch (formData.intent) {
 			case 'vote_tradition':
 				yield* Poll.vote(voterId, 'tradition')
-				message = 'You voted tradition.'
+				message = `${voterId} voted tradition.`
 				break
 			case 'vote_modern':
 				yield* Poll.vote(voterId, 'modern')
-				message = 'You voted modern.'
+				message = `${voterId} voted modern.`
 				break
 			default:
 				return yield* Effect.fail(new Error('Invalid intent'))
@@ -267,11 +267,34 @@ const votePost = handler((c) =>
 )
 
 export class PollDurableObject extends DurableObject<Env> {
+	sql: SqlStorage
+
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env)
+		this.sql = ctx.storage.sql
+		this.sql.exec(`create table if not exists votes(
+			voterId text primary key,
+			vote text)`)
 	}
-	async sayHello() {
-		let result = this.ctx.storage.sql.exec("SELECT 'Hello, World!' as greeting").one()
-		return typeof result.greeting === 'string' ? result.greeting : 'Hello, World!!'
+	async getTally() {
+		const tallyUnknown = this.sql
+			.exec(
+				`
+select 
+	count(case when vote = 'tradition' then 1 end) as traditionCount,
+	count(case when vote = 'modern' then 1 end) as modernCount			
+from votes`
+			)
+			.one()
+		return Schema.decodeUnknownSync(Tally)(tallyUnknown)
+	}
+	async vote(voterId: string, vote: 'tradition' | 'modern') {
+		// 'UNIQUE constraint failed: votes.voterId: SQLITE_CONSTRAINT'
+		this.sql.exec(
+			`insert into votes (voterId, vote) values (?, ?)
+			on conflict (voterId) do update set vote = excluded.vote`,
+			voterId,
+			vote
+		)
 	}
 }
