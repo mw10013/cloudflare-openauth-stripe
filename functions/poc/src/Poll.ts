@@ -14,7 +14,7 @@ export class Poll extends Effect.Service<Poll>()('Poll', {
 					const tallyOption = yield* kv.get(key).pipe(Effect.tap((tallyOption) => Effect.log({ tallyOption })))
 					const tally = yield* tallyOption.pipe(
 						Effect.flatMap(Schema.decodeUnknown(Schema.parseJson(Tally))),
-						Effect.orElse(() => Effect.succeed({ traditionCount: 2, modernCount: 3 }))
+						Effect.orElse(() => Effect.succeed({ traditionCount: 4, modernCount: 5 }))
 					)
 					if (Option.isNone(tallyOption)) {
 						yield* Schema.encode(Schema.parseJson(Tally))(tally).pipe(
@@ -23,6 +23,11 @@ export class Poll extends Effect.Service<Poll>()('Poll', {
 						)
 					}
 					return tally
+				}),
+			vote: (voterId: string, vote: 'tradition' | 'modern') =>
+				Effect.gen(function* () {
+					yield* Effect.log({ voterId, vote })
+					yield* kv.delete(key)
 				})
 		}
 	})

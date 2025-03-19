@@ -217,9 +217,6 @@ const Home: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof homeLoaderD
 )
 
 const homeLoaderData = () => Poll.getTally()
-// Effect.gen(function* () {
-// 	return yield* Poll.getTally()
-// })
 
 const Vote: FC<{ actionData?: { message: string } }> = ({ actionData }) => (
 	<div className="mt-2 flex flex-col items-center gap-2">
@@ -250,12 +247,15 @@ const votePost = handler((c) =>
 			})
 		)
 		const formData = yield* Effect.tryPromise(() => c.req.formData()).pipe(Effect.flatMap(Schema.decode(VoteFormDataSchema)))
+		const voterId = c.req.header('x-forwarded-for') || '127.0.0.1'
 		let message
 		switch (formData.intent) {
 			case 'vote_tradition':
+				yield* Poll.vote(voterId, 'tradition')
 				message = 'You voted tradition.'
 				break
 			case 'vote_modern':
+				yield* Poll.vote(voterId, 'modern')
 				message = 'You voted modern.'
 				break
 			default:
