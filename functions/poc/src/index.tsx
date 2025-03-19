@@ -1,12 +1,11 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
-import { Cause, Chunk, Config, Data, Effect, Layer, ManagedRuntime, Predicate, Schema } from 'effect'
+import { Cause, Chunk, Data, Effect, Layer, ManagedRuntime, Predicate, Schema } from 'effect'
 import { dual } from 'effect/Function'
 import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import * as ConfigEx from './ConfigEx'
-import { KV } from './KV'
 import { Poll } from './Poll'
-import { FormDataSchema, Tally } from './schemas'
+import { FormDataSchema } from './SchemaEx'
 
 type AppEnv = {
 	Bindings: Env
@@ -17,7 +16,7 @@ type AppEnv = {
 
 export const makeRuntime = (env: Env) => {
 	const ConfigLive = ConfigEx.fromObject(env)
-	return Layer.mergeAll(KV.Default, Poll.Default).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
+	return Layer.mergeAll(Poll.Default).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
 }
 
 // https://github.com/epicweb-dev/invariant/blob/main/README.md
@@ -133,17 +132,10 @@ export default {
 		)
 		app.get(
 			'/',
-			handler((c) => homeLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Home loaderData={loaderData} />))))
+			handler((c) => homeLoaderData().pipe(Effect.map((loaderData) => c.render(<Home loaderData={loaderData} />))))
 		)
 		app.get('/vote', (c) => c.render(<Vote />))
 		app.post('/vote', votePost)
-		// app.get(
-		// 	'/dashboard',
-		// 	handler((c) => dashboardLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Dashboard loaderData={loaderData} />))))
-		// )
-		// app.post('/dashboard', dashboardPost)
-		// app.get('/admin', (c) => c.render(<Admin />))
-		// app.post('/admin', adminPost)
 		const response = await app.fetch(request, env, ctx)
 		ctx.waitUntil(runtime.dispose())
 		return response
@@ -204,32 +196,30 @@ const Home: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof homeLoaderD
 	<div className="mt-2 flex flex-col items-center gap-2">
 		<div className="card bg-base-100 w-96 shadow-sm">
 			<div className="card-body">
-				<h2 className="card-title">Tally</h2>
+				<h2 className="card-title">Config Poll</h2>
 				<div className="flex flex-col gap-1">
 					<div className="flex gap-1">
 						<p className="font-medium">Tradition</p>
 						<p className="text-sm font-light">{loaderData.traditionCount}</p>
 					</div>
-					<p className="text-sm font-light">Don't break with tradition and keep Config string-based</p>
+					<p className="text-sm font-light">Stick with string-based Config.</p>
 				</div>
 				<div className="flex flex-col gap-1">
 					<div className="flex gap-1">
 						<p className="font-medium">Modern</p>
 						<p className="text-sm font-light">{loaderData.modernCount}</p>
 					</div>
-					<p className="text-sm font-light">Embrace modern runtimes and support objects in Config</p>
+					<p className="text-sm font-light">Support objects in Config to embrace modern runtimes.</p>
 				</div>
 			</div>
 		</div>
 	</div>
 )
 
-const homeLoaderData = (c: HonoContext<AppEnv>) =>
-	Effect.gen(function* () {
-		const key = yield* Config.nonEmptyString('KV_TALLY_KEY')
-		const tally = yield* KV.get(key).pipe(Effect.flatMap(Schema.decodeUnknown(Tally)))
-		return yield* Poll.getTally()
-	})
+const homeLoaderData = () => Poll.getTally()
+// Effect.gen(function* () {
+// 	return yield* Poll.getTally()
+// })
 
 const Vote: FC<{ actionData?: { message: string } }> = ({ actionData }) => (
 	<div className="mt-2 flex flex-col items-center gap-2">

@@ -1,4 +1,4 @@
-import { Config, ConfigError, Effect, Either, Predicate, Schedule } from 'effect'
+import { Config, ConfigError, Effect, Either, Option, Predicate, Schedule } from 'effect'
 import * as ConfigEx from './ConfigEx'
 
 export class KV extends Effect.Service<KV>()('KV', {
@@ -20,7 +20,8 @@ export class KV extends Effect.Service<KV>()('KV', {
 				})
 			)
 		return {
-			get: (key: string) => tryPromise(() => kv.get(key, 'json')),
+			// get: (key: string) => tryPromise(() => kv.get(key, 'json')).pipe(Effect.map((v) => Option.fromNullable(v))),
+			get: (key: string) => tryPromise(() => kv.get(key)).pipe(Effect.map((v) => Option.fromNullable(v))),
 			put: (key: string, value: string, options?: KVNamespacePutOptions) => tryPromise(() => kv.put(key, value, options)),
 			delete: (key: string) => tryPromise(() => kv.delete(key))
 		}
