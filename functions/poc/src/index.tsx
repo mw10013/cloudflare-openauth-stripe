@@ -1,4 +1,5 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
+import { DurableObject } from 'cloudflare:workers'
 import { Cause, Chunk, Data, Effect, Layer, ManagedRuntime, Predicate, Schema } from 'effect'
 import { dual } from 'effect/Function'
 import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
@@ -264,3 +265,13 @@ const votePost = handler((c) =>
 		return c.render(<Vote actionData={{ message }} />)
 	})
 )
+
+export class PollDurableObject extends DurableObject<Env> {
+	constructor(ctx: DurableObjectState, env: Env) {
+		super(ctx, env)
+	}
+	async sayHello() {
+		let result = this.ctx.storage.sql.exec("SELECT 'Hello, World!' as greeting").one()
+		return typeof result.greeting === 'string' ? result.greeting : 'Hello, World!!'
+	}
+}

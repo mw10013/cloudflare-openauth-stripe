@@ -1,4 +1,5 @@
-import { Config, Effect, Option, Schema } from 'effect'
+import { Config, ConfigError, Effect, Either, Option, Predicate, Schema } from 'effect'
+import * as ConfigEx from './ConfigEx'
 import { KV } from './KV'
 import { Tally } from './SchemaEx'
 
@@ -8,25 +9,33 @@ export class Poll extends Effect.Service<Poll>()('Poll', {
 	effect: Effect.gen(function* () {
 		const kv = yield* KV
 		const key = yield* Config.nonEmptyString('KV_TALLY_KEY')
+		const pollDo = yield* ConfigEx.object('POLL_DO').pipe(
+			Config.mapOrFail((object) =>
+				Predicate.hasProperty(object, 'idFromName') && typeof object.idFromName === 'function'
+					? Either.right(object as Env['POLL_DO'])
+					: Either.left(ConfigError.InvalidData([], `Expected a DurableObjectNamespace but received ${object}`))
+			)
+		)
+		const id = pollDo.idFromName('poll')
+		const stub = pollDo.get(id)
+
 		return {
 			getTally: () =>
 				Effect.gen(function* () {
-					const tallyOption = yield* kv.get(key).pipe(Effect.tap((tallyOption) => Effect.log({ tallyOption })))
+					const tallyOption = yield* kv.get(key)
 					const tally = yield* tallyOption.pipe(
 						Effect.flatMap(Schema.decodeUnknown(Schema.parseJson(Tally))),
 						Effect.orElse(() => Effect.succeed({ traditionCount: 4, modernCount: 5 }))
 					)
 					if (Option.isNone(tallyOption)) {
-						yield* Schema.encode(Schema.parseJson(Tally))(tally).pipe(
-							Effect.tap((value) => Effect.log({ value })),
-							Effect.flatMap((value) => kv.put(key, value))
-						)
+						yield* Schema.encode(Schema.parseJson(Tally))(tally).pipe(Effect.flatMap((value) => kv.put(key, value)))
 					}
 					return tally
 				}),
 			vote: (voterId: string, vote: 'tradition' | 'modern') =>
 				Effect.gen(function* () {
-					yield* Effect.log({ voterId, vote })
+					const greeting = yield* Effect.tryPromise(() => stub.sayHello())
+					yield* Effect.log({ voterId, vote, greeting })
 					yield* kv.delete(key)
 				})
 		}

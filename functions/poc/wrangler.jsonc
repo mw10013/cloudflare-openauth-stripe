@@ -19,6 +19,20 @@
 		"ENVIRONMENT": "local",
 		"KV_TALLY_KEY": "tally"
 	},
+	"migrations": [
+		{
+			"new_sqlite_classes": ["PollDurableObject"],
+			"tag": "v1"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "PollDurableObject",
+				"name": "POLL_DO"
+			}
+		]
+	},
 	"kv_namespaces": [
 		{
 			"binding": "KV",
@@ -30,6 +44,20 @@
 			"vars": {
 				"ENVIRONMENT": "production",
 				"KV_TALLY_KEY": "tally"
+			},
+			"migrations": [
+				{
+					"new_sqlite_classes": ["PollDurableObject"],
+					"tag": "v1"
+				}
+			],
+			"durable_objects": {
+				"bindings": [
+					{
+						"class_name": "PollDurableObject",
+						"name": "POLL_DO"
+					}
+				]
 			},
 			"kv_namespaces": [
 				{
