@@ -185,7 +185,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 							<ListItems />
 						</ul>
 					</div>
-					<div className="navbar-end gap-2">ip</div>
+					<div className="navbar-end gap-2"></div>
 				</div>
 				<div className="p-6">{children}</div>
 			</body>
@@ -198,19 +198,19 @@ const Home: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof homeLoaderD
 		<div className="card bg-base-100 w-96 shadow-sm">
 			<div className="card-body">
 				<h2 className="card-title">Config Poll</h2>
-				<div className="flex flex-col gap-1">
-					<div className="flex gap-1">
-						<p className="font-medium">Tradition</p>
-						<p className="text-sm">{loaderData.traditionCount}</p>
+				<div className="stats shadow">
+					<div className="stat place-items-center">
+						<div className="stat-title">Tradition</div>
+						<div className="stat-value">{loaderData.traditionCount}</div>
+						<div className="stat-desc">String-based Config.</div>
 					</div>
-					<p className="text-base-content/50 text-sm">Stick with string-based Config.</p>
 				</div>
-				<div className="flex flex-col gap-1">
-					<div className="flex gap-1">
-						<p className="font-medium">Modern</p>
-						<p className="">{loaderData.modernCount}</p>
+				<div className="stats shadow">
+					<div className="stat place-items-center">
+						<div className="stat-title">Modern</div>
+						<div className="stat-value">{loaderData.modernCount}</div>
+						<div className="stat-desc">Allow objects in Config.</div>
 					</div>
-					<p className="text-base-content/50 text-sm">Support objects in Config to embrace modern runtimes.</p>
 				</div>
 			</div>
 		</div>

@@ -1,6 +1,10 @@
-## Ask for `object` support in Config to ease Cloudflare env integration and unlock declarative Cloudflare services
+## Add `object` support to Config for Cloudflare Integration and Declarative Services
 
-Traditionally, environment variables are string based. Modern runtimes such as Cloudflare's also put objects into the environment. Cloudflare calls these [bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/). They allow a Worker, Cloudflare's servless function, to interact with resources on Cloudflare such as D1 (sqlite), R2 (object storage), and DO (durable objects). I ask for `object` support in Config to ease Cloudflare env integration and unlock declarative Cloudflare services.
+Traditionally, environment variables are string based. Modern runtimes such as Cloudflare's also put objects into the environment. Cloudflare calls these [bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/). They allow a Worker, Cloudflare's serverless function, to interact with resources on Cloudflare such as D1 (sqlite), R2 (object storage), and DO (durable objects). ConfigProviders hew to tradition and support only string-based configuration so they cannot fully support Cloudflare envs.
+
+In Effect, a service can be 'fully declarative' — meaning it avoids runtime boilerplate — if its layer constructors don’t need arguments from the application. This is a desirable property, as it simplifies layer construction. Config supports this declarativity when limited to string-based configuration. However, a Cloudflare service, which depends on object bindings in the environment, can’t leverage Config to achieve this property.
+
+I propose adding `object` support to Config for full Cloudflare env integration and to unlock declarative Cloudflare services.
 
 ### Proposed API
 
@@ -12,7 +16,7 @@ Config.object: (name: string) => Config<object>
 
 ### Proof of Concept (POC)
 
-POC using pathological type assertions demonstrates that the existing machinery in Effect can support objects in Config. The POC is in this [repo]() and its essence:
+The POC uses pathological type assertions to mock the proposed API, demonstrating that the existing machinery in Effect can support this. It is in this [repo]() and its essence:
 
 ```ts
 // ConfigEx.ts
@@ -38,7 +42,7 @@ export const object = (name: string) =>
 	)
 ```
 
-A declarative Cloudflare service with a dependency on another Cloudflare service:
+Here is a declarative Cloudflare service with a dependency on another declarative Cloudflare service:
 
 ```ts
 // Poll.ts
@@ -53,9 +57,9 @@ export class Poll extends Effect.Service<Poll>()('Poll', {
 					: Either.left(ConfigError.InvalidData([], `Expected a DurableObjectNamespace but received ${object}`))
 			)
 		)
-    <snip>
+   // Snip
     return {
-			<snip>
+			// Snip
 		}
 	})
 }) {}
@@ -70,49 +74,3 @@ export const makeRuntime = (env: Env) => {
 	return Layer.mergeAll(Poll.Default).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
 }
 ```
-
-### Alternate Approaches
-
-#### Pass Cloudflare env into layer constructors
-
-```ts
-export const make = ({ db }: { db: D1Database }) => ({
-	<snip>
-})
-export class D1 extends Effect.Tag('D1')<D1, ReturnType<typeof make>>() {}
-export const layer = ({ db }: { db: D1Database }) => Layer.succeed(D1, make({ db }))
-```
-
-`layer` is the constructor a D1 layer and takes a D1Database that you get from a Cloudflare env.
-
-The downside is that this is not declarative and I don't have the skills to make it so. At layer construction time, you'll need to imperatively piece the layers together.
-
-Contrast
-
-```ts
-export const makeRuntime = (env: Env) => {
-	const D1Live = D1.layer({ db: env.D1 })
-	const RepositoryLive = Repository.Live.pipe(Layer.provide(D1Live))
-	const KVLive = KV.layer({ kv: env.KV })
-	const R2live = R2.layer({ r2: env.R2 })
-	const DOLive = DO.layer({ do: env.DO })
-	const StripeLive = stripeLayer(env).pipe(Layer.merge(RepositoryLive, KVLive, R2Live, DOLive))
-	const Live = Layer.mergeAll(StripeLive, RepositoryLive)
-	return ManagedRuntime.make(Live)
-}
-```
-
-with
-
-```ts
-export const makeRuntime = (env: Env) => {
-	const Live = Layer.mergeAll(Stripe.Default, Repository.Default)
-	return ManagedRuntime.make(Live)
-}
-```
-
-### Importing Cloudflare env as a global
-
-- low-level
-- override of bindings?
-  [doc](https://developers.cloudflare.com/workers/runtime-apis/bindings/#importing-env-as-a-global)
