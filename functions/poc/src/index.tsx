@@ -201,16 +201,16 @@ const Home: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof homeLoaderD
 				<div className="flex flex-col gap-1">
 					<div className="flex gap-1">
 						<p className="font-medium">Tradition</p>
-						<p className="text-sm font-light">{loaderData.traditionCount}</p>
+						<p className="text-sm">{loaderData.traditionCount}</p>
 					</div>
-					<p className="text-sm font-light">Stick with string-based Config.</p>
+					<p className="text-base-content/50 text-sm">Stick with string-based Config.</p>
 				</div>
 				<div className="flex flex-col gap-1">
 					<div className="flex gap-1">
 						<p className="font-medium">Modern</p>
-						<p className="text-sm font-light">{loaderData.modernCount}</p>
+						<p className="">{loaderData.modernCount}</p>
 					</div>
-					<p className="text-sm font-light">Support objects in Config to embrace modern runtimes.</p>
+					<p className="text-base-content/50 text-sm">Support objects in Config to embrace modern runtimes.</p>
 				</div>
 			</div>
 		</div>
@@ -219,13 +219,18 @@ const Home: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof homeLoaderD
 
 const homeLoaderData = () => Poll.getTally()
 
-const Vote: FC<{ actionData?: { message: string } }> = ({ actionData }) => (
+const Vote: FC<{ actionData?: { voterId: string; vote: string } }> = ({ actionData }) => (
 	<div className="mt-2 flex flex-col items-center gap-2">
 		<div className="card bg-base-100 w-96 shadow-sm">
 			<form action="/vote" method="post">
 				<div className="card-body">
 					<h2 className="card-title text-center">Vote</h2>
-					<p>{actionData?.message}</p>
+					{actionData && (
+						<div className="flex flex-col">
+							<p className="text-sm font-light">VoterId: {actionData.voterId}</p>
+							<p className="text-sm font-light">Vote: {actionData.vote}</p>
+						</div>
+					)}
 					<div className="card-actions justify-between">
 						<button name="intent" value="vote_tradition" className="btn btn-outline">
 							Tradition
@@ -249,20 +254,20 @@ const votePost = handler((c) =>
 		)
 		const formData = yield* Effect.tryPromise(() => c.req.formData()).pipe(Effect.flatMap(Schema.decode(VoteFormDataSchema)))
 		const voterId = `${c.req.header('cf-connecting-ip') || '127.0.0.1'} - ${c.req.header('user-agent') || 'user-agent'}`
-		let message
+		let vote: 'tradition' | 'modern'
 		switch (formData.intent) {
 			case 'vote_tradition':
-				yield* Poll.vote(voterId, 'tradition')
-				message = `${voterId} voted tradition.`
+				vote = 'tradition'
+				yield* Poll.vote(voterId, vote)
 				break
 			case 'vote_modern':
-				yield* Poll.vote(voterId, 'modern')
-				message = `${voterId} voted modern.`
+				vote = 'modern'
+				yield* Poll.vote(voterId, vote)
 				break
 			default:
 				return yield* Effect.fail(new Error('Invalid intent'))
 		}
-		return c.render(<Vote actionData={{ message }} />)
+		return c.render(<Vote actionData={{ voterId, vote }} />)
 	})
 )
 
