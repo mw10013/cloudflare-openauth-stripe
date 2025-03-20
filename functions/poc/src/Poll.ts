@@ -24,7 +24,9 @@ export class Poll extends Effect.Service<Poll>()('Poll', {
 					const tallyOption = yield* kv.get(key).pipe(Effect.map((option) => Option.flatMap(option, Schema.decodeOption(TallyFromString))))
 					const tally = yield* tallyOption.pipe(Effect.orElse(() => Effect.tryPromise(() => stub.getTally())))
 					if (Option.isNone(tallyOption)) {
-						yield* Schema.encode(TallyFromString)(tally).pipe(Effect.flatMap((value) => kv.put(key, value)))
+						yield* Schema.encode(TallyFromString)(tally).pipe(
+							Effect.flatMap((value) => kv.put(key, value, { expirationTtl: 60 * 60 * 24 }))
+						)
 					}
 					return tally
 				}),
