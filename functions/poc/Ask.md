@@ -73,8 +73,6 @@ export const makeRuntime = (env: Env) => {
 
 ### Alternate Approaches
 
-#### Wrap Cloudflare env in a service
-
 #### Pass Cloudflare env into layer constructors
 
 ```ts
@@ -85,7 +83,7 @@ export class D1 extends Effect.Tag('D1')<D1, ReturnType<typeof make>>() {}
 export const layer = ({ db }: { db: D1Database }) => Layer.succeed(D1, make({ db }))
 ```
 
-`layer` is the constructor a D1 layer and takes a D1Database that you get from a Cloudflare env. 
+`layer` is the constructor a D1 layer and takes a D1Database that you get from a Cloudflare env.
 
 The downside is that this is not declarative and I don't have the skills to make it so. At layer construction time, you'll need to imperatively piece the layers together.
 
@@ -117,4 +115,4 @@ export const makeRuntime = (env: Env) => {
 
 - low-level
 - override of bindings?
-[doc](https://developers.cloudflare.com/workers/runtime-apis/bindings/#importing-env-as-a-global)
+  [doc](https://developers.cloudflare.com/workers/runtime-apis/bindings/#importing-env-as-a-global)
