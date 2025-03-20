@@ -253,7 +253,8 @@ const votePost = handler((c) =>
 			})
 		)
 		const formData = yield* Effect.tryPromise(() => c.req.formData()).pipe(Effect.flatMap(Schema.decode(VoteFormDataSchema)))
-		const voterId = `${c.req.header('cf-connecting-ip') || '127.0.0.1'} - ${c.req.header('user-agent') || 'user-agent'}`
+		// const voterId = `${c.req.header('cf-connecting-ip') || '127.0.0.1'} - ${c.req.header('user-agent') || 'user-agent'}`
+		const voterId = `${c.req.header('cf-connecting-ip') || '127.0.0.1'}`
 		let vote: 'tradition' | 'modern'
 		switch (formData.intent) {
 			case 'vote_tradition':
