@@ -15,4 +15,4 @@ catalog:
   tailwindcss: 4.0.14
   typescript: 5.8.2
   vite: 6.2.2
-  wrangler: 4.1.0
+  wrangler: 4.2.0

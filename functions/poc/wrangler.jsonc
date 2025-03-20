@@ -6,7 +6,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "config-object-poc",
 	"main": "src/index.tsx",
-	"compatibility_date": "2025-03-19",
+	"compatibility_date": "2025-03-20",
 	"compatibility_flags": ["nodejs_compat"],
 	"assets": {
 		// https://github.com/cloudflare/workers-sdk/tree/main/packages/vite-plugin-cloudflare#create-your-worker-config-file-1
