@@ -21,11 +21,8 @@ export class Poll extends Effect.Service<Poll>()('Poll', {
 		return {
 			getTally: () =>
 				Effect.gen(function* () {
-					const tallyOption = yield* kv.get(key)
-					const tally = yield* tallyOption.pipe(
-						Effect.flatMap(Schema.decodeUnknown(TallyFromString)),
-						Effect.orElse(() => Effect.tryPromise(() => stub.getTally()))
-					)
+					const tallyOption = yield* kv.get(key).pipe(Effect.map((option) => Option.flatMap(option, Schema.decodeOption(TallyFromString))))
+					const tally = yield* tallyOption.pipe(Effect.orElse(() => Effect.tryPromise(() => stub.getTally())))
 					if (Option.isNone(tallyOption)) {
 						yield* Schema.encode(TallyFromString)(tally).pipe(Effect.flatMap((value) => kv.put(key, value)))
 					}
