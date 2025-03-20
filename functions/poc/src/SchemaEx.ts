@@ -4,11 +4,9 @@ export const Tally = Schema.Struct({
 	traditionCount: Schema.Number,
 	modernCount: Schema.Number
 })
+export const TallyFromString = Schema.parseJson(Tally)
 
 export const FormDataFromSelf = Schema.instanceOf(FormData).annotations({ identifier: 'FormDataFromSelf' })
-
-// https://discord.com/channels/795981131316985866/847382157861060618/threads/1270826681505939517
-// https://raw.githubusercontent.com/react-hook-form/resolvers/refs/heads/dev/effect-ts/src/effect-ts.ts
 export const RecordFromFormData = Schema.transform(FormDataFromSelf, Schema.Record({ key: Schema.String, value: Schema.String }), {
 	strict: false,
 	decode: (formData) => Object.fromEntries(formData.entries()),
@@ -20,6 +18,5 @@ export const RecordFromFormData = Schema.transform(FormDataFromSelf, Schema.Reco
 		return formData
 	}
 }).annotations({ identifier: 'RecordFromFormData' })
-
 export const FormDataSchema = <A, I extends Record<string, string>, R>(schema: Schema.Schema<A, I, R>) =>
 	Schema.compose(RecordFromFormData, schema, { strict: false })

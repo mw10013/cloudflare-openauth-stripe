@@ -1,14 +1,12 @@
 import { Config, ConfigError, Effect, Either, Option, Predicate, Schema } from 'effect'
 import * as ConfigEx from './ConfigEx'
 import { KV } from './KV'
-import { Tally } from './SchemaEx'
+import { TallyFromString } from './SchemaEx'
 
 export class Poll extends Effect.Service<Poll>()('Poll', {
 	accessors: true,
 	dependencies: [KV.Default],
 	effect: Effect.gen(function* () {
-		const kv = yield* KV
-		const key = yield* Config.nonEmptyString('KV_TALLY_KEY')
 		const pollDo = yield* ConfigEx.object('POLL_DO').pipe(
 			Config.mapOrFail((object) =>
 				Predicate.hasProperty(object, 'idFromName') && typeof object.idFromName === 'function'
@@ -18,17 +16,18 @@ export class Poll extends Effect.Service<Poll>()('Poll', {
 		)
 		const id = pollDo.idFromName('poll')
 		const stub = pollDo.get(id)
-
+		const kv = yield* KV
+		const key = yield* Config.nonEmptyString('KV_TALLY_KEY')
 		return {
 			getTally: () =>
 				Effect.gen(function* () {
 					const tallyOption = yield* kv.get(key)
 					const tally = yield* tallyOption.pipe(
-						Effect.flatMap(Schema.decodeUnknown(Schema.parseJson(Tally))),
+						Effect.flatMap(Schema.decodeUnknown(TallyFromString)),
 						Effect.orElse(() => Effect.tryPromise(() => stub.getTally()))
 					)
 					if (Option.isNone(tallyOption)) {
-						yield* Schema.encode(Schema.parseJson(Tally))(tally).pipe(Effect.flatMap((value) => kv.put(key, value)))
+						yield* Schema.encode(TallyFromString)(tally).pipe(Effect.flatMap((value) => kv.put(key, value)))
 					}
 					return tally
 				}),

@@ -1,5 +1,6 @@
 import { Config, ConfigError, ConfigProvider, Either, Layer, pipe, Record } from 'effect'
 
+// Mock of ConfigProvider.fromObject: <T extends { [K in keyof T]: string | object }>(object: T) => Layer<never, never, never>
 export const fromObject = <T extends { [K in keyof T]: string | object }>(object: T) =>
 	pipe(
 		object as unknown as Record<string, string>,
@@ -9,6 +10,7 @@ export const fromObject = <T extends { [K in keyof T]: string | object }>(object
 		Layer.setConfigProvider
 	)
 
+// Mock of Config.object: (name: string) => Config<object>
 export const object = (name: string) =>
 	Config.string(name).pipe(
 		Config.mapOrFail((value) =>

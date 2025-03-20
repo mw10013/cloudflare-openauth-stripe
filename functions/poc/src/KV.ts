@@ -20,7 +20,6 @@ export class KV extends Effect.Service<KV>()('KV', {
 				})
 			)
 		return {
-			// get: (key: string) => tryPromise(() => kv.get(key, 'json')).pipe(Effect.map((v) => Option.fromNullable(v))),
 			get: (key: string) => tryPromise(() => kv.get(key)).pipe(Effect.map((v) => Option.fromNullable(v))),
 			put: (key: string, value: string, options?: KVNamespacePutOptions) => tryPromise(() => kv.put(key, value, options)),
 			delete: (key: string) => tryPromise(() => kv.delete(key))
