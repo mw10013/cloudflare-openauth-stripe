@@ -8,6 +8,9 @@
 	"main": "src/index.tsx",
 	"compatibility_date": "2025-03-13",
 	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		// https://github.com/cloudflare/workers-sdk/issues/8301
+	},
 	"observability": {
 		"enabled": true
 	},
