@@ -161,7 +161,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 				<meta charset="UTF-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 				<link href={import.meta.env.MODE === 'development' ? '/src/tailwind.css' : '/tailwind.css'} rel="stylesheet"></link>
-				<title>Config Object POC</title>
+				<title>Hon</title>
 			</head>
 			<body>
 				<div className="navbar bg-base-100 shadow-sm">
@@ -177,7 +177,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 							</ul>
 						</div>
 						<a href="/" className="btn btn-ghost text-xl">
-							Config Object POC
+							Hon
 						</a>
 					</div>
 					<div className="navbar-center hidden lg:flex">
@@ -211,6 +211,11 @@ const Home: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof homeLoaderD
 						<div className="stat-value">{loaderData.modernCount}</div>
 						<div className="stat-desc">Allow objects in Config.</div>
 					</div>
+				</div>
+				<div className="card-actions justify-end">
+					<a href="/vote" className="btn btn-primary">
+						Vote
+					</a>
 				</div>
 			</div>
 		</div>
@@ -272,7 +277,7 @@ const votePost = handler((c) =>
 	})
 )
 
-export class PollDurableObject extends DurableObject<Env> {
+export class HonDurableObject extends DurableObject<Env> {
 	sql: SqlStorage
 
 	constructor(ctx: DurableObjectState, env: Env) {

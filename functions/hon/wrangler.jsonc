@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "config-object-poc",
+	"name": "hon",
 	"main": "src/index.tsx",
 	"compatibility_date": "2025-03-20",
 	"compatibility_flags": ["nodejs_compat"],
@@ -16,55 +16,41 @@
 		"enabled": true
 	},
 	"vars": {
-		"ENVIRONMENT": "local",
-		"KV_TALLY_KEY": "tally"
+		"ENVIRONMENT": "local"
 	},
 	"migrations": [
 		{
-			"new_sqlite_classes": ["PollDurableObject"],
+			"new_sqlite_classes": ["HonDurableObject"],
 			"tag": "v1"
 		}
 	],
 	"durable_objects": {
 		"bindings": [
 			{
-				"class_name": "PollDurableObject",
-				"name": "POLL_DO"
+				"class_name": "HonDurableObject",
+				"name": "DO"
 			}
 		]
 	},
-	"kv_namespaces": [
-		{
-			"binding": "KV",
-			"id": "kv-local"
-		}
-	],
 	"env": {
 		"production": {
 			"vars": {
-				"ENVIRONMENT": "production",
-				"KV_TALLY_KEY": "tally"
+				"ENVIRONMENT": "production"
 			},
 			"migrations": [
 				{
-					"new_sqlite_classes": ["PollDurableObject"],
+					"new_sqlite_classes": ["HonDurableObject"],
 					"tag": "v1"
 				}
 			],
 			"durable_objects": {
 				"bindings": [
 					{
-						"class_name": "PollDurableObject",
-						"name": "POLL_DO"
+						"class_name": "HonDurableObject",
+						"name": "DO"
 					}
 				]
-			},
-			"kv_namespaces": [
-				{
-					"binding": "KV",
-					"id": "" // config-object-poc-kv-production
-				}
-			]
+			}
 		}
 	}
 }
