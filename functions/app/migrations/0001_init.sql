@@ -19,16 +19,6 @@ values
 	('member');
 
 --> statement-breakpoint
-create table activityLogs (
-	activityLogId integer primary key,
-	teamId integer not null references teams (teamId),
-	userId integer references users (userId),
-	action text not null,
-	timestamp text not null default (datetime('now')),
-	ipAddress text
-);
-
---> statement-breakpoint
 create table invitations (
 	invitationId integer primary key,
 	teamId integer not null references teams (teamId),
@@ -76,16 +66,18 @@ create table users (
 insert into
 	users (name, email, role)
 values
-	('Admin', 'motio@mail.com', 'admin'),
-	('Admin', 'a@a.com', 'admin'),
-	('User (owner)', 'motio1@mail.com', 'user'),
-	('User1 (member)', 'motio2@mail.com', 'user');
+	('Admin (motio)', 'motio@mail.com', 'admin'),
+	('Admin (a)', 'a@a.com', 'admin'),
+	('Motio1 (owner)', 'motio1@mail.com', 'user'),
+	('Motio2 (member)', 'motio2@mail.com', 'user'),
+	('User (owner)', 'u@u.com', 'user'),
+	('User1 (member)', 'u1@u.com', 'user');
 
 --> statement-breakpoint
 insert into
 	teams (name)
 values
-	('U Team');
+	('M Team');
 
 --> statement-breakpoint
 with
@@ -139,7 +131,7 @@ values
 insert into
 	teams (name)
 values
-	('U1 Team');
+	('M1 Team');
 
 --> statement-breakpoint
 with
@@ -162,6 +154,97 @@ values
 				users
 			where
 				email = 'motio2@mail.com'
+		),
+		(
+			select
+				teamId
+			from
+				team
+		),
+		'owner'
+	);
+
+--> statement-breakpoint
+insert into
+	teams (name)
+values
+	('U Team');
+
+--> statement-breakpoint
+with
+	team as materialized (
+		select
+			teamId
+		from
+			teams
+		where
+			teamId = last_insert_rowid()
+	)
+insert into
+	teamMembers (userId, teamId, teamMemberRole)
+values
+	(
+		(
+			select
+				userId
+			from
+				users
+			where
+				email = 'u@u.com'
+		),
+		(
+			select
+				teamId
+			from
+				team
+		),
+		'owner'
+	),
+	(
+		(
+			select
+				userId
+			from
+				users
+			where
+				email = 'u1@u.com'
+		),
+		(
+			select
+				teamId
+			from
+				team
+		),
+		'member'
+	);
+
+--> statement-breakpoint
+insert into
+	teams (name)
+values
+	('U1 Team');
+
+--> statement-breakpoint
+with
+	team as materialized (
+		select
+			teamId
+		from
+			teams
+		where
+			teamId = last_insert_rowid()
+	)
+insert into
+	teamMembers (userId, teamId, teamMemberRole)
+values
+	(
+		(
+			select
+				userId
+			from
+				users
+			where
+				email = 'u1@u.com'
 		),
 		(
 			select
