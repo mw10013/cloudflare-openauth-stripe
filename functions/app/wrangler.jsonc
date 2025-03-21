@@ -6,7 +6,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "cloudflare-openauth-stripe-app",
 	"main": "src/index.tsx",
-	"compatibility_date": "2025-03-13",
+	"compatibility_date": "2025-03-20",
 	"compatibility_flags": ["nodejs_compat"],
 	"assets": {
 		// https://github.com/cloudflare/workers-sdk/tree/main/packages/vite-plugin-cloudflare#create-your-worker-config-file-1
@@ -20,7 +20,7 @@
 	"vars": {
 		"ENVIRONMENT": "local",
 		"LOG_LEVEL": "Debug",
-		"COMPANY_EMAIL": "hello@motio.so",
+		// "COMPANY_EMAIL": "hello@motio.so",
 		"AWS_REGION": "us-east-1"
 		// "OPENAUTH_ISSUER": "http://localhost:8788"
 	},
@@ -48,7 +48,7 @@
 			"vars": {
 				"ENVIRONMENT": "staging",
 				"LOG_LEVEL": "Debug",
-				"COMPANY_EMAIL": "hello@motio.so",
+				// "COMPANY_EMAIL": "hello@motio.so",
 				"AWS_REGION": "us-east-1"
 				// "OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-staging.devxo.workers.dev"
 			},
@@ -76,7 +76,7 @@
 			"vars": {
 				"ENVIRONMENT": "production",
 				"LOG_LEVEL": "Info",
-				"COMPANY_EMAIL": "hello@motio.so",
+				// "COMPANY_EMAIL": "hello@motio.so",
 				"AWS_REGION": "us-east-1"
 				// "OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-production.devxo.workers.dev"
 			},
