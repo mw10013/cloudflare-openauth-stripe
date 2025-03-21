@@ -3,7 +3,7 @@ packages:
 
 catalog:
   '@aws-sdk/client-ses': 3.758.0
-  '@cloudflare/vite-plugin': 0.1.14
+  '@cloudflare/vite-plugin': 0.1.12
   '@openauthjs/openauth': 0.4.3
   '@paralleldrive/cuid2': 2.2.2
   '@tailwindcss/cli': 4.0.14
