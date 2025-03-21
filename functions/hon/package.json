@@ -8,7 +8,10 @@
 		"build:tailwind": "tailwindcss -i src/tailwind.css -o dist/client/tailwind.css",
 		"buildp": "pnpm build:tailwind && CLOUDFLARE_ENV=production vite build",
 		"preview": "vite preview",
-		"clean": "rm -rf node_modules && rm -rf .wrangler && rm -rf dist",
+		"clean": "pnpm clean:node && pnpm clean:wrangler && pnpm clean:dist",
+		"clean:node": "rm -rf node_modules",
+		"clean:wrangler": "rm -rf .wrangler",
+		"clean:dist": "rm -rf dist",
 		"typecheck": "tsc --noEmit",
 		"typegen": "wrangler types",
 		"tail:PRODUCTION": "wrangler tail hon-production"

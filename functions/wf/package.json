@@ -5,7 +5,10 @@
 	"scripts": {
 		"deploy": "wrangler deploy",
 		"start": "wrangler dev",
-		"clean": "rm -rf node_modules && rm -rf .wrangler",
+		"clean": "pnpm clean:node && pnpm clean:wrangler && pnpm clean:dist",
+		"clean:node": "rm -rf node_modules",
+		"clean:wrangler": "rm -rf .wrangler",
+		"clean:dist": "rm -rf dist",
 		"typecheck": "tsc --noEmit",
 		"typegen": "wrangler types ./types/worker-configuration.d.ts",
 		"wf:list": "wrangler workflows list"

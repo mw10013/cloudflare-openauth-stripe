@@ -6,7 +6,8 @@
 		"./subjects": "./src/subjects.ts"
 	},
 	"scripts": {
-		"clean": "rm -rf node_modules"
+		"clean": "pnpm clean:node",
+		"clean:node": "rm -rf node_modules"
 	},
 	"devDependencies": {
 		"typescript": "catalog:"
