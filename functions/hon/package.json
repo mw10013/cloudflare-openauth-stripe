@@ -8,7 +8,7 @@
 		"build:tailwind": "tailwindcss -i src/tailwind.css -o dist/client/tailwind.css",
 		"buildp": "pnpm build:tailwind && CLOUDFLARE_ENV=production vite build",
 		"preview": "vite preview",
-		"clean": "rm -rf node_modules && rm -rf .wrangler",
+		"clean": "rm -rf node_modules && rm -rf .wrangler && rm -rf dist",
 		"typecheck": "tsc --noEmit",
 		"typegen": "wrangler types",
 		"tail:PRODUCTION": "wrangler tail hon-production"
@@ -20,20 +20,13 @@
 		"@tailwindcss/vite": "catalog:",
 		"@types/node": "^22.13.10",
 		"daisyui": "catalog:",
-		"jsonc-parser": "^3.3.1",
 		"tailwindcss": "catalog:",
 		"typescript": "catalog:",
 		"vite": "catalog:",
-		"wrangler": "catalog:",
-		"zx": "^8.3.1"
+		"wrangler": "catalog:"
 	},
 	"dependencies": {
-		"@aws-sdk/client-ses": "catalog:",
-		"@openauthjs/openauth": "catalog:",
-		"@paralleldrive/cuid2": "catalog:",
-		"aws4fetch": "^1.0.20",
 		"effect": "catalog:",
-		"hono": "catalog:",
-		"stripe": "catalog:"
+		"hono": "catalog:"
 	}
 }

@@ -8,7 +8,7 @@
 		"build:tailwind": "tailwindcss -i src/tailwind.css -o dist/client/tailwind.css",
 		"buildp": "pnpm build:tailwind && CLOUDFLARE_ENV=production vite build",
 		"preview": "vite preview",
-		"clean": "rm -rf node_modules && rm -rf .wrangler",
+		"clean": "rm -rf node_modules && rm -rf .wrangler && rm -rf dist",
 		"typecheck": "tsc --noEmit",
 		"typegen": "wrangler types",
 		"tail:PRODUCTION": "wrangler tail cloudflare-openauth-stripe-app-production",

@@ -177,7 +177,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 							</ul>
 						</div>
 						<a href="/" className="btn btn-ghost text-xl">
-							Hon
+							Hon v0.1
 						</a>
 					</div>
 					<div className="navbar-center hidden lg:flex">
