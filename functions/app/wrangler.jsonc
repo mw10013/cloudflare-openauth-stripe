@@ -10,6 +10,7 @@
 	"compatibility_flags": ["nodejs_compat"],
 	"assets": {
 		// https://github.com/cloudflare/workers-sdk/issues/8301
+		"not_found_handling": "none"
 	},
 	"observability": {
 		"enabled": true

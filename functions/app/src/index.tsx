@@ -187,6 +187,7 @@ function createOpenAuth({ env, runtime }: { env: Env; runtime: AppEnv['Variables
 		},
 		sendCode: (claims, code) =>
 			Effect.gen(function* () {
+				yield* Console.log(`Console: sendCode: ${claims.email} ${code}`)
 				yield* Effect.log(`sendCode: ${claims.email} ${code}`)
 				if (env.ENVIRONMENT === 'local') {
 					yield* Effect.tryPromise(() => env.KV.put(`local:code`, code, { expirationTtl: 60 }))
