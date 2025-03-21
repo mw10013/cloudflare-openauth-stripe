@@ -12,7 +12,8 @@ Command line args:
 --env local|staging|production
 */
 
-const wranglerJsoncPaths = ['wrangler.jsonc', '../worker/wrangler.jsonc']
+// const wranglerJsoncPaths = ['wrangler.jsonc', '../worker/wrangler.jsonc']
+const wranglerJsoncPaths = ['wrangler.jsonc']
 
 const env = argv.env || 'local'
 const wranglerJsonc = await fs.readFile(wranglerJsoncPaths[0], 'utf-8')
