@@ -295,20 +295,7 @@ function createApi({ runtime }: { runtime: AppEnv['Variables']['runtime'] }) {
 	)
 	app.post(
 		'/api/stripe/webhook',
-		handler((c) =>
-			Effect.gen(function* () {
-				const signature = c.req.header('stripe-signature')
-				if (!signature) return c.text('', 400)
-				const body = yield* Effect.tryPromise(() => c.req.text())
-				return yield* Stripe.processWebhook(body, signature).pipe(
-					Effect.map(() => c.text('', 200)),
-					Effect.tapError((error) =>
-						Console.log(`Stripe webhook failed: ${error instanceof Error ? error.message : 'Internal server error'}`)
-					),
-					Effect.orElseSucceed(() => c.text('', 400))
-				)
-			})
-		)
+		handler((c) => Stripe.handleWebhook(c.req.raw))
 	)
 	return app
 }

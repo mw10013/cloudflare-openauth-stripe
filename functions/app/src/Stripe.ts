@@ -160,31 +160,35 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 			getCheckoutSession: (sessionId: string) =>
 				Effect.tryPromise(() => stripe.checkout.sessions.retrieve(sessionId, { expand: ['customer'] })),
 			syncStripData,
-			processWebhook: (body: string, signature: string) =>
-				Config.redacted('STRIPE_WEBHOOK_SECRET').pipe(
-					Effect.flatMap((stripeWebhookSecretRedacted) =>
-						Effect.tryPromise(() => stripe.webhooks.constructEventAsync(body, signature, Redacted.value(stripeWebhookSecretRedacted)))
-					),
-					Effect.tap((event) => Console.log(`Console: stripe webhook: ${event.type}`)),
-					Effect.tap((event) => Effect.log(`stripe webhook: ${event.type}`)),
-					Effect.map((event) => ({
-						event,
-						allowedOption: Option.liftPredicate<StripeTypeNs.Event>((event) => allowedEvents.includes(event.type))(event)
-					})),
-					Effect.flatMap(({ event, allowedOption }) =>
-						Option.match(allowedOption, {
-							onNone: () => Effect.log(`stripe webhook: ${event.type} is not allowed`),
-							onSome: (event) =>
-								// All allowed events should have a customerId but TypeScript does not know this
-								Effect.succeed((event.data.object as { customer: string }).customer).pipe(
-									Effect.filterOrFail(
-										Predicate.isString, // Ensure our assumption is correct.
-										() => new Error(`[STRIPE HOOK][CANCER] ID isn't string.\nEvent type: ${event.type}`)
-									),
-									Effect.flatMap(syncStripData)
-								)
-						})
+			handleWebhook: (request: Request) =>
+				Effect.gen(function* () {
+					yield* Effect.log('Stripe webhook')
+					const signature = request.headers.get('Stripe-Signature')
+					if (!signature) return new Response('No signature', { status: 400 })
+					const body = yield* Effect.tryPromise(() => request.text())
+					const event = yield* Config.redacted('STRIPE_WEBHOOK_SECRET').pipe(
+						Effect.flatMap((stripeWebhookSecretRedacted) =>
+							Effect.tryPromise(() => stripe.webhooks.constructEventAsync(body, signature, Redacted.value(stripeWebhookSecretRedacted)))
+						),
+						Effect.tap((event) => Effect.log(`stripe webhook: ${event.type}`))
 					)
+					const allowedOption = Option.liftPredicate<StripeTypeNs.Event>((event) => allowedEvents.includes(event.type))(event)
+					if (Option.isNone(allowedOption)) {
+						yield* Effect.logError(`stripe webhook: ${event.type} is not allowed`)
+						return new Response() // Return 200 to avoid retries
+					}
+					const customerId = (allowedOption.value.data.object as { customer: string }).customer
+					if (!Predicate.isString(customerId)) {
+						yield* Effect.logError(`[STRIPE HOOK][CANCER] ID isn't string.\nEvent type: ${event.type}`)
+						return new Response() // Return 200 to avoid retries
+					}
+					yield* syncStripData(customerId)
+					return new Response()
+				}).pipe(
+					Effect.tapError((error) =>
+						Effect.logError(`Stripe webhook failed: ${error instanceof Error ? error.message : 'Internal server error'}`)
+					),
+					Effect.orElseSucceed(() => new Response(null, { status: 500 }))
 				)
 		}
 	}),
