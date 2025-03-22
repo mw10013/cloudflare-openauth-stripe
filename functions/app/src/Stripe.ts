@@ -1,14 +1,16 @@
 import type { Stripe as StripeTypeNs } from 'stripe'
-import { Config, Console, Effect, Layer, Option, Predicate, Redacted } from 'effect'
+import { Config, Effect, Option, Predicate, Redacted } from 'effect'
 import { Stripe as StripeClass } from 'stripe'
+import { InvariantResponseError } from './ErrorEx'
 import { Repository } from './Repository'
 
 export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 	accessors: true,
+	dependencies: [Repository.Default],
 	effect: Effect.gen(function* () {
-		const stripeSecretKeyRedacted = yield* Config.redacted('STRIPE_SECRET_KEY')
-		const stripe = new StripeClass(Redacted.value(stripeSecretKeyRedacted))
-		const repository = yield* Repository // Outside of functions so that Repository does not show up in R
+		const STRIPE_SECRET_KEY = yield* Config.redacted('STRIPE_SECRET_KEY')
+		const stripe = new StripeClass(Redacted.value(STRIPE_SECRET_KEY))
+		const repository = yield* Repository
 		const allowedEvents: StripeTypeNs.Event.Type[] = [
 			'checkout.session.completed',
 			'customer.subscription.created',
@@ -162,24 +164,30 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 			syncStripData,
 			handleWebhook: (request: Request) =>
 				Effect.gen(function* () {
-					yield* Effect.log('Stripe webhook')
-					const signature = request.headers.get('Stripe-Signature')
-					if (!signature) return new Response('No signature', { status: 400 })
+					const signature = yield* Effect.fromNullable(request.headers.get('Stripe-Signature')).pipe(
+						Effect.mapError(
+							() =>
+								new InvariantResponseError({
+									message: 'Missing stripe signature.',
+									response: new Response(null, { status: 400 })
+								})
+						)
+					)
 					const body = yield* Effect.tryPromise(() => request.text())
 					const event = yield* Config.redacted('STRIPE_WEBHOOK_SECRET').pipe(
 						Effect.flatMap((stripeWebhookSecretRedacted) =>
 							Effect.tryPromise(() => stripe.webhooks.constructEventAsync(body, signature, Redacted.value(stripeWebhookSecretRedacted)))
 						),
-						Effect.tap((event) => Effect.log(`stripe webhook: ${event.type}`))
+						Effect.tap((event) => Effect.log(`Stripe webhook: ${event.type}`))
 					)
 					const allowedOption = Option.liftPredicate<StripeTypeNs.Event>((event) => allowedEvents.includes(event.type))(event)
 					if (Option.isNone(allowedOption)) {
-						yield* Effect.logError(`stripe webhook: ${event.type} is not allowed`)
+						yield* Effect.logError(`Stripe webhook: ${event.type} is not allowed`)
 						return new Response() // Return 200 to avoid retries
 					}
 					const customerId = (allowedOption.value.data.object as { customer: string }).customer
 					if (!Predicate.isString(customerId)) {
-						yield* Effect.logError(`[STRIPE HOOK][CANCER] ID isn't string.\nEvent type: ${event.type}`)
+						yield* Effect.logError(`Stripe webhook: customerId is not string for event type: ${event.type}`)
 						return new Response() // Return 200 to avoid retries
 					}
 					yield* syncStripData(customerId)
@@ -188,9 +196,9 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 					Effect.tapError((error) =>
 						Effect.logError(`Stripe webhook failed: ${error instanceof Error ? error.message : 'Internal server error'}`)
 					),
-					Effect.orElseSucceed(() => new Response(null, { status: 500 }))
+					Effect.mapError((error) => (error instanceof InvariantResponseError ? error.response : new Response(null, { status: 500 }))),
+					Effect.merge
 				)
 		}
-	}),
-	dependencies: [Repository.Default]
+	})
 }) {}

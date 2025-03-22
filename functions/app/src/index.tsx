@@ -20,6 +20,7 @@ import { Repository } from './Repository'
 import { FormDataSchema, SessionData, UserSubject } from './schemas'
 import { Ses } from './Ses'
 import { Stripe } from './Stripe'
+import { InvariantError, InvariantResponseError } from './ErrorEx'
 
 type AppEnv = {
 	Bindings: Env
@@ -51,10 +52,6 @@ export const makeRuntime = (env: Env) => {
 		Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
 	).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
 }
-
-// https://github.com/epicweb-dev/invariant/blob/main/README.md
-class InvariantError extends Data.TaggedError('InvariantError')<{ message: string }> {}
-class InvariantResponseError extends Data.TaggedError('InvariantResponseError')<{ message: string; response: Response }> {}
 
 export const orErrorResponse: {
 	<A, E, R, Env extends HonoEnv>(c: HonoContext<Env>): (self: Effect.Effect<A, E, R>) => Effect.Effect<A, never, R>
