@@ -30,6 +30,8 @@
 ## Stripe
 
 - Set API version in Stripe Workbench and confirm it matches version used by Stripe service.
+- stripe trigger payment_intent.succeeded
+- stripe trigger customer.subscription.updated
 
 - https://docs.stripe.com/development
 - https://docs.stripe.com/workbench/guides#view-api-versions

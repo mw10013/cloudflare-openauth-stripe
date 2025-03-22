@@ -39,7 +39,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 				stripe.subscriptions.list({ customer: customerId, limit: 1, status: 'all', expand: ['data.items', 'data.items.data.price'] })
 			).pipe(Effect.map((result) => Option.fromNullable(result.data[0])))
 
-		const syncStripData = (customerId: string) =>
+		const syncStripeData = (customerId: string) =>
 			// We do not handle multiple subscriptions.
 			getSubscriptionForCustomer(customerId).pipe(
 				Effect.flatMap((subscriptionOption) =>
@@ -64,7 +64,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 										planName,
 										subscriptionStatus: subscription.status
 									})
-								: Effect.fail(new Error('Invalid types: price product and lookup key must be strings'))
+								: Effect.fail(new Error(`syncStripeData: price product (${stripeProductId}) and lookup key (${planName}) must be strings`))
 						}
 					}).pipe(Effect.asVoid)
 				)
@@ -160,11 +160,11 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 							Option.filterMap((v) => (v !== null && typeof v !== 'string' ? Option.some(v) : Option.none()))
 						)
 					),
-					Effect.flatMap((customer) => syncStripData(customer.id))
+					Effect.flatMap((customer) => syncStripeData(customer.id))
 				),
 			getCheckoutSession: (sessionId: string) =>
 				Effect.tryPromise(() => stripe.checkout.sessions.retrieve(sessionId, { expand: ['customer'] })),
-			syncStripData,
+			syncStripData: syncStripeData,
 			handleWebhook: (request: Request) =>
 				Effect.gen(function* () {
 					const signature = yield* Effect.fromNullable(request.headers.get('Stripe-Signature')).pipe(
@@ -193,7 +193,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 						yield* Effect.logError(`Stripe webhook: customerId is not string for event type: ${event.type}`)
 						return new Response() // Return 200 to avoid retries
 					}
-					yield* syncStripData(customerId)
+					yield* syncStripeData(customerId)
 					return new Response()
 				}).pipe(
 					Effect.tapError((error) =>
