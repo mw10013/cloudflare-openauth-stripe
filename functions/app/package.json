@@ -25,7 +25,8 @@
 		"d1:reset": "node scripts/d1-reset.ts",
 		"d1:reset:staging": "node scripts/d1-reset.ts --env staging",
 		"d1:reset:PRODUCTION": "node scripts/d1-reset.ts --env production",
-		"stripe:listen": "stripe listen --load-from-webhooks-api --forward-to localhost:5173",
+		"stripe:listen": "stripe listen --use-configured-webhooks --forward-to localhost:5173",
+		"stripe:listen-": "stripe listen --load-from-webhooks-api --forward-to localhost:5173",
 		"stripe:seed": "node --env-file=.dev.vars scripts/stripe-seed.ts",
 		"script": "node --env-file=.dev.vars"
 	},
