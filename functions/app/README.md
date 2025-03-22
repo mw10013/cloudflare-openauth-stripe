@@ -1,5 +1,10 @@
 # cloudflare-openauth-stripe-client
 
+## Local Dev
+
+- pnpm i
+- pnpm -F app dev
+
 ## Deploy
 
 - CLOUDFLARE_ENV=production pnpm -F app build
@@ -22,3 +27,9 @@
 <link href={import.meta.env.MODE === 'development' ? '/src/tailwind.css' : '/tailwind.css'} rel="stylesheet"></link>
 ```
 
+## Stripe
+
+- Set API version in Stripe Workbench and confirm it matches version used by Stripe service.
+
+- https://docs.stripe.com/development
+- https://docs.stripe.com/workbench/guides#view-api-versions

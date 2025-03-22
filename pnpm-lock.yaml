@@ -34,8 +34,8 @@ catalogs:
       specifier: 4.7.4
       version: 4.7.4
     stripe:
-      specifier: 17.6.0
-      version: 17.6.0
+      specifier: 17.7.0
+      version: 17.7.0
     tailwindcss:
       specifier: 4.0.14
       version: 4.0.14
@@ -91,7 +91,7 @@ importers:
         version: 4.7.4
       stripe:
         specifier: 'catalog:'
-        version: 17.6.0
+        version: 17.7.0
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
@@ -1970,8 +1970,8 @@ packages:
     resolution: {integrity: sha512-Mcc5wHehp9aXz1ax6bZUyY5afg9u2rv5cqQI3mRrYkGC8rW2hM02jWuwjtL++LS5qinSyhj2QfLyNsuc+VsExg==}
     engines: {node: '>=10.0.0'}
 
-  stripe@17.6.0:
-    resolution: {integrity: sha512-+HB6+SManp0gSRB0dlPmXO+io18krlAe0uimXhhIkL/RG/VIRigkfoM3QDJPkqbuSW0XsA6uzsivNCJU1ELEDA==}
+  stripe@17.7.0:
+    resolution: {integrity: sha512-aT2BU9KkizY9SATf14WhhYVv2uOapBWX0OFWF4xvcj1mPaNotlSc2CsxpS4DS46ZueSppmCF5BX1sNYBtwBvfw==}
     engines: {node: '>=12.*'}
 
   strnum@1.1.2:
@@ -3960,7 +3960,7 @@ snapshots:
 
   streamsearch@1.1.0: {}
 
-  stripe@17.6.0:
+  stripe@17.7.0:
     dependencies:
       '@types/node': 22.13.10
       qs: 6.14.0

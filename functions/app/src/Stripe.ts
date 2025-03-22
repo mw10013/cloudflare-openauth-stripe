@@ -1,4 +1,4 @@
-import type { Stripe as StripeTypeNs } from 'stripe'
+import type { Stripe as StripeType } from 'stripe'
 import { Config, Effect, Option, Predicate, Redacted } from 'effect'
 import { Stripe as StripeClass } from 'stripe'
 import { InvariantResponseError } from './ErrorEx'
@@ -9,9 +9,12 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 	dependencies: [Repository.Default],
 	effect: Effect.gen(function* () {
 		const STRIPE_SECRET_KEY = yield* Config.redacted('STRIPE_SECRET_KEY')
-		const stripe = new StripeClass(Redacted.value(STRIPE_SECRET_KEY))
+		// When you specify an apiVersion that conflicts with the stripe package version, Stripe recommends you @ts-ignore.
+		// See the doc string for apiVersion.
+		// @ts-expect-error: API version difffers from LatestApiVersion
+		const stripe = new StripeClass(Redacted.value(STRIPE_SECRET_KEY), { apiVersion: '2025-02-24.acacia' })
 		const repository = yield* Repository
-		const allowedEvents: StripeTypeNs.Event.Type[] = [
+		const allowedEvents: StripeType.Event.Type[] = [
 			'checkout.session.completed',
 			'customer.subscription.created',
 			'customer.subscription.updated',
@@ -31,7 +34,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 			'payment_intent.payment_failed',
 			'payment_intent.canceled'
 		]
-		const getSubscriptionForCustomer = (customerId: NonNullable<StripeTypeNs.SubscriptionListParams['customer']>) =>
+		const getSubscriptionForCustomer = (customerId: NonNullable<StripeType.SubscriptionListParams['customer']>) =>
 			Effect.tryPromise(() =>
 				stripe.subscriptions.list({ customer: customerId, limit: 1, status: 'all', expand: ['data.items', 'data.items.data.price'] })
 			).pipe(Effect.map((result) => Option.fromNullable(result.data[0])))
@@ -76,7 +79,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 			createBillingPortalSession: (
 				props: Pick<
 					{
-						[K in keyof StripeTypeNs.BillingPortal.SessionCreateParams]-?: NonNullable<StripeTypeNs.BillingPortal.SessionCreateParams[K]>
+						[K in keyof StripeType.BillingPortal.SessionCreateParams]-?: NonNullable<StripeType.BillingPortal.SessionCreateParams[K]>
 					},
 					'customer' | 'return_url'
 				>
@@ -126,7 +129,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 				price
 			}: Pick<
 				{
-					[K in keyof StripeTypeNs.Checkout.SessionCreateParams]-?: NonNullable<StripeTypeNs.Checkout.SessionCreateParams[K]>
+					[K in keyof StripeType.Checkout.SessionCreateParams]-?: NonNullable<StripeType.Checkout.SessionCreateParams[K]>
 				},
 				'customer' | 'client_reference_id' | 'success_url' | 'cancel_url'
 			> & { price: string }) =>
@@ -180,7 +183,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 						),
 						Effect.tap((event) => Effect.log(`Stripe webhook: ${event.type}`))
 					)
-					const allowedOption = Option.liftPredicate<StripeTypeNs.Event>((event) => allowedEvents.includes(event.type))(event)
+					const allowedOption = Option.liftPredicate<StripeType.Event>((event) => allowedEvents.includes(event.type))(event)
 					if (Option.isNone(allowedOption)) {
 						yield* Effect.logError(`Stripe webhook: ${event.type} is not allowed`)
 						return new Response() // Return 200 to avoid retries
