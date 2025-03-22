@@ -18,7 +18,7 @@
 		"tail:PRODUCTION": "wrangler tail hon-production"
 	},
 	"devDependencies": {
-		"@cloudflare/vite-plugin": "0.1.14",
+		"@cloudflare/vite-plugin": "catalog:",
 		"@tailwindcss/cli": "catalog:",
 		"@tailwindcss/typography": "^0.5.16",
 		"@tailwindcss/vite": "catalog:",
