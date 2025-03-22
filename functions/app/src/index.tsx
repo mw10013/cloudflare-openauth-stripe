@@ -8,22 +8,7 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import {
-	Cause,
-	Chunk,
-	Config,
-	Console,
-	Data,
-	Effect,
-	Layer,
-	Logger,
-	LogLevel,
-	ManagedRuntime,
-	pipe,
-	Predicate,
-	Record,
-	Schema
-} from 'effect'
+import { Cause, Chunk, Config, Console, Data, Effect, Layer, Logger, LogLevel, ManagedRuntime, Predicate, Schema } from 'effect'
 import { dual } from 'effect/Function'
 import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
@@ -485,7 +470,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 							</ul>
 						</div>
 						<a href="/" className="btn btn-ghost text-xl">
-							Cloudflare-OpenAUTH-Stripe v0.2
+							Cloudflare-OpenAUTH-Stripe v0.3
 						</a>
 					</div>
 					<div className="navbar-center hidden lg:flex">
