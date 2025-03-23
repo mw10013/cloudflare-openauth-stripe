@@ -122,12 +122,23 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 							stripeCustomerId: organization.stripeCustomerId,
 							stripeSubscriptionId: organization.stripeSubscriptionId
 						}
-					const customer = yield* Effect.tryPromise(() =>
-						stripe.customers.create({
+					// Test environment may have seeded stripe customers
+					const {
+						data: [existingCustomer]
+					} = yield* Effect.tryPromise(() =>
+						stripe.customers.list({
 							email,
-							metadata: { userId: userId.toString() } // DO NOT FORGET THIS
+							limit: 1
 						})
 					)
+					const customer = existingCustomer
+						? existingCustomer
+						: yield* Effect.tryPromise(() =>
+								stripe.customers.create({
+									email
+									// metadata: { userId: userId.toString() } // DO NOT FORGET THIS
+								})
+							)
 					yield* repository.updateStripeCustomerId({ organizationId: organization.organizationId, stripeCustomerId: customer.id })
 					return {
 						stripeCustomerId: customer.id,
