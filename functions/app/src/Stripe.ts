@@ -228,7 +228,37 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 					),
 					Effect.mapError((error) => (error instanceof InvariantResponseError ? error.response : new Response(null, { status: 500 }))),
 					Effect.merge
-				)
+				),
+
+			reconcile: () =>
+				Effect.gen(function* () {
+					const organizations = yield* repository.getOrganizations()
+					const iterable = organizations.map((org) => {
+						const owner = org.organizationMembers.find((member) => member.organizationMemberRole === 'owner')?.user
+						if (!owner) {
+							return Effect.fail(new Error(`Organization ${org.organizationId} has no owner`))
+						}
+						return Effect.gen(function* () {
+							const customer = yield* Effect.tryPromise(async () => {
+								const {
+									data: [customer]
+								} = await stripe.customers.list({
+									email: owner.email,
+									limit: 1
+								})
+								return customer
+							})
+							if (customer) {
+								if (org.stripeCustomerId !== customer.id) {
+									yield* repository.updateStripeCustomerId({ organizationId: org.organizationId, stripeCustomerId: customer.id })
+								}
+								yield* Effect.log(`Stripe reconcile: organizationId: ${org.organizationId}, stripeCustomerId: ${customer.id}`)
+								yield* syncStripeData(customer.id)
+							}
+						})
+					})
+					yield* Effect.all(iterable)
+				})
 		}
 	})
 }) {}

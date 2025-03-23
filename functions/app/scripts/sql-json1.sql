@@ -1,34 +1,10 @@
--- .read functions/app/scripts/json1.sql
-begin transaction;
+-- .read functions/app/scripts/sql-json1.sql
 
-pragma foreign_keys = on;
-
-select
-	json_object(
-		'teamId',
-		teamId,
-		'name',
-		name,
-		'teamMembers',
-		(
-			select
-				json_group_array(
-					json_object(
-						'teamMemberId',
-						tm.teamMemberId,
-						'teamMemberRole',
-						tm.teamMemberRole,
-            'user',
-            (select json_object('userId', u.userId, 'email', u.email) from users u where u.userId = tm.userId)
-					)
-				)
-			from
-				teamMembers tm
-			where
-				tm.teamId = t.teamId
-		)
-	) as data
-from
-	teams t;
-
-rollback;
+select json_object('organizationId', organizationId,'name', name,
+	'organizationMembers',
+	(select json_group_array(json_object(
+		'organizationMemberId', om.organizationMemberId,
+		'organizationMemberRole', om.organizationMemberRole,
+		'user', (select json_object('userId', u.userId, 'email', u.email) from users u where u.userId = om.userId)))
+		from organizationMembers om where om.organizationId = o.organizationId)) as data
+from organizations o;

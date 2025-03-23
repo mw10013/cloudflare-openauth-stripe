@@ -24,6 +24,7 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 					Effect.flatMap(Effect.fromNullable),
 					Effect.flatMap(Schema.decodeUnknown(OrganizationsResult))
 				),
+
 			getRequiredOrganizationForUser: ({ userId }: Pick<User, 'userId'>) =>
 				pipe(
 					d1
@@ -33,8 +34,10 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 					Effect.flatMap(Option.fromNullable),
 					Effect.flatMap(Schema.decodeUnknown(Organization))
 				),
+
 			updateStripeCustomerId: ({ organizationId, stripeCustomerId }: Pick<Organization, 'organizationId' | 'stripeCustomerId'>) =>
 				pipe(d1.prepare('update organizations set stripeCustomerId = ? where organizationId = ?').bind(stripeCustomerId, organizationId), d1.run),
+
 			updateStripeSubscription: ({
 				stripeCustomerId,
 				stripeSubscriptionId,
@@ -52,6 +55,7 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 						.bind(stripeSubscriptionId, stripeProductId, planName, subscriptionStatus, stripeCustomerId),
 					d1.run
 				),
+				
 			upsertUser: ({ email }: Pick<User, 'email'>) =>
 				d1
 					.batch([
