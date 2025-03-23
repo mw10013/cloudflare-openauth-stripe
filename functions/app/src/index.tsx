@@ -456,7 +456,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 							</ul>
 						</div>
 						<a href="/" className="btn btn-ghost text-xl">
-							Cloudflare-OpenAUTH-Stripe v0.3
+							Cloudflare-OpenAUTH-Stripe v0.4
 						</a>
 					</div>
 					<div className="navbar-center hidden lg:flex">
@@ -577,8 +577,8 @@ const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashbo
 			<h1 className="text-lg font-medium lg:text-2xl">Dashboard</h1>
 			<div className="card bg-base-100 w-96 shadow-sm">
 				<div className="card-body">
-					<h2 className="card-title">Team Subscription</h2>
-					<p className="font-medium">Current Plan: {loaderData.team.planName || 'Free'}</p>
+					<h2 className="card-title">Organization Subscription</h2>
+					<p className="font-medium">Current Plan: {loaderData.organization.planName || 'Free'}</p>
 					<div className="card-actions justify-end">
 						<form action="/dashboard" method="post">
 							<button className="btn btn-outline">Manage Subscription</button>
@@ -593,20 +593,20 @@ const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashbo
 
 const dashboardLoaderData = (c: HonoContext<AppEnv>) =>
 	Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
-		Effect.flatMap((user) => Repository.getRequiredTeamForUser(user)),
-		Effect.map((team) => ({ team, sessionData: c.var.sessionData }))
+		Effect.flatMap((user) => Repository.getRequiredOrganizationForUser(user)),
+		Effect.map((organization) => ({ organization, sessionData: c.var.sessionData }))
 	)
 
 const dashboardPost = handler((c) =>
 	Effect.gen(function* () {
-		const team = yield* Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
-			Effect.flatMap((user) => Repository.getRequiredTeamForUser(user))
+		const organization = yield* Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
+			Effect.flatMap((user) => Repository.getRequiredOrganizationForUser(user))
 		)
-		if (!team.stripeCustomerId || !team.stripeProductId) {
+		if (!organization.stripeCustomerId || !organization.stripeProductId) {
 			return c.redirect('/pricing')
 		}
 		return yield* Stripe.createBillingPortalSession({
-			customer: team.stripeCustomerId,
+			customer: organization.stripeCustomerId,
 			return_url: `${new URL(c.req.url).origin}/dashboard`
 		}).pipe(Effect.map((session) => c.redirect(session.url)))
 	})
@@ -633,8 +633,8 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 					</button>
 				</form>
 				<form action="/admin" method="post">
-					<button name="intent" value="teams" className="btn btn-outline">
-						Teams
+					<button name="intent" value="organizations" className="btn btn-outline">
+						Organizations
 					</button>
 				</form>
 				<div className="card bg-base-100 w-96 shadow-sm">
@@ -696,23 +696,10 @@ const adminPost = handler((c) =>
 		const AdminFormDataSchema = FormDataSchema(
 			Schema.Union(
 				Schema.Struct({
-					intent: Schema.Literal('effect')
+					intent: Schema.Literal('effect', 'effect_1', 'effect_2', 'organizations')
 				}),
 				Schema.Struct({
-					intent: Schema.Literal('effect_1')
-				}),
-				Schema.Struct({
-					intent: Schema.Literal('effect_2')
-				}),
-				Schema.Struct({
-					intent: Schema.Literal('teams')
-				}),
-				Schema.Struct({
-					intent: Schema.Literal('sync_stripe_data'),
-					customerId: Schema.NonEmptyString
-				}),
-				Schema.Struct({
-					intent: Schema.Literal('customer_subscription'),
+					intent: Schema.Literal('sync_stripe_data', 'customer_subscription'),
 					customerId: Schema.NonEmptyString
 				}),
 				Schema.Struct({
@@ -743,8 +730,8 @@ const adminPost = handler((c) =>
 					}
 				}
 				break
-			case 'teams':
-				actionData = { teams: yield* Repository.getTeams() }
+			case 'organizations':
+				actionData = { organizations: yield* Repository.getOrganizations() }
 				break
 			case 'sync_stripe_data':
 				{

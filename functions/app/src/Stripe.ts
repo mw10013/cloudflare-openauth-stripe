@@ -13,7 +13,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 		const STRIPE_SECRET_KEY = yield* Config.redacted('STRIPE_SECRET_KEY')
 		// When you specify an apiVersion that conflicts with the stripe package version, Stripe recommends you @ts-ignore.
 		// See the doc string for apiVersion.
-		// @ts-expect-error: API version difffers from LatestApiVersion
+		// // @ts-expect-error: API version difffers from LatestApiVersion
 		const stripe = new StripeClass(Redacted.value(STRIPE_SECRET_KEY), { apiVersion: '2025-02-24.acacia' })
 		const repository = yield* Repository
 		const allowedEvents: StripeType.Event.Type[] = [
@@ -116,11 +116,11 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 			// https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#checkout-flow
 			ensureStripeCustomerId: ({ userId, email }: { userId: number; email: string }) =>
 				Effect.gen(function* () {
-					const team = yield* repository.getRequiredTeamForUser({ userId })
-					if (team.stripeCustomerId)
+					const organization = yield* repository.getRequiredOrganizationForUser({ userId })
+					if (organization.stripeCustomerId)
 						return {
-							stripeCustomerId: team.stripeCustomerId,
-							stripeSubscriptionId: team.stripeSubscriptionId
+							stripeCustomerId: organization.stripeCustomerId,
+							stripeSubscriptionId: organization.stripeSubscriptionId
 						}
 					const customer = yield* Effect.tryPromise(() =>
 						stripe.customers.create({
@@ -128,7 +128,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 							metadata: { userId: userId.toString() } // DO NOT FORGET THIS
 						})
 					)
-					yield* repository.updateStripeCustomerId({ teamId: team.teamId, stripeCustomerId: customer.id })
+					yield* repository.updateStripeCustomerId({ organizationId: organization.organizationId, stripeCustomerId: customer.id })
 					return {
 						stripeCustomerId: customer.id,
 						stripeSubscriptionId: null

@@ -9,11 +9,11 @@ values
 	('admin');
 
 --> statement-breakpoint
-create table teamMemberRoles (teamMemberRoleId text primary key);
+create table organizationMemberRoles (organizationMemberRoleId text primary key);
 
 --> statement-breakpoint
 insert into
-	teamMemberRoles (teamMemberRoleId)
+	organizationMemberRoles (organizationMemberRoleId)
 values
 	('owner'),
 	('member');
@@ -21,7 +21,7 @@ values
 --> statement-breakpoint
 create table invitations (
 	invitationId integer primary key,
-	teamId integer not null references teams (teamId),
+	organizationId integer not null references organizations (organizationId),
 	email text not null,
 	role text not null,
 	invitedBy integer not null references users (userId),
@@ -30,17 +30,17 @@ create table invitations (
 );
 
 --> statement-breakpoint
-create table teamMembers (
-	teamMemberId integer primary key,
+create table organizationMembers (
+	organizationMemberId integer primary key,
 	userId integer not null references users (userId),
-	teamId integer not null references teams (teamId),
-	teamMemberRole text not null references teamMemberRoles (teamMemberRoleId),
+	organizationId integer not null references organizations (organizationId),
+	organizationMemberRole text not null references organizationMemberRoles (organizationMemberRoleId),
 	joinedAt text not null default (datetime('now'))
 );
 
 --> statement-breakpoint
-create table teams (
-	teamId integer primary key,
+create table organizations (
+	organizationId integer primary key,
 	name text not null,
 	createdAt text not null default (datetime('now')),
 	updatedAt text not null default (datetime('now')),
@@ -74,23 +74,20 @@ values
 	('User1 (member)', 'u1@u.com', 'user');
 
 --> statement-breakpoint
-insert into
-	teams (name)
-values
-	('M Team');
+insert into organizations (name) values ('M organization');
 
 --> statement-breakpoint
 with
-	team as materialized (
+	organization as materialized (
 		select
-			teamId
+			organizationId
 		from
-			teams
+			organizations
 		where
-			teamId = last_insert_rowid()
+			organizationId = last_insert_rowid()
 	)
 insert into
-	teamMembers (userId, teamId, teamMemberRole)
+	organizationMembers (userId, organizationId, organizationMemberRole)
 values
 	(
 		(
@@ -103,9 +100,9 @@ values
 		),
 		(
 			select
-				teamId
+				organizationId
 			from
-				team
+				organization
 		),
 		'owner'
 	),
@@ -120,31 +117,31 @@ values
 		),
 		(
 			select
-				teamId
+				organizationId
 			from
-				team
+				organization
 		),
 		'member'
 	);
 
 --> statement-breakpoint
 insert into
-	teams (name)
+	organizations (name)
 values
-	('M1 Team');
+	('M1 organization');
 
 --> statement-breakpoint
 with
-	team as materialized (
+	organization as materialized (
 		select
-			teamId
+			organizationId
 		from
-			teams
+			organizations
 		where
-			teamId = last_insert_rowid()
+			organizationId = last_insert_rowid()
 	)
 insert into
-	teamMembers (userId, teamId, teamMemberRole)
+	organizationMembers (userId, organizationId, organizationMemberRole)
 values
 	(
 		(
@@ -157,31 +154,31 @@ values
 		),
 		(
 			select
-				teamId
+				organizationId
 			from
-				team
+				organization
 		),
 		'owner'
 	);
 
 --> statement-breakpoint
 insert into
-	teams (name)
+	organizations (name)
 values
-	('U Team');
+	('U organization');
 
 --> statement-breakpoint
 with
-	team as materialized (
+	organization as materialized (
 		select
-			teamId
+			organizationId
 		from
-			teams
+			organizations
 		where
-			teamId = last_insert_rowid()
+			organizationId = last_insert_rowid()
 	)
 insert into
-	teamMembers (userId, teamId, teamMemberRole)
+	organizationMembers (userId, organizationId, organizationMemberRole)
 values
 	(
 		(
@@ -194,9 +191,9 @@ values
 		),
 		(
 			select
-				teamId
+				organizationId
 			from
-				team
+				organization
 		),
 		'owner'
 	),
@@ -211,31 +208,31 @@ values
 		),
 		(
 			select
-				teamId
+				organizationId
 			from
-				team
+				organization
 		),
 		'member'
 	);
 
 --> statement-breakpoint
 insert into
-	teams (name)
+	organizations (name)
 values
-	('U1 Team');
+	('U1 organization');
 
 --> statement-breakpoint
 with
-	team as materialized (
+	organization as materialized (
 		select
-			teamId
+			organizationId
 		from
-			teams
+			organizations
 		where
-			teamId = last_insert_rowid()
+			organizationId = last_insert_rowid()
 	)
 insert into
-	teamMembers (userId, teamId, teamMemberRole)
+	organizationMembers (userId, organizationId, organizationMemberRole)
 values
 	(
 		(
@@ -248,9 +245,9 @@ values
 		),
 		(
 			select
-				teamId
+				organizationId
 			from
-				team
+				organization
 		),
 		'owner'
 	);

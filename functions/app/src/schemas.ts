@@ -11,8 +11,8 @@ export const User = Schema.Struct({
 })
 export type User = Schema.Schema.Type<typeof User>
 
-export const TeamMemberRole = Schema.Literal('owner', 'member') // Must align with teamMemberRoles table
-export type TeamMemberRole = Schema.Schema.Type<typeof TeamMemberRole>
+export const OrganizationMemberRole = Schema.Literal('owner', 'member') // Must align with OrganizationMemberRoles table
+export type OrganizationMemberRole = Schema.Schema.Type<typeof OrganizationMemberRole>
 
 export const UserSubject = User.pick('userId', 'email', 'role')
 
@@ -24,8 +24,8 @@ export const SessionData = Schema.Struct({
 })
 export type SessionData = Schema.Schema.Type<typeof SessionData>
 
-export const Team = Schema.Struct({
-	teamId: Schema.Number,
+export const Organization = Schema.Struct({
+	organizationId: Schema.Number,
 	name: Schema.String,
 	stripeCustomerId: Schema.NullOr(Schema.String),
 	stripeSubscriptionId: Schema.NullOr(Schema.String),
@@ -33,27 +33,27 @@ export const Team = Schema.Struct({
 	planName: Schema.NullOr(Schema.String),
 	subscriptionStatus: Schema.NullOr(Schema.String)
 })
-export type Team = Schema.Schema.Type<typeof Team>
+export type Organization = Schema.Schema.Type<typeof Organization>
 
-export const TeamMember = Schema.Struct({
-	teamMemberId: Schema.Number,
-	teamId: Schema.Number,
+export const OrganizationMember = Schema.Struct({
+	organizationMemberId: Schema.Number,
+	organizationId: Schema.Number,
 	userId: Schema.Number,
-	teamMemberRole: TeamMemberRole
+	organizationMemberRole: OrganizationMemberRole
 })
-export type TeamMember = Schema.Schema.Type<typeof TeamMember>
+export type OrganizationMember = Schema.Schema.Type<typeof OrganizationMember>
 
-export const TeamMemberWithUser = Schema.Struct({
-	...TeamMember.fields,
+export const OrganizationMemberWithUser = Schema.Struct({
+	...OrganizationMember.fields,
 	user: User
 })
-export type TeamMemberWithUser = Schema.Schema.Type<typeof TeamMemberWithUser>
+export type OrganizationMemberWithUser = Schema.Schema.Type<typeof OrganizationMemberWithUser>
 
-export const TeamWithTeamMembers = Schema.Struct({
-	...Team.fields,
-	teamMembers: Schema.Array(TeamMemberWithUser)
+export const OrganizationWithOrganizationMembers = Schema.Struct({
+	...Organization.fields,
+	organizationMembers: Schema.Array(OrganizationMemberWithUser)
 })
-export type TeamWithTeamMembers = Schema.Schema.Type<typeof TeamWithTeamMembers>
+export type OrganizationWithOrganizationMembers = Schema.Schema.Type<typeof OrganizationWithOrganizationMembers>
 
 // export const DataFromResult = <A, I>(DataSchema: Schema.Schema<A, I>) =>
 // 	Schema.NullOr(
@@ -83,34 +83,29 @@ export const DataFromResult = <A, I>(DataSchema: Schema.Schema<A, I>) =>
 		}
 	)
 
-export const TeamResult = Schema.NullOr(Team)
-export type TeamResult = Schema.Schema.Type<typeof TeamResult>
+export const OrganizationResult = Schema.NullOr(Organization)
+export type OrganizationResult = Schema.Schema.Type<typeof OrganizationResult>
 
-export const TeamsResult = DataFromResult(Schema.Array(TeamWithTeamMembers))
-export type TeamsResult = Schema.Schema.Type<typeof TeamsResult>
+export const OrganizationsResult = DataFromResult(Schema.Array(OrganizationWithOrganizationMembers))
+export type OrganizationsResult = Schema.Schema.Type<typeof OrganizationsResult>
 
 export const FormDataFromSelf = Schema.instanceOf(FormData).annotations({ identifier: 'FormDataFromSelf' })
 
 // https://discord.com/channels/795981131316985866/847382157861060618/threads/1270826681505939517
 // https://raw.githubusercontent.com/react-hook-form/resolvers/refs/heads/dev/effect-ts/src/effect-ts.ts
-export const RecordFromFormData = Schema.transform(
-  FormDataFromSelf,
-  Schema.Record({ key: Schema.String, value: Schema.String }),
-  {
-    strict: false,
-    decode: (formData) => Object.fromEntries(formData.entries()),
-    encode: (data) => {
-      const formData = new FormData()
-      for (const [key, value] of Object.entries(data)) {
-        formData.append(key, value)
-      }
-      return formData
-    }	
-  }
-).annotations({ identifier: 'RecordFromFormData' })
+export const RecordFromFormData = Schema.transform(FormDataFromSelf, Schema.Record({ key: Schema.String, value: Schema.String }), {
+	strict: false,
+	decode: (formData) => Object.fromEntries(formData.entries()),
+	encode: (data) => {
+		const formData = new FormData()
+		for (const [key, value] of Object.entries(data)) {
+			formData.append(key, value)
+		}
+		return formData
+	}
+}).annotations({ identifier: 'RecordFromFormData' })
 
 export const FormDataSchema = <A, I extends Record<string, string>, R>(schema: Schema.Schema<A, I, R>) =>
-  Schema.compose(RecordFromFormData, schema, { strict: false })
+	Schema.compose(RecordFromFormData, schema, { strict: false })
 
 // export const FormSchema = FormDataSchema(Schema.Struct({ name: Schema.String, age: Schema.NumberFromString }))
-

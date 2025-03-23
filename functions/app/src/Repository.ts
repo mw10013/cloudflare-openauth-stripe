@@ -1,53 +1,53 @@
-import { Effect, Layer, Option, pipe, Schema } from 'effect'
+import { Effect, Option, pipe, Schema } from 'effect'
 import { D1 } from './D1'
-import { Team, TeamsResult, User } from './schemas'
+import { Organization, OrganizationsResult, User } from './schemas'
 
 export class Repository extends Effect.Service<Repository>()('Repository', {
 	accessors: true,
 	effect: Effect.gen(function* () {
 		const d1 = yield* D1
 		return {
-			getTeams: () =>
+			getOrganizations: () =>
 				pipe(
 					d1.prepare(
 						`
 	select json_group_array(json_object(
-		'teamId', teamId, 'name', name, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
-		'teamMembers',
+		'organizationId', organizationId, 'name', name, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
+		'organizationMembers',
 		(select json_group_array(json_object(
-			'teamMemberId', tm.teamMemberId, 'userId', tm.userId, 'teamId', tm.teamId, 'teamMemberRole', tm.teamMemberRole,
+			'organizationMemberId', tm.organizationMemberId, 'userId', tm.userId, 'organizationId', tm.organizationId, 'organizationMemberRole', tm.organizationMemberRole,
 			'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'role', u.role) from users u where u.userId = tm.userId)
-			)) from teamMembers tm where tm.teamId = t.teamId)
-		)) as data from teams t`
+			)) from organizationMembers tm where tm.organizationId = t.organizationId)
+		)) as data from organizations t`
 					),
 					d1.first,
 					Effect.flatMap(Effect.fromNullable),
-					Effect.flatMap(Schema.decodeUnknown(TeamsResult))
+					Effect.flatMap(Schema.decodeUnknown(OrganizationsResult))
 				),
-			getRequiredTeamForUser: ({ userId }: Pick<User, 'userId'>) =>
+			getRequiredOrganizationForUser: ({ userId }: Pick<User, 'userId'>) =>
 				pipe(
 					d1
-						.prepare(`select * from teams where teamId = (select teamId from teamMembers where userId = ? and teamMemberRole = "owner")`)
+						.prepare(`select * from organizations where organizationId = (select organizationId from organizationMembers where userId = ? and organizationMemberRole = "owner")`)
 						.bind(userId),
 					d1.first,
 					Effect.flatMap(Option.fromNullable),
-					Effect.flatMap(Schema.decodeUnknown(Team))
+					Effect.flatMap(Schema.decodeUnknown(Organization))
 				),
-			updateStripeCustomerId: ({ teamId, stripeCustomerId }: Pick<Team, 'teamId' | 'stripeCustomerId'>) =>
-				pipe(d1.prepare('update teams set stripeCustomerId = ? where teamId = ?').bind(stripeCustomerId, teamId), d1.run),
+			updateStripeCustomerId: ({ organizationId, stripeCustomerId }: Pick<Organization, 'organizationId' | 'stripeCustomerId'>) =>
+				pipe(d1.prepare('update organizations set stripeCustomerId = ? where organizationId = ?').bind(stripeCustomerId, organizationId), d1.run),
 			updateStripeSubscription: ({
 				stripeCustomerId,
 				stripeSubscriptionId,
 				stripeProductId,
 				planName,
 				subscriptionStatus
-			}: Pick<Team, 'stripeSubscriptionId' | 'stripeProductId' | 'planName' | 'subscriptionStatus'> & {
-				stripeCustomerId: NonNullable<Team['stripeCustomerId']>
+			}: Pick<Organization, 'stripeSubscriptionId' | 'stripeProductId' | 'planName' | 'subscriptionStatus'> & {
+				stripeCustomerId: NonNullable<Organization['stripeCustomerId']>
 			}) =>
 				pipe(
 					d1
 						.prepare(
-							'update teams set stripeSubscriptionId = ?, stripeProductId = ?, planName = ?, subscriptionStatus = ? where stripeCustomerId = ?'
+							'update organizations set stripeSubscriptionId = ?, stripeProductId = ?, planName = ?, subscriptionStatus = ? where stripeCustomerId = ?'
 						)
 						.bind(stripeSubscriptionId, stripeProductId, planName, subscriptionStatus, stripeCustomerId),
 					d1.run
@@ -59,10 +59,10 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 						d1
 							.prepare(
 								`
-	insert into teams (name) 
-	select 'Team' 
+	insert into organizations (name) 
+	select 'Organization' 
 	where exists (select 1 from users u where u.email = ?1 and role = "user") and
-	not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from users u where u.email = ?1 and role = "user")
+	not exists (select 1 from organizationMembers tm where tm.userId = (select u.userId from users u where u.email = ?1 and role = "user")
 	)
 	`
 							)
@@ -70,10 +70,10 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 						d1
 							.prepare(
 								`
-	insert into teamMembers (userId, teamId, teamMemberRole)
+	insert into organizationMembers (userId, organizationId, organizationMemberRole)
 	select (select userId from users where email = ?1), last_insert_rowid(), 'owner'
 	where exists (select 1 from users u where u.email = ?1 and role = "user") and
-	not exists (select 1 from teamMembers tm where tm.userId = (select u.userId from users u where u.email = ?1)
+	not exists (select 1 from organizationMembers tm where tm.userId = (select u.userId from users u where u.email = ?1)
 	)
 	`
 							)
