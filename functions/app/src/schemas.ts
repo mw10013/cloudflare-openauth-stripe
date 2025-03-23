@@ -1,4 +1,4 @@
-import { ParseResult, Schema } from 'effect'
+import { Schema } from 'effect'
 
 export const Role = Schema.Literal('user', 'admin') // Must align with roles table
 export type Role = Schema.Schema.Type<typeof Role>

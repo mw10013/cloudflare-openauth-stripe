@@ -7,6 +7,7 @@ catalog:
   '@openauthjs/openauth': 0.4.3
   '@paralleldrive/cuid2': 2.2.2
   '@tailwindcss/cli': 4.0.14
+  '@tailwindcss/typography': 0.5.16
   '@tailwindcss/vite': 4.0.14
   daisyui: 5.0.6
   effect: 3.14.1
@@ -16,3 +17,4 @@ catalog:
   typescript: 5.8.2
   vite: 6.2.2
   wrangler: 4.3.0
+  zx: 8.4.1
