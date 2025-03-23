@@ -9,7 +9,7 @@ import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
 import { DurableObject } from 'cloudflare:workers'
-import { Cause, Chunk, Config, Console, Data, Effect, Layer, Logger, LogLevel, ManagedRuntime, Predicate, Schema } from 'effect'
+import { Cause, Chunk, Config, Console, Effect, Layer, Logger, LogLevel, ManagedRuntime, Predicate, Schema } from 'effect'
 import { dual } from 'effect/Function'
 import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
@@ -727,7 +727,7 @@ const adminPost = handler((c) =>
 				actionData = { data: yield* D1.prepare('insert into users (name, email) values ("joe", "u@u.com")').pipe(Effect.flatMap(D1.run)) }
 				break
 			case 'effect_1':
-				actionData = { foo: yield* Stripe.foo(), result: yield* D1.prepare('select * from users').pipe(Effect.andThen(D1.run)) }
+				actionData = { result: yield* D1.prepare('select * from users').pipe(Effect.andThen(D1.run)) }
 				break
 			case 'effect_2':
 				{
@@ -736,7 +736,8 @@ const adminPost = handler((c) =>
 						result: yield* D1.batch([
 							stmt.bind(1),
 							stmt.bind(2),
-							yield* D1.prepare('select userId, email from users where userId = ?').pipe(D1Ns.bind(3))
+							yield* D1.prepare('select userId, email from users where userId = ?').pipe(D1Ns.bind(3)),
+							yield* D1.prepare('select userId, email from users where userId = ?').pipe(Effect.map((stmt) => stmt.bind(4)))
 						])
 					}
 				}
@@ -772,38 +773,40 @@ const adminPost = handler((c) =>
 	})
 )
 
+const STRIPE_DO_DELAY_SEC = 15
+const STRIPE_DO_LIMIT = 2
+
 export class StripeDurableObject extends DurableObject<Env> {
+	storage: DurableObjectStorage
 	sql: SqlStorage
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env)
+		this.storage = ctx.storage
 		this.sql = ctx.storage.sql
 		this.sql.exec(`create table if not exists events(
 			customerId text primary key,
 			createdAt integer default (unixepoch()))`)
 	}
-	async foo() {
-		return 'bar'
+
+	async queueEvent(customerId: string) {
+		const alarm = await this.storage.getAlarm()
+		if (alarm === null) {
+			this.storage.setAlarm(Date.now() + 1000 * STRIPE_DO_DELAY_SEC)
+		}
+		this.sql.exec(`insert into events (customerId) values (?) on conflict (customerId) do nothing`, customerId)
 	}
-	// 	async getTally() {
-	// 		const tallyUnknown = this.sql
-	// 			.exec(
-	// 				`
-	// select
-	// 	count(case when vote = 'tradition' then 1 end) as traditionCount,
-	// 	count(case when vote = 'modern' then 1 end) as modernCount
-	// from votes`
-	// 			)
-	// 			.one()
-	// 		return Schema.decodeUnknownSync(Tally)(tallyUnknown)
-	// 	}
-	// 	async vote(voterId: string, vote: 'tradition' | 'modern') {
-	// 		// 'UNIQUE constraint failed: votes.voterId: SQLITE_CONSTRAINT'
-	// 		this.sql.exec(
-	// 			`insert into votes (voterId, vote) values (?, ?)
-	// 			on conflict (voterId) do update set vote = excluded.vote`,
-	// 			voterId,
-	// 			vote
-	// 		)
-	// 	}
+
+	async alarm() {
+		const events = this.sql
+			.exec<{ customerId: string }>(`select customerId, createdAt from events order by createdAt asc limit ?`, STRIPE_DO_LIMIT + 1)
+			.toArray()
+		console.log({ message: 'alarm', eventCount: events.length, events })
+		if (events.length > STRIPE_DO_LIMIT) {
+			this.storage.setAlarm(Date.now() + 1000 * STRIPE_DO_DELAY_SEC)
+		}
+		for (const e of events.slice(0, STRIPE_DO_LIMIT)) {
+			this.sql.exec(`delete from events where customerId = ?`, e.customerId)
+		}
+	}
 }

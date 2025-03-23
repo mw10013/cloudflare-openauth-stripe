@@ -207,6 +207,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 						yield* Effect.logError(`Stripe webhook: customerId is not string for event type: ${event.type}`)
 						return new Response() // Return 200 to avoid retries
 					}
+					yield* Effect.tryPromise(() => stub.queueEvent(customerId))
 					yield* syncStripeData(customerId)
 					return new Response()
 				}).pipe(
@@ -215,9 +216,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 					),
 					Effect.mapError((error) => (error instanceof InvariantResponseError ? error.response : new Response(null, { status: 500 }))),
 					Effect.merge
-				),
-
-			foo: () => Effect.tryPromise(() => stub.foo())
+				)
 		}
 	})
 }) {}

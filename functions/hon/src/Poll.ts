@@ -1,4 +1,4 @@
-import { Config, ConfigError, Effect, Either, Option, Predicate, Schema } from 'effect'
+import { Config, ConfigError, Effect, Either, Predicate } from 'effect'
 import * as ConfigEx from './ConfigEx'
 
 export class Poll extends Effect.Service<Poll>()('Poll', {
