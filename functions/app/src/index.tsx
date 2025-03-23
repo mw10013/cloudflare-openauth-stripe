@@ -8,7 +8,6 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { DurableObject } from 'cloudflare:workers'
 import { Cause, Chunk, Config, Console, Effect, Layer, Logger, LogLevel, ManagedRuntime, Predicate, Schema } from 'effect'
 import { dual } from 'effect/Function'
 import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
@@ -22,6 +21,8 @@ import { Repository } from './Repository'
 import { FormDataSchema, SessionData, UserSubject } from './schemas'
 import { Ses } from './Ses'
 import { Stripe } from './Stripe'
+
+export { StripeDurableObject } from './Stripe'
 
 type AppEnv = {
 	Bindings: Env
@@ -772,41 +773,3 @@ const adminPost = handler((c) =>
 		return c.render(<Admin actionData={{ intent: formData.intent, ...actionData }} />)
 	})
 )
-
-const STRIPE_DO_DELAY_SEC = 15
-const STRIPE_DO_LIMIT = 2
-
-export class StripeDurableObject extends DurableObject<Env> {
-	storage: DurableObjectStorage
-	sql: SqlStorage
-
-	constructor(ctx: DurableObjectState, env: Env) {
-		super(ctx, env)
-		this.storage = ctx.storage
-		this.sql = ctx.storage.sql
-		this.sql.exec(`create table if not exists events(
-			customerId text primary key,
-			createdAt integer default (unixepoch()))`)
-	}
-
-	async queueEvent(customerId: string) {
-		const alarm = await this.storage.getAlarm()
-		if (alarm === null) {
-			this.storage.setAlarm(Date.now() + 1000 * STRIPE_DO_DELAY_SEC)
-		}
-		this.sql.exec(`insert into events (customerId) values (?) on conflict (customerId) do nothing`, customerId)
-	}
-
-	async alarm() {
-		const events = this.sql
-			.exec<{ customerId: string }>(`select customerId, createdAt from events order by createdAt asc limit ?`, STRIPE_DO_LIMIT + 1)
-			.toArray()
-		console.log({ message: 'alarm', eventCount: events.length, events })
-		if (events.length > STRIPE_DO_LIMIT) {
-			this.storage.setAlarm(Date.now() + 1000 * STRIPE_DO_DELAY_SEC)
-		}
-		for (const e of events.slice(0, STRIPE_DO_LIMIT)) {
-			this.sql.exec(`delete from events where customerId = ?`, e.customerId)
-		}
-	}
-}

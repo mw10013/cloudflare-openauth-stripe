@@ -1,5 +1,6 @@
 import type { Stripe as StripeType } from 'stripe'
-import { Config, ConfigError, Effect, Either, Option, Predicate, Redacted } from 'effect'
+import { DurableObject } from 'cloudflare:workers'
+import { Config, ConfigError, Effect, Either, Layer, Logger, LogLevel, ManagedRuntime, Option, Predicate, Redacted } from 'effect'
 import { Stripe as StripeClass } from 'stripe'
 import * as ConfigEx from './ConfigEx'
 import { InvariantResponseError } from './ErrorEx'
@@ -220,3 +221,62 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 		}
 	})
 }) {}
+
+const makeRuntime = (env: Env) => {
+	const LogLevelLive = Config.logLevel('LOG_LEVEL').pipe(
+		Config.withDefault(LogLevel.Info),
+		Effect.map((level) => Logger.minimumLogLevel(level)),
+		Layer.unwrapEffect
+	)
+	const ConfigLive = ConfigEx.fromObject(env)
+	return Layer.mergeAll(
+		Stripe.Default,
+		Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
+	).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
+}
+
+const STRIPE_DO_DELAY_SEC = 15
+const STRIPE_DO_LIMIT = 2
+
+// TODO: runtime, concurrent batch
+export class StripeDurableObject extends DurableObject<Env> {
+	storage: DurableObjectStorage
+	sql: SqlStorage
+	runtime: ReturnType<typeof makeRuntime>
+
+	constructor(ctx: DurableObjectState, env: Env) {
+		super(ctx, env)
+		this.storage = ctx.storage
+		this.sql = ctx.storage.sql
+		this.runtime = makeRuntime(env)
+
+		this.sql.exec(`create table if not exists events(
+			customerId text primary key,
+			createdAt integer default (unixepoch()))`)
+	}
+
+	async queueEvent(customerId: string) {
+		const alarm = await this.storage.getAlarm()
+		if (alarm === null) {
+			this.storage.setAlarm(Date.now() + 1000 * STRIPE_DO_DELAY_SEC)
+		}
+		this.sql.exec(`insert into events (customerId) values (?) on conflict (customerId) do nothing`, customerId)
+	}
+
+	async alarm() {
+		const events = this.sql
+			.exec<{ customerId: string }>(`select customerId, createdAt from events order by createdAt asc limit ?`, STRIPE_DO_LIMIT + 1)
+			.toArray()
+		console.log({ message: 'alarm', eventCount: events.length, events })
+		if (events.length > STRIPE_DO_LIMIT) {
+			this.storage.setAlarm(Date.now() + 1000 * STRIPE_DO_DELAY_SEC)
+		}
+		const iterable = events.slice(0, STRIPE_DO_LIMIT).map(({ customerId }) =>
+			Effect.gen(this, function* () {
+				yield* Effect.log(`alarm: processing customerId: ${customerId}`)
+				yield* Effect.try(() => this.sql.exec(`delete from events where customerId = ?`, customerId))
+			})
+		)
+		await this.runtime.runPromise(Effect.all(iterable, { concurrency: 2 }))
+	}
+}
