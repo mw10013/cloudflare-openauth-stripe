@@ -1,7 +1,5 @@
 import { Config, ConfigError, Effect, Either, Option, Predicate, Schema } from 'effect'
 import * as ConfigEx from './ConfigEx'
-import { KV } from './KV'
-import { TallyFromString } from './SchemaEx'
 
 export class Poll extends Effect.Service<Poll>()('Poll', {
 	accessors: true,

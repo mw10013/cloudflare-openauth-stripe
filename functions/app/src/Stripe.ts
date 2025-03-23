@@ -1,6 +1,7 @@
 import type { Stripe as StripeType } from 'stripe'
-import { Config, Effect, Option, Predicate, Redacted } from 'effect'
+import { Config, ConfigError, Effect, Either, Option, Predicate, Redacted } from 'effect'
 import { Stripe as StripeClass } from 'stripe'
+import * as ConfigEx from './ConfigEx'
 import { InvariantResponseError } from './ErrorEx'
 import { Repository } from './Repository'
 
@@ -34,6 +35,17 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 			'payment_intent.payment_failed',
 			'payment_intent.canceled'
 		]
+
+		const stripeDo = yield* ConfigEx.object('STRIPE_DO').pipe(
+			Config.mapOrFail((object) =>
+				Predicate.hasProperty(object, 'idFromName') && typeof object.idFromName === 'function'
+					? Either.right(object as Env['STRIPE_DO'])
+					: Either.left(ConfigError.InvalidData([], `Expected a DurableObjectNamespace but received ${object}`))
+			)
+		)
+		const id = stripeDo.idFromName('stripe')
+		const stub = stripeDo.get(id)
+
 		const getSubscriptionForCustomer = (customerId: NonNullable<StripeType.SubscriptionListParams['customer']>) =>
 			Effect.tryPromise(() =>
 				stripe.subscriptions.list({ customer: customerId, limit: 1, status: 'all', expand: ['data.items', 'data.items.data.price'] })
@@ -164,7 +176,9 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 				),
 			getCheckoutSession: (sessionId: string) =>
 				Effect.tryPromise(() => stripe.checkout.sessions.retrieve(sessionId, { expand: ['customer'] })),
-			syncStripData: syncStripeData,
+
+			syncStripeData,
+
 			handleWebhook: (request: Request) =>
 				Effect.gen(function* () {
 					const signature = yield* Effect.fromNullable(request.headers.get('Stripe-Signature')).pipe(
@@ -201,7 +215,9 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 					),
 					Effect.mapError((error) => (error instanceof InvariantResponseError ? error.response : new Response(null, { status: 500 }))),
 					Effect.merge
-				)
+				),
+
+			foo: () => Effect.tryPromise(() => stub.foo())
 		}
 	})
 }) {}

@@ -8,6 +8,7 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
+import { DurableObject } from 'cloudflare:workers'
 import { Cause, Chunk, Config, Console, Data, Effect, Layer, Logger, LogLevel, ManagedRuntime, Predicate, Schema } from 'effect'
 import { dual } from 'effect/Function'
 import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
@@ -16,11 +17,11 @@ import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import * as ConfigEx from './ConfigEx'
 import * as D1Ns from './D1'
 import { D1 } from './D1'
+import { InvariantError, InvariantResponseError } from './ErrorEx'
 import { Repository } from './Repository'
 import { FormDataSchema, SessionData, UserSubject } from './schemas'
 import { Ses } from './Ses'
 import { Stripe } from './Stripe'
-import { InvariantError, InvariantResponseError } from './ErrorEx'
 
 type AppEnv = {
 	Bindings: Env
@@ -726,9 +727,7 @@ const adminPost = handler((c) =>
 				actionData = { data: yield* D1.prepare('insert into users (name, email) values ("joe", "u@u.com")').pipe(Effect.flatMap(D1.run)) }
 				break
 			case 'effect_1':
-				yield* Effect.log('Effect 1', 'msg2', 'msg3')
-				yield* Effect.logDebug('Effect 1 debug')
-				actionData = { result: yield* D1.prepare('select * from users').pipe(Effect.andThen(D1.run)) }
+				actionData = { foo: yield* Stripe.foo(), result: yield* D1.prepare('select * from users').pipe(Effect.andThen(D1.run)) }
 				break
 			case 'effect_2':
 				{
@@ -747,7 +746,7 @@ const adminPost = handler((c) =>
 				break
 			case 'sync_stripe_data':
 				{
-					yield* Stripe.syncStripData(formData.customerId)
+					yield* Stripe.syncStripeData(formData.customerId)
 					actionData = {
 						message: 'Stripe data synced.'
 					}
@@ -772,3 +771,39 @@ const adminPost = handler((c) =>
 		return c.render(<Admin actionData={{ intent: formData.intent, ...actionData }} />)
 	})
 )
+
+export class StripeDurableObject extends DurableObject<Env> {
+	sql: SqlStorage
+
+	constructor(ctx: DurableObjectState, env: Env) {
+		super(ctx, env)
+		this.sql = ctx.storage.sql
+		this.sql.exec(`create table if not exists events(
+			customerId text primary key,
+			createdAt integer default (unixepoch()))`)
+	}
+	async foo() {
+		return 'bar'
+	}
+	// 	async getTally() {
+	// 		const tallyUnknown = this.sql
+	// 			.exec(
+	// 				`
+	// select
+	// 	count(case when vote = 'tradition' then 1 end) as traditionCount,
+	// 	count(case when vote = 'modern' then 1 end) as modernCount
+	// from votes`
+	// 			)
+	// 			.one()
+	// 		return Schema.decodeUnknownSync(Tally)(tallyUnknown)
+	// 	}
+	// 	async vote(voterId: string, vote: 'tradition' | 'modern') {
+	// 		// 'UNIQUE constraint failed: votes.voterId: SQLITE_CONSTRAINT'
+	// 		this.sql.exec(
+	// 			`insert into votes (voterId, vote) values (?, ?)
+	// 			on conflict (voterId) do update set vote = excluded.vote`,
+	// 			voterId,
+	// 			vote
+	// 		)
+	// 	}
+}

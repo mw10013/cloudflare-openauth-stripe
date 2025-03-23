@@ -24,6 +24,20 @@
 		"AWS_REGION": "us-east-1"
 		// "OPENAUTH_ISSUER": "http://localhost:8788"
 	},
+	"migrations": [
+		{
+			"new_sqlite_classes": ["StripeDurableObject"],
+			"tag": "v1"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "StripeDurableObject",
+				"name": "STRIPE_DO"
+			}
+		]
+	},
 	"d1_databases": [
 		{
 			"binding": "D1",
@@ -51,6 +65,20 @@
 				// "COMPANY_EMAIL": "hello@motio.so",
 				"AWS_REGION": "us-east-1"
 				// "OPENAUTH_ISSUER": "https://cloudflare-openauth-stripe-worker-staging.devxo.workers.dev"
+			},
+			"migrations": [
+				{
+					"new_sqlite_classes": ["StripeDurableObject"],
+					"tag": "v1"
+				}
+			],
+			"durable_objects": {
+				"bindings": [
+					{
+						"class_name": "StripeDurableObject",
+						"name": "STRIPE_DO"
+					}
+				]
 			},
 			"d1_databases": [
 				{
