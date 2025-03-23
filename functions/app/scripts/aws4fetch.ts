@@ -1,8 +1,8 @@
 import { AwsClient } from 'aws4fetch'
 
 const aws = new AwsClient({
-	accessKeyId: process.env.CARAMBA_AWS_ACCESS_KEY_ID!,
-	secretAccessKey: process.env.CARAMBA_AWS_SECRET_ACCESS_KEY!,
+	accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+	secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
 	region: 'us-east-1',
 	retries: 1
 })
