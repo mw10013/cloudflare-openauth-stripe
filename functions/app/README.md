@@ -7,6 +7,8 @@
 
 ## Deploy
 
+- pnpm wrangler kv namespace create cloudflare-openauth-stripe-app-kv-production
+- Update wrangler.jsonc production kv_namespaces
 - CLOUDFLARE_ENV=production pnpm -F app build
 - pnpm -F app exec wrangler deploy
 - pnpm -F app exec wrangler secret put <SECRET> --env production
