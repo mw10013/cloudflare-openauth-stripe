@@ -21,21 +21,21 @@ const config = {
 	tailwindFunctions: ['tv', 'composeTailwindRenderProps'],
 
 	plugins: [
-		// 'prettier-plugin-sql',
+		'prettier-plugin-sql',
 		'@ianvs/prettier-plugin-sort-imports',
 		// https://github.com/tailwindlabs/prettier-plugin-tailwindcss?tab=readme-ov-file#compatibility-with-other-prettier-plugins
 		'prettier-plugin-tailwindcss' // MUST come last
 	],
-	// overrides: [
-	// 	{
-	// 		files: ['*.sql'],
-	// 		// https://github.com/un-ts/prettier/tree/master/packages/sql#parser-options
-	// 		options: {
-	// 			language: 'sqlite',
-	// 			keywordCase: 'lower'
-	// 		}
-	// 	}
-	// ]
+	overrides: [
+		{
+			files: ['*.sql'],
+			// https://github.com/un-ts/prettier/tree/master/packages/sql#parser-options
+			options: {
+				language: 'sqlite',
+				keywordCase: 'lower'
+			}
+		}
+	]
 }
 
 export default config

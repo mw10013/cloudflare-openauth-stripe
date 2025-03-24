@@ -1,22 +1,22 @@
 import { Schema } from 'effect'
 
-export const Role = Schema.Literal('customer', 'admin') // Must align with roles table
-export type Role = Schema.Schema.Type<typeof Role>
+export const UserType = Schema.Literal('customer', 'staffer') // Must align with userTypes table
+export type UserType = Schema.Schema.Type<typeof UserType>
 
 export const User = Schema.Struct({
 	userId: Schema.Number,
 	name: Schema.NullOr(Schema.String),
 	email: Schema.String,
-	role: Role
+	userType: UserType
 })
 export type User = Schema.Schema.Type<typeof User>
 
 export const AccountMemberRole = Schema.Literal('owner', 'member') // Must align with OrganizationMemberRoles table
 export type AccountMemberRole = Schema.Schema.Type<typeof AccountMemberRole>
 
-export const UserSubject = User.pick('userId', 'email', 'role')
+export const UserSubject = User.pick('userId', 'email', 'userType')
 
-export const SessionUser = User.pick('userId', 'email', 'role')
+export const SessionUser = User.pick('userId', 'email', 'userType')
 export type SessionUser = Schema.Schema.Type<typeof SessionUser>
 
 export const SessionData = Schema.Struct({

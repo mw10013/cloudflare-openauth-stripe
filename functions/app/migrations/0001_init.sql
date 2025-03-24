@@ -1,12 +1,12 @@
 -- Migration number: 0001 	 2025-01-31T00:42:00.000Z
-create table roles (roleId text primary key);
+create table userTypes (userTypeId text primary key);
 
 --> statement-breakpoint
 insert into
-	roles (roleId)
+	userTypes (userTypeId)
 values
 	('customer'),
-	('admin');
+	('staffer');
 
 --> statement-breakpoint
 create table accountMemberRoles (accountMemberRoleId text primary key);
@@ -45,7 +45,7 @@ create table users (
 	userId integer primary key,
 	name text not null default '',
 	email text not null unique,
-	role text not null default 'customer' references roles (roleId),
+	userType text not null default 'customer' references userTypes (userTypeId),
 	createdAt text not null default (datetime('now')),
 	updatedAt text not null default (datetime('now')),
 	deletedAt text
@@ -64,17 +64,29 @@ create table invitations (
 
 --> statement-breakpoint
 insert into
-	users (name, email, role)
+	users (name, email, userType)
 values
-	('Admin (motio)', 'motio@mail.com', 'admin'),
-	('Admin (a)', 'a@a.com', 'admin'),
+	('Admin (motio)', 'motio@mail.com', 'staffer'),
+	('Admin (a)', 'a@a.com', 'staffer'),
 	('Motio1 (owner)', 'motio1@mail.com', 'customer'),
 	('Motio2 (member)', 'motio2@mail.com', 'customer'),
 	('User (owner)', 'u@u.com', 'customer'),
 	('User1 (member)', 'u1@u.com', 'customer');
 
 --> statement-breakpoint
-insert into accounts (userId) values ((select userId from users where email = 'motio@mail.com'));
+insert into
+	accounts (userId)
+values
+	(
+		(
+			select
+				userId
+			from
+				users
+			where
+				email = 'motio@mail.com'
+		)
+	);
 
 --> statement-breakpoint
 with
@@ -128,7 +140,16 @@ values
 insert into
 	accounts (userId)
 values
-	((select userId from users where email = 'motio1@mail.com'));
+	(
+		(
+			select
+				userId
+			from
+				users
+			where
+				email = 'motio1@mail.com'
+		)
+	);
 
 --> statement-breakpoint
 with
@@ -165,7 +186,16 @@ values
 insert into
 	accounts (userId)
 values
-	((select userId from users where email = 'u@u.com'));
+	(
+		(
+			select
+				userId
+			from
+				users
+			where
+				email = 'u@u.com'
+		)
+	);
 
 --> statement-breakpoint
 with
@@ -219,7 +249,16 @@ values
 insert into
 	accounts (userId)
 values
-	((select userId from users where email = 'u1@u.com'));
+	(
+		(
+			select
+				userId
+			from
+				users
+			where
+				email = 'u1@u.com'
+		)
+	);
 
 --> statement-breakpoint
 with

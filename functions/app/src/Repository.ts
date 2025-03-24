@@ -16,7 +16,7 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 		'accountMembers',
 		(select json_group_array(json_object(
 			'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'accountMemberRole', am.accountMemberRole,
-			'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'role', u.role) from users u where u.userId = am.userId)
+			'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType) from users u where u.userId = am.userId)
 			)) from accountMembers am where am.accountId = a.accountId)
 		)) as data from accounts a`
 					),
@@ -63,8 +63,8 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 								`
 	insert into accounts (userId) 
 	select (select userId from users where email = ?1)
-	where exists (select 1 from users u where u.email = ?1 and role = "customer") and
-	not exists (select 1 from accountMembers am where am.userId = (select u.userId from users u where u.email = ?1 and role = "customer")
+	where exists (select 1 from users u where u.email = ?1 and userType = "customer") and
+	not exists (select 1 from accountMembers am where am.userId = (select u.userId from users u where u.email = ?1 and userType = "customer")
 	)
 	`
 							)
@@ -74,7 +74,7 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 								`
 	insert into accountMembers (userId, accountId, accountMemberRole)
 	select (select userId from users where email = ?1), last_insert_rowid(), 'owner'
-	where exists (select 1 from users u where u.email = ?1 and role = "customer") and
+	where exists (select 1 from users u where u.email = ?1 and userType = "customer") and
 	not exists (select 1 from accountMembers am where am.userId = (select u.userId from users u where u.email = ?1)
 	)
 	`

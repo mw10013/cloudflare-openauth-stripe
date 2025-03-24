@@ -265,7 +265,7 @@ function createOpenAuth({ env, runtime }: { env: Env; runtime: AppEnv['Variables
 						ctx.subject('user', {
 							userId: user.userId,
 							email: user.email,
-							role: user.role
+							userType: user.userType
 						})
 					)
 				),
@@ -347,7 +347,7 @@ function createFrontend({
 	app.use('/dashboard/*', async (c, next) => {
 		if (!c.var.sessionData.sessionUser) {
 			return c.redirect('/authenticate')
-		} else if (c.var.sessionData.sessionUser.role !== 'customer') {
+		} else if (c.var.sessionData.sessionUser.userType !== 'customer') {
 			return c.text('Forbidden', 403)
 		}
 		await next()
@@ -355,7 +355,7 @@ function createFrontend({
 	app.use('/admin/*', async (c, next) => {
 		if (!c.var.sessionData.sessionUser) {
 			return c.redirect('/authenticate')
-		} else if (c.var.sessionData.sessionUser.role !== 'admin') {
+		} else if (c.var.sessionData.sessionUser.userType !== 'staffer') {
 			return c.text('Forbidden', 403)
 		}
 		await next()
@@ -399,10 +399,10 @@ function createFrontend({
 				sessionUser: {
 					userId: verified.subject.properties.userId,
 					email: verified.subject.properties.email,
-					role: verified.subject.properties.role
+					userType: verified.subject.properties.userType
 				}
 			})
-			return c.redirect(verified.subject.properties.role === 'admin' ? '/admin' : '/dashboard')
+			return c.redirect(verified.subject.properties.userType === 'staffer' ? '/admin' : '/dashboard')
 		} catch (e: any) {
 			return new Response(e.toString())
 		}
@@ -537,7 +537,7 @@ const pricingPost = handler((c) =>
 					})
 			),
 			Effect.filterOrFail(
-				(sessionUser): sessionUser is typeof sessionUser & { role: 'customer' } => sessionUser.role === 'customer',
+				(sessionUser): sessionUser is typeof sessionUser & { userType: 'customer' } => sessionUser.userType === 'customer',
 				() => new InvariantError({ message: 'Only customers can subscribe' })
 			)
 		)
