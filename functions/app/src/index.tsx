@@ -739,7 +739,7 @@ const adminPost = handler((c) =>
 				actionData = { accounts: yield* Repository.getAccounts() }
 				break
 			case 'reconcile_stripe':
-				actionData = { message: 'Stripe reconciled.', accounts: yield* Stripe.reconcile() }
+				actionData = { message: 'Stripe reconciled.'}
 				break
 			case 'sync_stripe_data':
 				{

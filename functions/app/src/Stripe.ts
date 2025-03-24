@@ -228,37 +228,38 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 					),
 					Effect.mapError((error) => (error instanceof InvariantResponseError ? error.response : new Response(null, { status: 500 }))),
 					Effect.merge
-				),
+				)
 
-			reconcile: () =>
-				Effect.gen(function* () {
-					const accounts = yield* repository.getAccounts()
-					const iterable = accounts.map((account) => {
-						const owner = account.accountMembers.find((member) => member.accountMemberRole === 'owner')?.user
-						if (!owner) {
-							return Effect.fail(new Error(`Organization ${account.accountId} has no owner`))
-						}
-						return Effect.gen(function* () {
-							const customer = yield* Effect.tryPromise(async () => {
-								const {
-									data: [customer]
-								} = await stripe.customers.list({
-									email: owner.email,
-									limit: 1
-								})
-								return customer
-							})
-							if (customer) {
-								if (account.stripeCustomerId !== customer.id) {
-									yield* repository.updateStripeCustomerId({ accountId: account.accountId, stripeCustomerId: customer.id })
-								}
-								yield* Effect.log(`Stripe reconcile: accountId: ${account.accountId}, stripeCustomerId: ${customer.id}`)
-								yield* syncStripeData(customer.id)
-							}
-						})
-					})
-					yield* Effect.all(iterable)
-				})
+			// reconcile: () =>
+			// 	Effect.gen(function* () {
+			// 		const accounts = yield* repository.getAccounts()
+			// 		const iterable = accounts.map((account) => {
+			// 			const owner = account.accountMembers.find((member) => member.accountMemberRole === 'owner')?.user
+			// 			if (!owner) {
+			// 				return Effect.fail(new Error(`Organization ${account.accountId} has no owner`))
+			// 			}
+			// 			return Effect.gen(function* () {
+			// 				const customer = yield* Effect.tryPromise(async () => {
+			// 					const {
+			// 						data: [customer]
+			// 					} = await stripe.customers.list({
+			// 						email: owner.email,
+			// 						limit: 1
+			// 					})
+			// 					return customer
+			// 				})
+			// 				if (customer) {
+			// 					if (account.stripeCustomerId !== customer.id) {
+			// 						yield* repository.updateStripeCustomerId({ accountId: account.accountId, stripeCustomerId: customer.id })
+			// 					}
+			// 					yield* Effect.log(`Stripe reconcile: accountId: ${account.accountId}, stripeCustomerId: ${customer.id}`)
+			// 					yield* syncStripeData(customer.id)
+			// 				}
+			// 			})
+			// 		})
+			// 		yield* Effect.all(iterable)
+			// 	}
+			// )
 		}
 	})
 }) {}
