@@ -5,31 +5,31 @@ create table roles (roleId text primary key);
 insert into
 	roles (roleId)
 values
-	('user'),
+	('customer'),
 	('admin');
 
 --> statement-breakpoint
-create table organizationMemberRoles (organizationMemberRoleId text primary key);
+create table accountMemberRoles (accountMemberRoleId text primary key);
 
 --> statement-breakpoint
 insert into
-	organizationMemberRoles (organizationMemberRoleId)
+	accountMemberRoles (accountMemberRoleId)
 values
 	('owner'),
 	('member');
 
 --> statement-breakpoint
-create table organizationMembers (
-	organizationMemberId integer primary key,
+create table accountMembers (
+	accountMemberId integer primary key,
 	userId integer not null references users (userId),
-	organizationId integer not null references organizations (organizationId),
-	organizationMemberRole text not null references organizationMemberRoles (organizationMemberRoleId),
+	accountId integer not null references accounts (accountId),
+	accountMemberRole text not null references accountMemberRoles (accountMemberRoleId),
 	joinedAt text not null default (datetime('now'))
 );
 
 --> statement-breakpoint
-create table organizations (
-	organizationId integer primary key,
+create table accounts (
+	accountId integer primary key,
 	name text not null,
 	createdAt text not null default (datetime('now')),
 	updatedAt text not null default (datetime('now')),
@@ -45,7 +45,7 @@ create table users (
 	userId integer primary key,
 	name text not null default '',
 	email text not null unique,
-	role text not null default 'user' references roles (roleId),
+	role text not null default 'customer' references roles (roleId),
 	createdAt text not null default (datetime('now')),
 	updatedAt text not null default (datetime('now')),
 	deletedAt text
@@ -54,7 +54,7 @@ create table users (
 --> statement-breakpoint
 create table invitations (
 	invitationId integer primary key,
-	organizationId integer not null references organizations (organizationId),
+	accountId integer not null references accounts (accountId),
 	email text not null,
 	role text not null,
 	invitedBy integer not null references users (userId),
@@ -68,26 +68,26 @@ insert into
 values
 	('Admin (motio)', 'motio@mail.com', 'admin'),
 	('Admin (a)', 'a@a.com', 'admin'),
-	('Motio1 (owner)', 'motio1@mail.com', 'user'),
-	('Motio2 (member)', 'motio2@mail.com', 'user'),
-	('User (owner)', 'u@u.com', 'user'),
-	('User1 (member)', 'u1@u.com', 'user');
+	('Motio1 (owner)', 'motio1@mail.com', 'customer'),
+	('Motio2 (member)', 'motio2@mail.com', 'customer'),
+	('User (owner)', 'u@u.com', 'customer'),
+	('User1 (member)', 'u1@u.com', 'customer');
 
 --> statement-breakpoint
-insert into organizations (name) values ('M organization');
+insert into accounts (name) values ('M account');
 
 --> statement-breakpoint
 with
-	organization as materialized (
+	account as materialized (
 		select
-			organizationId
+			accountId
 		from
-			organizations
+			accounts
 		where
-			organizationId = last_insert_rowid()
+			accountId = last_insert_rowid()
 	)
 insert into
-	organizationMembers (userId, organizationId, organizationMemberRole)
+	accountMembers (userId, accountId, accountMemberRole)
 values
 	(
 		(
@@ -100,9 +100,9 @@ values
 		),
 		(
 			select
-				organizationId
+				accountId
 			from
-				organization
+				account
 		),
 		'owner'
 	),
@@ -117,31 +117,31 @@ values
 		),
 		(
 			select
-				organizationId
+				accountId
 			from
-				organization
+				account
 		),
 		'member'
 	);
 
 --> statement-breakpoint
 insert into
-	organizations (name)
+	accounts (name)
 values
-	('M1 organization');
+	('M1 account');
 
 --> statement-breakpoint
 with
-	organization as materialized (
+	account as materialized (
 		select
-			organizationId
+			accountId
 		from
-			organizations
+			accounts
 		where
-			organizationId = last_insert_rowid()
+			accountId = last_insert_rowid()
 	)
 insert into
-	organizationMembers (userId, organizationId, organizationMemberRole)
+	accountMembers (userId, accountId, accountMemberRole)
 values
 	(
 		(
@@ -154,31 +154,31 @@ values
 		),
 		(
 			select
-				organizationId
+				accountId
 			from
-				organization
+				account
 		),
 		'owner'
 	);
 
 --> statement-breakpoint
 insert into
-	organizations (name)
+	accounts (name)
 values
-	('U organization');
+	('U account');
 
 --> statement-breakpoint
 with
-	organization as materialized (
+	account as materialized (
 		select
-			organizationId
+			accountId
 		from
-			organizations
+			accounts
 		where
-			organizationId = last_insert_rowid()
+			accountId = last_insert_rowid()
 	)
 insert into
-	organizationMembers (userId, organizationId, organizationMemberRole)
+	accountMembers (userId, accountId, accountMemberRole)
 values
 	(
 		(
@@ -191,9 +191,9 @@ values
 		),
 		(
 			select
-				organizationId
+				accountId
 			from
-				organization
+				account
 		),
 		'owner'
 	),
@@ -208,31 +208,31 @@ values
 		),
 		(
 			select
-				organizationId
+				accountId
 			from
-				organization
+				account
 		),
 		'member'
 	);
 
 --> statement-breakpoint
 insert into
-	organizations (name)
+	accounts (name)
 values
-	('U1 organization');
+	('U1 account');
 
 --> statement-breakpoint
 with
-	organization as materialized (
+	account as materialized (
 		select
-			organizationId
+			accountId
 		from
-			organizations
+			accounts
 		where
-			organizationId = last_insert_rowid()
+			accountId = last_insert_rowid()
 	)
 insert into
-	organizationMembers (userId, organizationId, organizationMemberRole)
+	accountMembers (userId, accountId, accountMemberRole)
 values
 	(
 		(
@@ -245,9 +245,9 @@ values
 		),
 		(
 			select
-				organizationId
+				accountId
 			from
-				organization
+				account
 		),
 		'owner'
 	);

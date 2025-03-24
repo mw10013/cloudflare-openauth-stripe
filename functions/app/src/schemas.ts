@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-export const Role = Schema.Literal('user', 'admin') // Must align with roles table
+export const Role = Schema.Literal('customer', 'admin') // Must align with roles table
 export type Role = Schema.Schema.Type<typeof Role>
 
 export const User = Schema.Struct({
@@ -11,8 +11,8 @@ export const User = Schema.Struct({
 })
 export type User = Schema.Schema.Type<typeof User>
 
-export const OrganizationMemberRole = Schema.Literal('owner', 'member') // Must align with OrganizationMemberRoles table
-export type OrganizationMemberRole = Schema.Schema.Type<typeof OrganizationMemberRole>
+export const AccountMemberRole = Schema.Literal('owner', 'member') // Must align with OrganizationMemberRoles table
+export type AccountMemberRole = Schema.Schema.Type<typeof AccountMemberRole>
 
 export const UserSubject = User.pick('userId', 'email', 'role')
 
@@ -24,8 +24,8 @@ export const SessionData = Schema.Struct({
 })
 export type SessionData = Schema.Schema.Type<typeof SessionData>
 
-export const Organization = Schema.Struct({
-	organizationId: Schema.Number,
+export const Account = Schema.Struct({
+	accountId: Schema.Number,
 	name: Schema.String,
 	stripeCustomerId: Schema.NullOr(Schema.String),
 	stripeSubscriptionId: Schema.NullOr(Schema.String),
@@ -33,27 +33,27 @@ export const Organization = Schema.Struct({
 	planName: Schema.NullOr(Schema.String),
 	subscriptionStatus: Schema.NullOr(Schema.String)
 })
-export type Organization = Schema.Schema.Type<typeof Organization>
+export type Account = Schema.Schema.Type<typeof Account>
 
-export const OrganizationMember = Schema.Struct({
-	organizationMemberId: Schema.Number,
-	organizationId: Schema.Number,
+export const AccountMember = Schema.Struct({
+	accountMemberId: Schema.Number,
+	accountId: Schema.Number,
 	userId: Schema.Number,
-	organizationMemberRole: OrganizationMemberRole
+	accountMemberRole: AccountMemberRole
 })
-export type OrganizationMember = Schema.Schema.Type<typeof OrganizationMember>
+export type AccountMember = Schema.Schema.Type<typeof AccountMember>
 
-export const OrganizationMemberWithUser = Schema.Struct({
-	...OrganizationMember.fields,
+export const AccountMemberWithUser = Schema.Struct({
+	...AccountMember.fields,
 	user: User
 })
-export type OrganizationMemberWithUser = Schema.Schema.Type<typeof OrganizationMemberWithUser>
+export type AccountMemberWithUser = Schema.Schema.Type<typeof AccountMemberWithUser>
 
-export const OrganizationWithOrganizationMembers = Schema.Struct({
-	...Organization.fields,
-	organizationMembers: Schema.Array(OrganizationMemberWithUser)
+export const AccountWithAccountMembers = Schema.Struct({
+	...Account.fields,
+	accountMembers: Schema.Array(AccountMemberWithUser)
 })
-export type OrganizationWithOrganizationMembers = Schema.Schema.Type<typeof OrganizationWithOrganizationMembers>
+export type AccountWithAccountMembers = Schema.Schema.Type<typeof AccountWithAccountMembers>
 
 // export const DataFromResult = <A, I>(DataSchema: Schema.Schema<A, I>) =>
 // 	Schema.NullOr(
@@ -83,11 +83,11 @@ export const DataFromResult = <A, I>(DataSchema: Schema.Schema<A, I>) =>
 		}
 	)
 
-export const OrganizationResult = Schema.NullOr(Organization)
-export type OrganizationResult = Schema.Schema.Type<typeof OrganizationResult>
+export const AccountResult = Schema.NullOr(Account)
+export type AccountResult = Schema.Schema.Type<typeof AccountResult>
 
-export const OrganizationsResult = DataFromResult(Schema.Array(OrganizationWithOrganizationMembers))
-export type OrganizationsResult = Schema.Schema.Type<typeof OrganizationsResult>
+export const AccountsResult = DataFromResult(Schema.Array(AccountWithAccountMembers))
+export type AccountsResult = Schema.Schema.Type<typeof AccountsResult>
 
 export const FormDataFromSelf = Schema.instanceOf(FormData).annotations({ identifier: 'FormDataFromSelf' })
 

@@ -347,7 +347,7 @@ function createFrontend({
 	app.use('/dashboard/*', async (c, next) => {
 		if (!c.var.sessionData.sessionUser) {
 			return c.redirect('/authenticate')
-		} else if (c.var.sessionData.sessionUser.role !== 'user') {
+		} else if (c.var.sessionData.sessionUser.role !== 'customer') {
 			return c.text('Forbidden', 403)
 		}
 		await next()
@@ -537,8 +537,8 @@ const pricingPost = handler((c) =>
 					})
 			),
 			Effect.filterOrFail(
-				(sessionUser): sessionUser is typeof sessionUser & { role: 'user' } => sessionUser.role === 'user',
-				() => new InvariantError({ message: 'Only users can subscribe' })
+				(sessionUser): sessionUser is typeof sessionUser & { role: 'customer' } => sessionUser.role === 'customer',
+				() => new InvariantError({ message: 'Only customers can subscribe' })
 			)
 		)
 		const priceId = yield* Effect.tryPromise(() => c.req.formData()).pipe(
@@ -593,14 +593,14 @@ const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashbo
 
 const dashboardLoaderData = (c: HonoContext<AppEnv>) =>
 	Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
-		Effect.flatMap((user) => Repository.getRequiredOrganizationForUser(user)),
+		Effect.flatMap((user) => Repository.getRequiredAccountForUser(user)),
 		Effect.map((organization) => ({ organization, sessionData: c.var.sessionData }))
 	)
 
 const dashboardPost = handler((c) =>
 	Effect.gen(function* () {
 		const organization = yield* Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
-			Effect.flatMap((user) => Repository.getRequiredOrganizationForUser(user))
+			Effect.flatMap((user) => Repository.getRequiredAccountForUser(user))
 		)
 		if (!organization.stripeCustomerId || !organization.stripeProductId) {
 			return c.redirect('/pricing')
@@ -633,8 +633,8 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 					</button>
 				</form>
 				<form action="/admin" method="post">
-					<button name="intent" value="organizations" className="btn btn-outline">
-						Organizations
+					<button name="intent" value="accounts" className="btn btn-outline">
+						Accounts
 					</button>
 				</form>
 				<form action="/admin" method="post">
@@ -701,7 +701,7 @@ const adminPost = handler((c) =>
 		const AdminFormDataSchema = FormDataSchema(
 			Schema.Union(
 				Schema.Struct({
-					intent: Schema.Literal('effect', 'effect_1', 'effect_2', 'organizations', 'reconcile_stripe')
+					intent: Schema.Literal('effect', 'effect_1', 'effect_2', 'accounts', 'reconcile_stripe')
 				}),
 				Schema.Struct({
 					intent: Schema.Literal('sync_stripe_data', 'customer_subscription'),
@@ -735,11 +735,11 @@ const adminPost = handler((c) =>
 					}
 				}
 				break
-			case 'organizations':
-				actionData = { organizations: yield* Repository.getOrganizations() }
+			case 'accounts':
+				actionData = { accounts: yield* Repository.getAccounts() }
 				break
 			case 'reconcile_stripe':
-				actionData = { message: 'Stripe reconciled.', organizations: yield* Stripe.reconcile() }
+				actionData = { message: 'Stripe reconciled.', accounts: yield* Stripe.reconcile() }
 				break
 			case 'sync_stripe_data':
 				{

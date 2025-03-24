@@ -116,11 +116,11 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 			// https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#checkout-flow
 			ensureStripeCustomerId: ({ userId, email }: { userId: number; email: string }) =>
 				Effect.gen(function* () {
-					const organization = yield* repository.getRequiredOrganizationForUser({ userId })
-					if (organization.stripeCustomerId)
+					const account = yield* repository.getRequiredAccountForUser({ userId })
+					if (account.stripeCustomerId)
 						return {
-							stripeCustomerId: organization.stripeCustomerId,
-							stripeSubscriptionId: organization.stripeSubscriptionId
+							stripeCustomerId: account.stripeCustomerId,
+							stripeSubscriptionId: account.stripeSubscriptionId
 						}
 					// Test environment may have seeded stripe customers
 					const {
@@ -139,7 +139,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 									// metadata: { userId: userId.toString() } // DO NOT FORGET THIS
 								})
 							)
-					yield* repository.updateStripeCustomerId({ organizationId: organization.organizationId, stripeCustomerId: customer.id })
+					yield* repository.updateStripeCustomerId({ accountId: account.accountId, stripeCustomerId: customer.id })
 					return {
 						stripeCustomerId: customer.id,
 						stripeSubscriptionId: null
@@ -232,11 +232,11 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 
 			reconcile: () =>
 				Effect.gen(function* () {
-					const organizations = yield* repository.getOrganizations()
-					const iterable = organizations.map((org) => {
-						const owner = org.organizationMembers.find((member) => member.organizationMemberRole === 'owner')?.user
+					const accounts = yield* repository.getAccounts()
+					const iterable = accounts.map((account) => {
+						const owner = account.accountMembers.find((member) => member.accountMemberRole === 'owner')?.user
 						if (!owner) {
-							return Effect.fail(new Error(`Organization ${org.organizationId} has no owner`))
+							return Effect.fail(new Error(`Organization ${account.accountId} has no owner`))
 						}
 						return Effect.gen(function* () {
 							const customer = yield* Effect.tryPromise(async () => {
@@ -249,10 +249,10 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 								return customer
 							})
 							if (customer) {
-								if (org.stripeCustomerId !== customer.id) {
-									yield* repository.updateStripeCustomerId({ organizationId: org.organizationId, stripeCustomerId: customer.id })
+								if (account.stripeCustomerId !== customer.id) {
+									yield* repository.updateStripeCustomerId({ accountId: account.accountId, stripeCustomerId: customer.id })
 								}
-								yield* Effect.log(`Stripe reconcile: organizationId: ${org.organizationId}, stripeCustomerId: ${customer.id}`)
+								yield* Effect.log(`Stripe reconcile: accountId: ${account.accountId}, stripeCustomerId: ${customer.id}`)
 								yield* syncStripeData(customer.id)
 							}
 						})
