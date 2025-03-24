@@ -19,17 +19,6 @@ values
 	('member');
 
 --> statement-breakpoint
-create table invitations (
-	invitationId integer primary key,
-	organizationId integer not null references organizations (organizationId),
-	email text not null,
-	role text not null,
-	invitedBy integer not null references users (userId),
-	invitedAt text not null default (datetime('now')),
-	status text not null default 'pending'
-);
-
---> statement-breakpoint
 create table organizationMembers (
 	organizationMemberId integer primary key,
 	userId integer not null references users (userId),
@@ -60,6 +49,17 @@ create table users (
 	createdAt text not null default (datetime('now')),
 	updatedAt text not null default (datetime('now')),
 	deletedAt text
+);
+
+--> statement-breakpoint
+create table invitations (
+	invitationId integer primary key,
+	organizationId integer not null references organizations (organizationId),
+	email text not null,
+	role text not null,
+	invitedBy integer not null references users (userId),
+	invitedAt text not null default (datetime('now')),
+	status text not null default 'pending'
 );
 
 --> statement-breakpoint

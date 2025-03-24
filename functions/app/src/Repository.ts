@@ -55,7 +55,7 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 						.bind(stripeSubscriptionId, stripeProductId, planName, subscriptionStatus, stripeCustomerId),
 					d1.run
 				),
-				
+
 			upsertUser: ({ email }: Pick<User, 'email'>) =>
 				d1
 					.batch([
@@ -66,7 +66,7 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 	insert into organizations (name) 
 	select 'Organization' 
 	where exists (select 1 from users u where u.email = ?1 and role = "user") and
-	not exists (select 1 from organizationMembers tm where tm.userId = (select u.userId from users u where u.email = ?1 and role = "user")
+	not exists (select 1 from organizationMembers om where om.userId = (select u.userId from users u where u.email = ?1 and role = "user")
 	)
 	`
 							)
@@ -77,7 +77,7 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 	insert into organizationMembers (userId, organizationId, organizationMemberRole)
 	select (select userId from users where email = ?1), last_insert_rowid(), 'owner'
 	where exists (select 1 from users u where u.email = ?1 and role = "user") and
-	not exists (select 1 from organizationMembers tm where tm.userId = (select u.userId from users u where u.email = ?1)
+	not exists (select 1 from organizationMembers om where om.userId = (select u.userId from users u where u.email = ?1)
 	)
 	`
 							)
