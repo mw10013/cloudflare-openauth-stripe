@@ -12,7 +12,7 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 					d1.prepare(
 						`
 	select json_group_array(json_object(
-		'accountId', accountId, 'userId', userId,'name', name, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
+		'accountId', accountId, 'userId', userId, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
 		'accountMembers',
 		(select json_group_array(json_object(
 			'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'accountMemberRole', am.accountMemberRole,
@@ -61,8 +61,8 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 						d1
 							.prepare(
 								`
-	insert into accounts (name, userId) 
-	select 'Account', (select userId from users where email = ?1) 
+	insert into accounts (userId) 
+	select (select userId from users where email = ?1)
 	where exists (select 1 from users u where u.email = ?1 and role = "customer") and
 	not exists (select 1 from accountMembers am where am.userId = (select u.userId from users u where u.email = ?1 and role = "customer")
 	)
