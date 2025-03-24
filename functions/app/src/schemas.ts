@@ -26,6 +26,7 @@ export type SessionData = Schema.Schema.Type<typeof SessionData>
 
 export const Account = Schema.Struct({
 	accountId: Schema.Number,
+	userId: Schema.Number,
 	name: Schema.String,
 	stripeCustomerId: Schema.NullOr(Schema.String),
 	stripeSubscriptionId: Schema.NullOr(Schema.String),

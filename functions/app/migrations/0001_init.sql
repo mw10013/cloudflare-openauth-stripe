@@ -30,6 +30,7 @@ create table accountMembers (
 --> statement-breakpoint
 create table accounts (
 	accountId integer primary key,
+	userId integer unique not null references users (userId),
 	name text not null,
 	createdAt text not null default (datetime('now')),
 	updatedAt text not null default (datetime('now')),
@@ -74,7 +75,7 @@ values
 	('User1 (member)', 'u1@u.com', 'customer');
 
 --> statement-breakpoint
-insert into accounts (name) values ('M account');
+insert into accounts (name, userId) values ('M account', (select userId from users where email = 'motio@mail.com'));
 
 --> statement-breakpoint
 with
@@ -126,9 +127,9 @@ values
 
 --> statement-breakpoint
 insert into
-	accounts (name)
+	accounts (name, userId)
 values
-	('M1 account');
+	('M1 account', (select userId from users where email = 'motio1@mail.com'));
 
 --> statement-breakpoint
 with
@@ -163,9 +164,9 @@ values
 
 --> statement-breakpoint
 insert into
-	accounts (name)
+	accounts (name, userId)
 values
-	('U account');
+	('U account', (select userId from users where email = 'u@u.com'));
 
 --> statement-breakpoint
 with
@@ -217,9 +218,9 @@ values
 
 --> statement-breakpoint
 insert into
-	accounts (name)
+	accounts (name, userId)
 values
-	('U1 account');
+	('U1 account', (select userId from users where email = 'u1@u.com'));
 
 --> statement-breakpoint
 with

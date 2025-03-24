@@ -577,8 +577,8 @@ const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashbo
 			<h1 className="text-lg font-medium lg:text-2xl">Dashboard</h1>
 			<div className="card bg-base-100 w-96 shadow-sm">
 				<div className="card-body">
-					<h2 className="card-title">Organization Subscription</h2>
-					<p className="font-medium">Current Plan: {loaderData.organization.planName || 'Free'}</p>
+					<h2 className="card-title">Account Subscription</h2>
+					<p className="font-medium">Current Plan: {loaderData.account.planName || 'Free'}</p>
 					<div className="card-actions justify-end">
 						<form action="/dashboard" method="post">
 							<button className="btn btn-outline">Manage Subscription</button>
@@ -594,19 +594,19 @@ const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashbo
 const dashboardLoaderData = (c: HonoContext<AppEnv>) =>
 	Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
 		Effect.flatMap((user) => Repository.getRequiredAccountForUser(user)),
-		Effect.map((organization) => ({ organization, sessionData: c.var.sessionData }))
+		Effect.map((account) => ({ account, sessionData: c.var.sessionData }))
 	)
 
 const dashboardPost = handler((c) =>
 	Effect.gen(function* () {
-		const organization = yield* Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
+		const account = yield* Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
 			Effect.flatMap((user) => Repository.getRequiredAccountForUser(user))
 		)
-		if (!organization.stripeCustomerId || !organization.stripeProductId) {
+		if (!account.stripeCustomerId || !account.stripeProductId) {
 			return c.redirect('/pricing')
 		}
 		return yield* Stripe.createBillingPortalSession({
-			customer: organization.stripeCustomerId,
+			customer: account.stripeCustomerId,
 			return_url: `${new URL(c.req.url).origin}/dashboard`
 		}).pipe(Effect.map((session) => c.redirect(session.url)))
 	})
