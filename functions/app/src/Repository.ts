@@ -57,6 +57,7 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 			upsertUser: ({ email }: Pick<User, 'email'>) =>
 				d1
 					.batch([
+						// set email = email to ensure returning * works
 						d1.prepare('insert into users (email) values (?) on conflict (email) do update set email = email returning *').bind(email),
 						d1
 							.prepare(
@@ -66,14 +67,17 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 	on conflict (userId) do nothing`
 							)
 							.bind(email),
+					  // https://www.sqlite.org/lang_insert.html
+						// To avoid a parsing ambiguity, the SELECT statement should always contain a WHERE clause, even if that clause is simply "WHERE true", if the upsert-clause is present. 
 						d1
 							.prepare(
 								`
-	insert into accountMembers (userId, accountId)
-	select (select userId from users where email = ?1), last_insert_rowid()
-	where exists (select 1 from users u where u.email = ?1 and userType = "customer")
-	on conflict (userId, accountId) do nothing
-	`
+							with c as (select u.userId, a.accountId
+							  from users u inner join accounts a on a.userId = u.userId
+							  where u.email = ?1 and u.userType = 'customer')
+							insert into accountMembers (userId, accountId)
+							select userId, accountId from c where true
+							on conflict (userId, accountId) do nothing`
 							)
 							.bind(email)
 					])
