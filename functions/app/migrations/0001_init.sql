@@ -23,8 +23,7 @@ create table accountMembers (
 	accountMemberId integer primary key,
 	userId integer not null references users (userId),
 	accountId integer not null references accounts (accountId),
-	accountMemberRole text not null references accountMemberRoles (accountMemberRoleId),
-	joinedAt text not null default (datetime('now'))
+	accountMemberRole text not null default ('member') references accountMemberRoles (accountMemberRoleId)
 );
 
 --> statement-breakpoint

@@ -419,6 +419,7 @@ function createFrontend({
 	app.post('/dashboard', dashboardPost)
 	app.get('/admin', (c) => c.render(<Admin />))
 	app.post('/admin', adminPost)
+	app.get('/seed', seedGet)
 	return app
 }
 
@@ -739,7 +740,7 @@ const adminPost = handler((c) =>
 				actionData = { accounts: yield* Repository.getAccounts() }
 				break
 			case 'reconcile_stripe':
-				actionData = { message: 'Stripe reconciled.'}
+				actionData = { message: 'Stripe reconciled.' }
 				break
 			case 'sync_stripe_data':
 				{
@@ -768,3 +769,5 @@ const adminPost = handler((c) =>
 		return c.render(<Admin actionData={{ intent: formData.intent, ...actionData }} />)
 	})
 )
+
+const seedGet = handler((c) => Stripe.seed().pipe(Effect.map(() => c.redirect('/'))))

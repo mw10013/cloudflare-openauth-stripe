@@ -228,7 +228,69 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 					),
 					Effect.mapError((error) => (error instanceof InvariantResponseError ? error.response : new Response(null, { status: 500 }))),
 					Effect.merge
-				)
+				),
+
+			seed: () =>
+				Effect.gen(function* () {
+					const price = yield* Effect.tryPromise(() =>
+						stripe.prices.list({
+							lookup_keys: ['base'],
+							limit: 1
+						})
+					).pipe(
+						Effect.flatMap((list) => Option.fromNullable(list.data[0])),
+						Effect.mapError(() => new Error('Price not found'))
+					)
+					yield* Effect.log({ priceId: price.id })
+					// const iterable = ['motio1@mail.com', 'motio2@mail.com', 'u@u.com', 'u1@u.com'].map((email) =>
+					const iterable = ['motio1@mail.com'].map((email) =>
+						Effect.gen(function* () {
+							yield* Repository.upsertUser({ email })
+							yield* Effect.tryPromise(() =>
+								stripe.customers.list({
+									email,
+									limit: 1
+								})
+							).pipe(
+								Effect.flatMap((list) => Option.fromNullable(list.data[0])),
+								// Effect.catchTag("NoSuchElementException"),
+								Effect.orElse(() =>
+									Effect.gen(function* () {
+										const customer = yield* Effect.tryPromise(() =>
+											stripe.customers.create({
+												email
+											})
+										)
+										const paymentMethod = yield* Effect.tryPromise(() =>
+											stripe.paymentMethods.attach('pm_card_visa', {
+												customer: customer.id
+											})
+										)
+										yield* Effect.tryPromise(() =>
+											stripe.customers.update(customer.id, {
+												invoice_settings: {
+													default_payment_method: paymentMethod.id
+												}
+											})
+										)
+										yield* Effect.tryPromise(() =>
+											stripe.subscriptions.create({
+												customer: customer.id,
+												items: [{ price: price.id }],
+												payment_behavior: 'error_if_incomplete', // Forces immediate payment
+												expand: ['latest_invoice.payment_intent'] // Optional: helps verify payment status
+											})
+										)
+										return customer
+									})
+								),
+								Effect.tap((customer) => Effect.log({ email, customerId: customer.id, priceId: price.id })),
+								Effect.flatMap((customer) => syncStripeData(customer.id))
+							)
+						})
+					)
+					yield* Effect.all(iterable)
+				})
 
 			// reconcile: () =>
 			// 	Effect.gen(function* () {
