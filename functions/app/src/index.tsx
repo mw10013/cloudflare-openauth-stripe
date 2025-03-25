@@ -639,8 +639,8 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 					</button>
 				</form>
 				<form action="/admin" method="post">
-					<button name="intent" value="reconcile_stripe" className="btn btn-outline">
-						Reconcile Stripe
+					<button name="intent" value="seed" className="btn btn-outline">
+						Seed
 					</button>
 				</form>
 				<div className="card bg-base-100 w-96 shadow-sm">
@@ -702,7 +702,7 @@ const adminPost = handler((c) =>
 		const AdminFormDataSchema = FormDataSchema(
 			Schema.Union(
 				Schema.Struct({
-					intent: Schema.Literal('effect', 'effect_1', 'effect_2', 'accounts', 'reconcile_stripe')
+					intent: Schema.Literal('effect', 'effect_1', 'effect_2', 'accounts', 'seed')
 				}),
 				Schema.Struct({
 					intent: Schema.Literal('sync_stripe_data', 'customer_subscription'),
@@ -739,8 +739,9 @@ const adminPost = handler((c) =>
 			case 'accounts':
 				actionData = { accounts: yield* Repository.getAccounts() }
 				break
-			case 'reconcile_stripe':
-				actionData = { message: 'Stripe reconciled.' }
+			case 'seed':
+				yield* Stripe.seed()
+				actionData = { message: 'Seeded' }
 				break
 			case 'sync_stripe_data':
 				{

@@ -33,7 +33,10 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 					Effect.flatMap(Schema.decodeUnknown(Account))
 				),
 
-			updateStripeCustomerId: ({ accountId, stripeCustomerId }: Pick<Account, 'accountId' | 'stripeCustomerId'>) =>
+			updateStripeCustomerId: ({ userId, stripeCustomerId }: Pick<Account, 'userId' | 'stripeCustomerId'>) =>
+				pipe(d1.prepare('update accounts set stripeCustomerId = ? where userId = ?').bind(stripeCustomerId, userId), d1.run),
+
+			updateStripeCustomerId1: ({ accountId, stripeCustomerId }: Pick<Account, 'accountId' | 'stripeCustomerId'>) =>
 				pipe(d1.prepare('update accounts set stripeCustomerId = ? where accountId = ?').bind(stripeCustomerId, accountId), d1.run),
 
 			updateStripeSubscription: ({

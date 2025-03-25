@@ -139,7 +139,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 									// metadata: { userId: userId.toString() } // DO NOT FORGET THIS
 								})
 							)
-					yield* repository.updateStripeCustomerId({ accountId: account.accountId, stripeCustomerId: customer.id })
+					yield* repository.updateStripeCustomerId({ userId, stripeCustomerId: customer.id })
 					return {
 						stripeCustomerId: customer.id,
 						stripeSubscriptionId: null
@@ -241,12 +241,11 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 						Effect.flatMap((list) => Option.fromNullable(list.data[0])),
 						Effect.mapError(() => new Error('Price not found'))
 					)
-					yield* Effect.log({ priceId: price.id })
 					// const iterable = ['motio1@mail.com', 'motio2@mail.com', 'u@u.com', 'u1@u.com'].map((email) =>
 					const iterable = ['motio1@mail.com'].map((email) =>
 						Effect.gen(function* () {
-							yield* Repository.upsertUser({ email })
-							yield* Effect.tryPromise(() =>
+							const user = yield* Repository.upsertUser({ email })
+							const customer = yield* Effect.tryPromise(() =>
 								stripe.customers.list({
 									email,
 									limit: 1
@@ -283,10 +282,11 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 										)
 										return customer
 									})
-								),
-								Effect.tap((customer) => Effect.log({ email, customerId: customer.id, priceId: price.id })),
-								Effect.flatMap((customer) => syncStripeData(customer.id))
+								)
 							)
+							yield* Effect.log({ email, customerId: customer.id, priceId: price.id })
+							yield* Repository.updateStripeCustomerId({ userId: user.userId, stripeCustomerId: customer.id })
+							yield* syncStripeData(customer.id)
 						})
 					)
 					yield* Effect.all(iterable)
