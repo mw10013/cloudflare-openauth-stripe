@@ -15,7 +15,7 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 		'accountId', accountId, 'userId', userId, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
 		'accountMembers',
 		(select json_group_array(json_object(
-			'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'accountMemberRole', am.accountMemberRole,
+			'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId,
 			'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType) from users u where u.userId = am.userId)
 			)) from accountMembers am where am.accountId = a.accountId)
 		)) as data from accounts a`
@@ -35,9 +35,6 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 
 			updateStripeCustomerId: ({ userId, stripeCustomerId }: Pick<Account, 'userId' | 'stripeCustomerId'>) =>
 				pipe(d1.prepare('update accounts set stripeCustomerId = ? where userId = ?').bind(stripeCustomerId, userId), d1.run),
-
-			updateStripeCustomerId1: ({ accountId, stripeCustomerId }: Pick<Account, 'accountId' | 'stripeCustomerId'>) =>
-				pipe(d1.prepare('update accounts set stripeCustomerId = ? where accountId = ?').bind(stripeCustomerId, accountId), d1.run),
 
 			updateStripeSubscription: ({
 				stripeCustomerId,
@@ -65,18 +62,15 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 							.prepare(
 								`
 	insert into accounts (userId) 
-	select (select userId from users where email = ?1)
-	where exists (select 1 from users u where u.email = ?1 and userType = "customer") and
-	not exists (select 1 from accountMembers am where am.userId = (select u.userId from users u where u.email = ?1 and userType = "customer")
-	)
-	`
+	select userId from users where email = ?1 and userType = 'customer'
+	on conflict (userId) do nothing`
 							)
 							.bind(email),
 						d1
 							.prepare(
 								`
-	insert into accountMembers (userId, accountId, accountMemberRole)
-	select (select userId from users where email = ?1), last_insert_rowid(), 'owner'
+	insert into accountMembers (userId, accountId)
+	select (select userId from users where email = ?1), last_insert_rowid()
 	where exists (select 1 from users u where u.email = ?1 and userType = "customer") and
 	not exists (select 1 from accountMembers am where am.userId = (select u.userId from users u where u.email = ?1)
 	)

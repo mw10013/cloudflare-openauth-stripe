@@ -11,9 +11,6 @@ export const User = Schema.Struct({
 })
 export type User = Schema.Schema.Type<typeof User>
 
-export const AccountMemberRole = Schema.Literal('owner', 'member') // Must align with OrganizationMemberRoles table
-export type AccountMemberRole = Schema.Schema.Type<typeof AccountMemberRole>
-
 export const UserSubject = User.pick('userId', 'email', 'userType')
 
 export const SessionUser = User.pick('userId', 'email', 'userType')
@@ -38,8 +35,7 @@ export type Account = Schema.Schema.Type<typeof Account>
 export const AccountMember = Schema.Struct({
 	accountMemberId: Schema.Number,
 	accountId: Schema.Number,
-	userId: Schema.Number,
-	accountMemberRole: AccountMemberRole
+	userId: Schema.Number
 })
 export type AccountMember = Schema.Schema.Type<typeof AccountMember>
 

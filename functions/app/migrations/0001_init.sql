@@ -9,34 +9,24 @@ values
 	('staffer');
 
 --> statement-breakpoint
-create table accountMemberRoles (accountMemberRoleId text primary key);
-
---> statement-breakpoint
-insert into
-	accountMemberRoles (accountMemberRoleId)
-values
-	('owner'),
-	('member');
-
---> statement-breakpoint
 create table accountMembers (
 	accountMemberId integer primary key,
 	userId integer not null references users (userId),
 	accountId integer not null references accounts (accountId),
-	accountMemberRole text not null default ('member') references accountMemberRoles (accountMemberRoleId)
+	unique (userId, accountId)
 );
 
 --> statement-breakpoint
 create table accounts (
 	accountId integer primary key,
 	userId integer unique not null references users (userId),
-	createdAt text not null default (datetime('now')),
-	updatedAt text not null default (datetime('now')),
 	stripeCustomerId text unique,
 	stripeSubscriptionId text unique,
 	stripeProductId text,
 	planName text,
-	subscriptionStatus text
+	subscriptionStatus text,
+	createdAt text not null default (datetime('now')),
+	updatedAt text not null default (datetime('now'))
 );
 
 --> statement-breakpoint
@@ -46,8 +36,7 @@ create table users (
 	email text not null unique,
 	userType text not null default 'customer' references userTypes (userTypeId),
 	createdAt text not null default (datetime('now')),
-	updatedAt text not null default (datetime('now')),
-	deletedAt text
+	updatedAt text not null default (datetime('now'))
 );
 
 --> statement-breakpoint
@@ -55,7 +44,6 @@ create table invitations (
 	invitationId integer primary key,
 	accountId integer not null references accounts (accountId),
 	email text not null,
-	role text not null,
 	invitedBy integer not null references users (userId),
 	invitedAt text not null default (datetime('now')),
 	status text not null default 'pending'
