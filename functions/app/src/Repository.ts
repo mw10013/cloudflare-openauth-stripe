@@ -71,9 +71,8 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 								`
 	insert into accountMembers (userId, accountId)
 	select (select userId from users where email = ?1), last_insert_rowid()
-	where exists (select 1 from users u where u.email = ?1 and userType = "customer") and
-	not exists (select 1 from accountMembers am where am.userId = (select u.userId from users u where u.email = ?1)
-	)
+	where exists (select 1 from users u where u.email = ?1 and userType = "customer")
+	on conflict (userId, accountId) do nothing
 	`
 							)
 							.bind(email)
