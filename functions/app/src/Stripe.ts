@@ -232,17 +232,90 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 
 			seed: () =>
 				Effect.gen(function* () {
-					const price = yield* Effect.tryPromise(() =>
-						stripe.prices.list({
-							lookup_keys: ['base'],
-							limit: 1
-						})
-					).pipe(
-						Effect.flatMap((list) => Option.fromNullable(list.data[0])),
-						Effect.mapError(() => new Error('Price not found'))
+					// Ensure prices
+					const ensurePrice = (lookup_key: string, unit_amount: number) =>
+						Effect.tryPromise(() =>
+							stripe.prices.list({
+								lookup_keys: [lookup_key],
+								limit: 1
+							})
+						).pipe(
+							Effect.flatMap((list) => Option.fromNullable(list.data[0])),
+							Effect.catchTag('NoSuchElementException', () =>
+								Effect.gen(function* () {
+									const name = lookup_key.charAt(0).toUpperCase() + lookup_key.slice(1)
+									const product = yield* Effect.tryPromise(() =>
+										stripe.products.create({
+											name,
+											description: `${name} subscription plan`
+										})
+									)
+									return yield* Effect.tryPromise(() =>
+										stripe.prices.create({
+											product: product.id,
+											unit_amount,
+											currency: 'usd',
+											recurring: {
+												interval: 'month',
+												trial_period_days: 7
+											},
+											lookup_key
+										})
+									)
+								})
+							)
+						)
+					const [basePrice, plusPrice] = yield* Effect.zip(
+						ensurePrice('base', 800), // $8 in cents
+						ensurePrice('plus', 1200)
 					)
-					// const iterable = ['motio1@mail.com', 'motio2@mail.com', 'u@u.com', 'u1@u.com'].map((email) =>
-					const iterable = ['motio1@mail.com', 'motio2@mail.com'].map((email) =>
+					yield* Effect.log({ basePrice, plusPrice })
+
+					// Ensure billing portal configuration
+					yield* Effect.tryPromise(() => stripe.billingPortal.configurations.list()).pipe(
+						Effect.flatMap((list) => Option.fromNullable(list.data[0])),
+						Effect.catchTag('NoSuchElementException', () =>
+							Effect.tryPromise(() =>
+								stripe.billingPortal.configurations.create({
+									business_profile: {
+										headline: 'Manage your subscription'
+									},
+									features: {
+										payment_method_update: {
+											enabled: true
+										},
+										subscription_update: {
+											enabled: true,
+											default_allowed_updates: ['price', 'promotion_code'],
+											proration_behavior: 'create_prorations',
+											products: [
+												{
+													product: typeof basePrice.product === 'string' ? basePrice.product : basePrice.product.id,
+													prices: [basePrice.id]
+												},
+												{
+													product: typeof plusPrice.product === 'string' ? plusPrice.product : plusPrice.product.id,
+													prices: [plusPrice.id]
+												}
+											]
+										},
+										subscription_cancel: {
+											enabled: true,
+											mode: 'at_period_end',
+											cancellation_reason: {
+												enabled: true,
+												options: ['too_expensive', 'missing_features', 'switched_service', 'unused', 'other']
+											}
+										}
+									}
+								})
+							)
+						),
+						Effect.tap((configuration) => Effect.log({ billingPortalConfiguration: configuration }))
+					)
+
+					// Ensure customers
+					const iterable = ['motio1@mail.com', 'motio2@mail.com', 'u@u.com', 'u1@u.com'].map((email) =>
 						Effect.gen(function* () {
 							const user = yield* Repository.upsertUser({ email })
 							const customer = yield* Effect.tryPromise(() =>
@@ -252,44 +325,47 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 								})
 							).pipe(
 								Effect.flatMap((list) => Option.fromNullable(list.data[0])),
-								// Effect.catchTag("NoSuchElementException"),
-								Effect.orElse(() =>
+								Effect.catchTag('NoSuchElementException', () =>
 									Effect.gen(function* () {
 										const customer = yield* Effect.tryPromise(() =>
 											stripe.customers.create({
 												email
 											})
 										)
-										const paymentMethod = yield* Effect.tryPromise(() =>
+										yield* Effect.tryPromise(() =>
 											stripe.paymentMethods.attach('pm_card_visa', {
 												customer: customer.id
 											})
-										)
-										yield* Effect.tryPromise(() =>
-											stripe.customers.update(customer.id, {
-												invoice_settings: {
-													default_payment_method: paymentMethod.id
-												}
-											})
-										)
-										yield* Effect.tryPromise(() =>
-											stripe.subscriptions.create({
-												customer: customer.id,
-												items: [{ price: price.id }],
-												payment_behavior: 'error_if_incomplete', // Forces immediate payment
-												expand: ['latest_invoice.payment_intent'] // Optional: helps verify payment status
-											})
+										).pipe(
+											Effect.flatMap((paymentMethod) =>
+												Effect.tryPromise(() =>
+													stripe.customers.update(customer.id, {
+														invoice_settings: {
+															default_payment_method: paymentMethod.id
+														}
+													})
+												)
+											),
+											Effect.flatMap((customer) =>
+												Effect.tryPromise(() =>
+													stripe.subscriptions.create({
+														customer: customer.id,
+														items: [{ price: basePrice.id }],
+														payment_behavior: 'error_if_incomplete' // Forces immediate payment
+													})
+												)
+											)
 										)
 										return customer
 									})
 								)
 							)
-							yield* Effect.log({ email, customerId: customer.id, priceId: price.id })
+							yield* Effect.log({ email, customerId: customer.id, priceId: basePrice.id })
 							yield* Repository.updateStripeCustomerId({ userId: user.userId, stripeCustomerId: customer.id })
 							yield* syncStripeData(customer.id)
 						})
 					)
-					yield* Effect.all(iterable)
+					yield* Effect.all(iterable, { concurrency: 2 })
 				})
 		}
 	})

@@ -62,9 +62,9 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 						d1
 							.prepare(
 								`
-	insert into accounts (userId) 
-	select userId from users where email = ?1 and userType = 'customer'
-	on conflict (userId) do nothing`
+insert into accounts (userId) 
+select userId from users where email = ?1 and userType = 'customer'
+on conflict (userId) do nothing`
 							)
 							.bind(email),
 					  // https://www.sqlite.org/lang_insert.html
@@ -72,12 +72,12 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 						d1
 							.prepare(
 								`
-							with c as (select u.userId, a.accountId
-							  from users u inner join accounts a on a.userId = u.userId
-							  where u.email = ?1 and u.userType = 'customer')
-							insert into accountMembers (userId, accountId)
-							select userId, accountId from c where true
-							on conflict (userId, accountId) do nothing`
+with c as (select u.userId, a.accountId
+	from users u inner join accounts a on a.userId = u.userId
+	where u.email = ?1 and u.userType = 'customer')
+insert into accountMembers (userId, accountId)
+select userId, accountId from c where true
+on conflict (userId, accountId) do nothing`
 							)
 							.bind(email)
 					])
