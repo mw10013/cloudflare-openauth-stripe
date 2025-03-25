@@ -1,4 +1,4 @@
-import { Effect, Option, pipe, Schema } from 'effect'
+import { Effect, pipe, Schema } from 'effect'
 import { D1 } from './D1'
 import { Account, AccountsResult, User } from './schemas'
 
@@ -29,7 +29,7 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 				pipe(
 					d1.prepare(`select * from accounts where userId = ?`).bind(userId),
 					d1.first,
-					Effect.flatMap(Option.fromNullable),
+					Effect.flatMap(Effect.fromNullable),
 					Effect.flatMap(Schema.decodeUnknown(Account))
 				),
 
@@ -67,8 +67,8 @@ select userId from users where email = ?1 and userType = 'customer'
 on conflict (userId) do nothing`
 							)
 							.bind(email),
-					  // https://www.sqlite.org/lang_insert.html
-						// To avoid a parsing ambiguity, the SELECT statement should always contain a WHERE clause, even if that clause is simply "WHERE true", if the upsert-clause is present. 
+						// https://www.sqlite.org/lang_insert.html
+						// To avoid a parsing ambiguity, the SELECT statement should always contain a WHERE clause, even if that clause is simply "WHERE true", if the upsert-clause is present.
 						d1
 							.prepare(
 								`
@@ -82,7 +82,7 @@ on conflict (userId, accountId) do nothing`
 							.bind(email)
 					])
 					.pipe(
-						Effect.map((results) => results[0].results[0]),
+						Effect.flatMap((results) => Effect.fromNullable(results[0].results[0])),
 						Effect.flatMap(Schema.decodeUnknown(User))
 					)
 		}

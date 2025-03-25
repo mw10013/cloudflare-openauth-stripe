@@ -240,7 +240,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 								limit: 1
 							})
 						).pipe(
-							Effect.flatMap((list) => Option.fromNullable(list.data[0])),
+							Effect.flatMap((list) => Effect.fromNullable(list.data[0])),
 							Effect.catchTag('NoSuchElementException', () =>
 								Effect.gen(function* () {
 									const name = lookup_key.charAt(0).toUpperCase() + lookup_key.slice(1)
@@ -273,7 +273,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 
 					// Ensure billing portal configuration
 					yield* Effect.tryPromise(() => stripe.billingPortal.configurations.list()).pipe(
-						Effect.flatMap((list) => Option.fromNullable(list.data[0])),
+						Effect.flatMap((list) => Effect.fromNullable(list.data[0])),
 						Effect.catchTag('NoSuchElementException', () =>
 							Effect.tryPromise(() =>
 								stripe.billingPortal.configurations.create({
@@ -324,7 +324,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 									limit: 1
 								})
 							).pipe(
-								Effect.flatMap((list) => Option.fromNullable(list.data[0])),
+								Effect.flatMap((list) => Effect.fromNullable(list.data[0])),
 								Effect.catchTag('NoSuchElementException', () =>
 									Effect.gen(function* () {
 										const customer = yield* Effect.tryPromise(() =>
