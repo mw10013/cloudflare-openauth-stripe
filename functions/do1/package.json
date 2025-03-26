@@ -1,0 +1,36 @@
+{
+	"name": "do1",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "vite",
+		"build": "pnpm build:tailwind && vite build",
+		"build:tailwind": "tailwindcss -i src/tailwind.css -o dist/client/tailwind.css",
+		"build:PRODUCTION": "CLOUDFLARE_ENV=production pnpm build",
+		"deploy:PRODUCTION": "pnpm build:PRODUCTION && wrangler deploy",
+		"preview": "vite preview",
+		"clean": "pnpm clean:node && pnpm clean:wrangler && pnpm clean:dist",
+		"clean:node": "rm -rf node_modules",
+		"clean:wrangler": "rm -rf .wrangler",
+		"clean:dist": "rm -rf dist",
+		"typecheck": "tsc --noEmit",
+		"typegen": "wrangler types",
+		"tail:PRODUCTION": "wrangler tail do1-production"
+	},
+	"devDependencies": {
+		"@cloudflare/vite-plugin": "catalog:",
+		"@tailwindcss/cli": "catalog:",
+		"@tailwindcss/typography": "catalog:",
+		"@tailwindcss/vite": "catalog:",
+		"@types/node": "^22.13.10",
+		"daisyui": "catalog:",
+		"tailwindcss": "catalog:",
+		"typescript": "catalog:",
+		"vite": "catalog:",
+		"wrangler": "catalog:"
+	},
+	"dependencies": {
+		"effect": "catalog:",
+		"hono": "catalog:"
+	}
+}
