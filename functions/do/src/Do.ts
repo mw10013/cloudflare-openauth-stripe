@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers'
-import { Config, ConfigError, Effect, Either, Predicate, Schema } from 'effect'
+import { Config, ConfigError, Effect, Either, Predicate } from 'effect'
 import * as ConfigEx from './ConfigEx'
 
 export class Do extends Effect.Service<Do>()('Do', {
@@ -36,6 +36,7 @@ export class DoDurableObject extends DurableObject<Env> {
 		})
 		console.log(`DoDurableObject[${new Date().toISOString()}]: constructor: ${this.initialized}: end`)
 	}
+
 	async ping() {
 		console.log(`DoDurableObject[${new Date().toISOString()}]: ping: initialized: ${this.initialized}`)
 		return { ping: 'pong', initialized: this.initialized }
