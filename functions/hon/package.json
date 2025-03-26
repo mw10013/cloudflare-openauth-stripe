@@ -4,8 +4,7 @@
 	"private": true,
 	"scripts": {
 		"dev": "vite",
-		"build": "pnpm build:tailwind && vite build",
-		"build:tailwind": "tailwindcss -i src/tailwind.css -o dist/client/tailwind.css",
+		"build": "vite build",
 		"build:PRODUCTION": "CLOUDFLARE_ENV=production pnpm build",
 		"deploy:PRODUCTION": "pnpm build:PRODUCTION && wrangler deploy",
 		"preview": "vite preview",
