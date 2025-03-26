@@ -219,7 +219,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
 						yield* Effect.logError(`Stripe webhook: customerId is not string for event type: ${event.type}`)
 						return new Response() // Return 200 to avoid retries
 					}
-					yield* Effect.tryPromise(() => stub.queueEvent(customerId))
+					yield* Effect.tryPromise(() => stub.handleEvent(customerId))
 					yield* syncStripeData(customerId)
 					return new Response()
 				}).pipe(
@@ -404,19 +404,20 @@ export class StripeDurableObject extends DurableObject<Env> {
 			createdAt integer default (unixepoch()))`)
 	}
 
-	async queueEvent(customerId: string) {
+	async handleEvent(customerId: string) {
 		const alarm = await this.storage.getAlarm()
 		if (alarm === null) {
 			this.storage.setAlarm(Date.now() + 1000 * STRIPE_DO_DELAY_SEC)
 		}
 		this.sql.exec(`insert into events (customerId) values (?) on conflict (customerId) do nothing`, customerId)
+		console.log({ message: 'handleEvent', customerId })
 	}
 
 	async alarm() {
 		const events = this.sql
 			.exec<{ customerId: string }>(`select customerId, createdAt from events order by createdAt asc limit ?`, STRIPE_DO_LIMIT + 1)
 			.toArray()
-		console.log({ message: 'alarm', eventCount: events.length, events })
+		console.log({ message: 'alarm', eventCount: events.length, STRIPE_DO_LIMIT, events })
 		if (events.length > STRIPE_DO_LIMIT) {
 			this.storage.setAlarm(Date.now() + 1000 * STRIPE_DO_DELAY_SEC)
 		}
