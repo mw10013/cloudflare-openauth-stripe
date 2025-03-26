@@ -1,12 +1,13 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
-import { DurableObject } from 'cloudflare:workers'
 import { Cause, Chunk, Data, Effect, Layer, ManagedRuntime, Predicate, Schema } from 'effect'
 import { dual } from 'effect/Function'
 import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import * as ConfigEx from './ConfigEx'
-import { Poll } from './Poll'
-import { FormDataSchema, Tally } from './SchemaEx'
+import { Do } from './Do'
+import { FormDataSchema } from './SchemaEx'
+
+export { DoDurableObject } from './Do'
 
 type AppEnv = {
 	Bindings: Env
@@ -17,7 +18,7 @@ type AppEnv = {
 
 export const makeRuntime = (env: Env) => {
 	const ConfigLive = ConfigEx.fromObject(env)
-	return Layer.mergeAll(Poll.Default).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
+	return Layer.mergeAll(Do.Default).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
 }
 
 // https://github.com/epicweb-dev/invariant/blob/main/README.md
@@ -131,12 +132,14 @@ export default {
 			'/*',
 			jsxRenderer(({ children }) => <Layout>{children}</Layout>)
 		)
-		app.get(
-			'/',
-			handler((c) => homeLoaderData().pipe(Effect.map((loaderData) => c.render(<Home loaderData={loaderData} />))))
-		)
-		app.get('/vote', (c) => c.render(<Vote />))
-		app.post('/vote', votePost)
+		app.get('/', (c) => c.render(<Home />))
+		// app.get(
+		// 	'/',
+		// 	handler((c) => homeLoaderData().pipe(Effect.map((loaderData) => c.render(<Home loaderData={loaderData} />))))
+		// )
+		app.post('/', homePost)
+		// app.get('/vote', (c) => c.render(<Vote />))
+		// app.post('/vote', votePost)
 		const response = await app.fetch(request, env, ctx)
 		ctx.waitUntil(runtime.dispose())
 		return response
@@ -149,9 +152,6 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 		<>
 			<li>
 				<a href="/">Home</a>
-			</li>
-			<li>
-				<a href="/vote">Vote</a>
 			</li>
 		</>
 	)
@@ -193,55 +193,19 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 	)
 }
 
-const Home: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof homeLoaderData>> }> = ({ loaderData }) => (
+const Home: FC<{ actionData?: any }> = ({ actionData }) => (
 	<div className="mt-2 flex flex-col items-center gap-2">
 		<div className="card bg-base-100 w-96 shadow-sm">
-			<div className="card-body">
-				<h2 className="card-title">DO</h2>
-				{/* <div className="stats shadow">
-					<div className="stat place-items-center">
-						<div className="stat-title">Tradition</div>
-						<div className="stat-value">{loaderData.traditionCount}</div>
-						<div className="stat-desc">String-based Config.</div>
-					</div>
-				</div>
-				<div className="stats shadow">
-					<div className="stat place-items-center">
-						<div className="stat-title">Modern</div>
-						<div className="stat-value">{loaderData.modernCount}</div>
-						<div className="stat-desc">Allow objects in Config.</div>
-					</div>
-				</div>
-				<div className="card-actions justify-end">
-					<a href="/vote" className="btn btn-primary">
-						Vote
-					</a>
-				</div> */}
-			</div>
-		</div>
-	</div>
-)
-
-const homeLoaderData = () => Poll.getTally()
-
-const Vote: FC<{ actionData?: { voterId: string; vote: string } }> = ({ actionData }) => (
-	<div className="mt-2 flex flex-col items-center gap-2">
-		<div className="card bg-base-100 w-96 shadow-sm">
-			<form action="/vote" method="post">
+			<form action="/" method="post">
 				<div className="card-body">
-					<h2 className="card-title text-center">Vote</h2>
-					{actionData && (
-						<div className="flex flex-col">
-							<p className="text-sm font-light">VoterId: {actionData.voterId}</p>
-							<p className="text-sm font-light">Vote: {actionData.vote}</p>
-						</div>
-					)}
+					<h2 className="card-title text-center">Durable Object</h2>
+					{actionData && <pre>{JSON.stringify(actionData, null, 2)}</pre>}
 					<div className="card-actions justify-between">
-						<button name="intent" value="vote_tradition" className="btn btn-outline">
-							Tradition
+						<button name="intent" value="ping" className="btn btn-outline">
+							Ping
 						</button>
-						<button name="intent" value="vote_modern" className="btn btn-outline">
-							Modern
+						<button name="intent" value="ping_ping" className="btn btn-outline">
+							Ping Ping
 						</button>
 					</div>
 				</div>
@@ -250,62 +214,27 @@ const Vote: FC<{ actionData?: { voterId: string; vote: string } }> = ({ actionDa
 	</div>
 )
 
-const votePost = handler((c) =>
+const homeLoaderData = () => Effect.succeed({})
+
+const homePost = handler((c) =>
 	Effect.gen(function* () {
-		const VoteFormDataSchema = FormDataSchema(
+		const HomeFormDataSchema = FormDataSchema(
 			Schema.Struct({
-				intent: Schema.Literal('vote_tradition', 'vote_modern')
+				intent: Schema.Literal('ping', 'ping_ping')
 			})
 		)
-		const formData = yield* Effect.tryPromise(() => c.req.formData()).pipe(Effect.flatMap(Schema.decode(VoteFormDataSchema)))
-		// const voterId = `${c.req.header('cf-connecting-ip') || '127.0.0.1'} - ${c.req.header('user-agent') || 'user-agent'}`
-		const voterId = `${c.req.header('cf-connecting-ip') || '127.0.0.1'}`
-		let vote: 'tradition' | 'modern'
+		const formData = yield* Effect.tryPromise(() => c.req.formData()).pipe(Effect.flatMap(Schema.decode(HomeFormDataSchema)))
+		let actionData
 		switch (formData.intent) {
-			case 'vote_tradition':
-				vote = 'tradition'
-				yield* Poll.vote(voterId, vote)
+			case 'ping':
+				actionData = yield* Do.ping()
 				break
-			case 'vote_modern':
-				vote = 'modern'
-				yield* Poll.vote(voterId, vote)
+			case 'ping_ping':
+				actionData = { ping: yield* Do.ping(), ping1: yield* Do.ping() }
 				break
 			default:
 				return yield* Effect.fail(new Error('Invalid intent'))
 		}
-		return c.render(<Vote actionData={{ voterId, vote }} />)
+		return c.render(<Home actionData={actionData} />)
 	})
 )
-
-export class DoDurableObject extends DurableObject<Env> {
-	sql: SqlStorage
-
-	constructor(ctx: DurableObjectState, env: Env) {
-		super(ctx, env)
-		this.sql = ctx.storage.sql
-		this.sql.exec(`create table if not exists votes(
-			voterId text primary key,
-			vote text)`)
-	}
-	async getTally() {
-		const tallyUnknown = this.sql
-			.exec(
-				`
-select 
-	count(case when vote = 'tradition' then 1 end) as traditionCount,
-	count(case when vote = 'modern' then 1 end) as modernCount			
-from votes`
-			)
-			.one()
-		return Schema.decodeUnknownSync(Tally)(tallyUnknown)
-	}
-	async vote(voterId: string, vote: 'tradition' | 'modern') {
-		// 'UNIQUE constraint failed: votes.voterId: SQLITE_CONSTRAINT'
-		this.sql.exec(
-			`insert into votes (voterId, vote) values (?, ?)
-			on conflict (voterId) do update set vote = excluded.vote`,
-			voterId,
-			vote
-		)
-	}
-}

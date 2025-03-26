@@ -1,11 +1,5 @@
 import { Schema } from 'effect'
 
-export const Tally = Schema.Struct({
-	traditionCount: Schema.Number,
-	modernCount: Schema.Number
-})
-export const TallyFromString = Schema.parseJson(Tally)
-
 export const FormDataFromSelf = Schema.instanceOf(FormData).annotations({ identifier: 'FormDataFromSelf' })
 export const RecordFromFormData = Schema.transform(FormDataFromSelf, Schema.Record({ key: Schema.String, value: Schema.String }), {
 	strict: false,
