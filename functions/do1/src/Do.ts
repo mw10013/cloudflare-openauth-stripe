@@ -34,17 +34,21 @@ export class DoDurableObject extends DurableObject<Env> {
 			this.initialized = true
 			console.log(`DoDurableObject[${new Date().toISOString()}]: constructor: blockConcurrencyWhile: initialized: ${this.initialized}: end`)
 		})
-		this.ctx.storage.setAlarm(Date.now())
 		console.log(`DoDurableObject[${new Date().toISOString()}]: constructor: ${this.initialized}: end`)
 	}
 
 	async ping() {
 		console.log(`DoDurableObject[${new Date().toISOString()}]: ping: initialized: ${this.initialized}`)
+		await this.ctx.storage.setAlarm(Date.now())
 		return { ping: 'pong', initialized: this.initialized }
 	}
 
 	async alarm(alarmInfo?: AlarmInvocationInfo) {
-		console.log(`DoDurableObject[${new Date().toISOString()}]: alarm: initialized: ${this.initialized}`, alarmInfo)
-		throw new Error(`alarm error`)
+		console.log(
+			`DoDurableObject[${new Date().toISOString()}]: alarm: initialized: ${this.initialized} isRetry: ${alarmInfo?.isRetry} retryCount: ${alarmInfo?.retryCount}`
+		)
+		throw new Error(
+			`DoDurableObject[${new Date().toISOString()}]: alarm error: initialized: ${this.initialized} isRetry: ${alarmInfo?.isRetry} retryCount: ${alarmInfo?.retryCount}`
+		)
 	}
 }

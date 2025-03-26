@@ -1,6 +1,6 @@
-# do
+# do1
 
-- https://do-production.devxo.workers.dev/
+- https://do1-production.devxo.workers.dev/
 
 ## Local Dev
 
@@ -9,15 +9,15 @@
 
 ## Deploy
 
-- CLOUDFLARE_ENV=production pnpm -F do build
-- pnpm -F do exec wrangler deploy
-- Workers & Pages Settings: do-production
+- CLOUDFLARE_ENV=production pnpm -F do1 build
+- pnpm -F do1 exec wrangler deploy
+- Workers & Pages Settings: do1-production
   - Git repository: connect to git repo
   - Build configuration
-    - Build command: CLOUDFLARE_ENV=production pnpm -F do build
-    - Deploy command: pnpm -F do exec wrangler deploy
+    - Build command: CLOUDFLARE_ENV=production pnpm -F do1 build
+    - Deploy command: pnpm -F do1 exec wrangler deploy
   - Build watch paths
-    - Include paths: functions/do/\*
+    - Include paths: functions/do1/\*
 
 ## Local Dev Log
 

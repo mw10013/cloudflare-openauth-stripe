@@ -204,9 +204,6 @@ const Home: FC<{ actionData?: any }> = ({ actionData }) => (
 						<button name="intent" value="ping" className="btn btn-outline">
 							Ping
 						</button>
-						<button name="intent" value="ping_ping" className="btn btn-outline">
-							Ping Ping
-						</button>
 					</div>
 				</div>
 			</form>
@@ -220,7 +217,7 @@ const homePost = handler((c) =>
 	Effect.gen(function* () {
 		const HomeFormDataSchema = FormDataSchema(
 			Schema.Struct({
-				intent: Schema.Literal('ping', 'ping_ping')
+				intent: Schema.Literal('ping')
 			})
 		)
 		const formData = yield* Effect.tryPromise(() => c.req.formData()).pipe(Effect.flatMap(Schema.decode(HomeFormDataSchema)))
@@ -228,9 +225,6 @@ const homePost = handler((c) =>
 		switch (formData.intent) {
 			case 'ping':
 				actionData = yield* Do.ping()
-				break
-			case 'ping_ping':
-				actionData = { ping: yield* Do.ping(), ping1: yield* Do.ping() }
 				break
 			default:
 				return yield* Effect.fail(new Error('Invalid intent'))
