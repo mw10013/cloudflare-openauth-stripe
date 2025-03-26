@@ -457,7 +457,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 							</ul>
 						</div>
 						<a href="/" className="btn btn-ghost text-xl">
-							Cloudflare-OpenAUTH-Stripe v0.4
+							Cloudflare-OpenAUTH-Stripe v0.5
 						</a>
 					</div>
 					<div className="navbar-center hidden lg:flex">
