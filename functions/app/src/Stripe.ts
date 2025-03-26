@@ -395,6 +395,7 @@ export class StripeDurableObject extends DurableObject<Env> {
 	storage: DurableObjectStorage
 	sql: SqlStorage
 	runtime: ReturnType<typeof makeRuntime>
+	initialized = false
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env)
@@ -406,6 +407,14 @@ export class StripeDurableObject extends DurableObject<Env> {
 			customerId text primary key,
 			count integer not null default 1,
 			createdAt integer default (unixepoch()))`)
+		console.log(`StriperDurableObject: constructor`)
+		ctx.blockConcurrencyWhile(async () => {
+			console.log(`StriperDurableObject: constructor: blockConcurrencyWhile: console`)
+			// await Effect.gen(this, function* () {
+			// 	yield* Effect.log(`StripeDurableObject: constructor: blockConcurrencyWhile`)
+			// }).pipe(this.runtime.runPromise)
+			this.initialized = true
+		})
 	}
 
 	async handleEvent(customerId: string) {
@@ -422,7 +431,7 @@ export class StripeDurableObject extends DurableObject<Env> {
 					customerId
 				)
 				.one()
-			yield* Effect.log(`StripeDurableObject:handleEvent: customerId: ${customerId} count: ${count}`)
+			yield* Effect.log(`StripeDurableObject: handleEvent: customerId: ${customerId} count: ${count} initialized: ${this.initialized}`)
 		}).pipe(this.runtime.runPromise)
 	}
 
@@ -431,17 +440,17 @@ export class StripeDurableObject extends DurableObject<Env> {
 			const events = this.sql
 				.exec<{ customerId: string; count: number }>(`select * from events order by createdAt asc limit ?`, STRIPE_DO_LIMIT + 1)
 				.toArray()
-			yield* Effect.log(`StripeDurableObject:alarm: eventCount: ${events.length} STRIPE_DO_LIMIT: ${STRIPE_DO_LIMIT}`, events)
+			yield* Effect.log(`StripeDurableObject: alarm: eventCount: ${events.length} STRIPE_DO_LIMIT: ${STRIPE_DO_LIMIT}`, events)
 			if (events.length > STRIPE_DO_LIMIT) {
 				this.storage.setAlarm(Date.now() + 1000 * STRIPE_DO_DELAY_SEC)
 			}
 			const effects = events.slice(0, STRIPE_DO_LIMIT).map(({ customerId, count }) =>
 				Effect.gen(this, function* () {
-					yield* Effect.log(`StripeDurableObject:alarm: syncStripeData customerId: ${customerId} count: ${count}: willSyncSripeData`)
+					yield* Effect.log(`StripeDurableObject: alarm: syncStripeData customerId: ${customerId} count: ${count}: willSyncSripeData`)
 					yield* Stripe.syncStripeData(customerId)
 					yield* Effect.sleep('4 seconds')
 					yield* Effect.try(() => this.sql.exec(`delete from events where customerId = ?1 and count = ?2`, customerId, count))
-					yield* Effect.log(`StripeDurableObject:alarm: syncStripeData customerId: ${customerId} count: ${count}: didSyncStripeData`)
+					yield* Effect.log(`StripeDurableObject: alarm: syncStripeData customerId: ${customerId} count: ${count}: didSyncStripeData`)
 				})
 			)
 			yield* Effect.all(effects, { concurrency: 5 })

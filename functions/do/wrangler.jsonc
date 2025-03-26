@@ -1,0 +1,56 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "do",
+	"main": "src/index.tsx",
+	"compatibility_date": "2025-03-20",
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		// https://github.com/cloudflare/workers-sdk/tree/main/packages/vite-plugin-cloudflare#create-your-worker-config-file-1
+		"not_found_handling": "none"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"vars": {
+		"ENVIRONMENT": "local"
+	},
+	"migrations": [
+		{
+			"new_sqlite_classes": ["DoDurableObject"],
+			"tag": "v1"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "DoDurableObject",
+				"name": "DO"
+			}
+		]
+	},
+	"env": {
+		"production": {
+			"vars": {
+				"ENVIRONMENT": "production"
+			},
+			"migrations": [
+				{
+					"new_sqlite_classes": ["DoDurableObject"],
+					"tag": "v1"
+				}
+			],
+			"durable_objects": {
+				"bindings": [
+					{
+						"class_name": "DoDurableObject",
+						"name": "DO"
+					}
+				]
+			}
+		}
+	}
+}
