@@ -171,19 +171,18 @@ function createOpenAuth({ env, runtime }: { env: Env; runtime: AppEnv['Variables
 		},
 		sendCode: (claims, code) =>
 			Effect.gen(function* () {
-				yield* Console.log(`Console: sendCode: ${claims.email} ${code}`)
 				yield* Effect.log(`sendCode: ${claims.email} ${code}`)
 				if (env.ENVIRONMENT === 'local') {
 					yield* Effect.tryPromise(() => env.KV.put(`local:code`, code, { expirationTtl: 60 }))
 				}
 				// Body MUST contain email to help identify complaints.
-				// yield* Ses.sendEmail({
-				// 	to: claims.email,
-				// 	from: yield* Config.nonEmptyString('COMPANY_EMAIL'),
-				// 	subject: 'Your Login Verification Code',
-				// 	html: `Hey ${claims.email},<br><br>Please enter the following code to complete your login: ${code}.<br><br>If the code does not work, please request a new verification code.<br><br>Thanks, Team.`,
-				// 	text: `Hey ${claims.email} - Please enter the following code to complete your login: ${code}. If the code does not work, please request a new verification code. Thanks, Team.`
-				// })
+				yield* Ses.sendEmail({
+					to: claims.email,
+					from: yield* Config.nonEmptyString('COMPANY_EMAIL'),
+					subject: 'Your Login Verification Code',
+					html: `Hey ${claims.email},<br><br>Please enter the following code to complete your login: ${code}.<br><br>If the code does not work, please request a new verification code.<br><br>Thanks, Team.`,
+					text: `Hey ${claims.email} - Please enter the following code to complete your login: ${code}. If the code does not work, please request a new verification code. Thanks, Team.`
+				})
 			}).pipe(runtime.runPromise)
 	})
 	return issuer({

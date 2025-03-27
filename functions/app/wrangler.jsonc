@@ -20,6 +20,7 @@
 	"vars": {
 		"ENVIRONMENT": "local",
 		"LOG_LEVEL": "Debug",
+		"COMPANY_EMAIL": "motio@mail.com",
 		"STRIPE_SYNC_INTERVAL_SEC": "5",
 		"STRIPE_SYNC_BATCH_SIZE": "10",
 		"AWS_REGION": "us-east-1"
@@ -56,6 +57,7 @@
 			"vars": {
 				"ENVIRONMENT": "staging",
 				"LOG_LEVEL": "Debug",
+				"COMPANY_EMAIL": "motio@mail.com",
 				"STRIPE_SYNC_INTERVAL_SEC": "5",
 				"STRIPE_SYNC_BATCH_SIZE": "10",
 				"AWS_REGION": "us-east-1"
@@ -92,6 +94,7 @@
 			"vars": {
 				"ENVIRONMENT": "production",
 				"LOG_LEVEL": "Info",
+				"COMPANY_EMAIL": "motio@mail.com",
 				"STRIPE_SYNC_INTERVAL_SEC": "5",
 				"STRIPE_SYNC_BATCH_SIZE": "10",
 				"AWS_REGION": "us-east-1"
