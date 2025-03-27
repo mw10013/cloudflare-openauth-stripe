@@ -2,16 +2,19 @@ packages:
   - 'functions/*'
 
 catalog:
-  '@aws-sdk/client-ses': 3.758.0
+  '@aws-sdk/client-ses': 3.775.0
   '@cloudflare/vite-plugin': 0.1.17
   '@openauthjs/openauth': 0.4.3
   '@paralleldrive/cuid2': 2.2.2
   '@tailwindcss/cli': 4.0.14
   '@tailwindcss/typography': 0.5.16
   '@tailwindcss/vite': 4.0.14
+  '@types/node': 22.13.14
+  aws4fetch: 1.0.20
   daisyui: 5.0.6
   effect: 3.14.1
   hono: 4.7.4
+  jsonc-parser: 3.3.1
   stripe: 17.7.0
   tailwindcss: 4.0.14
   typescript: 5.8.2

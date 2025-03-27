@@ -13,8 +13,8 @@ import { Config, Effect, Redacted } from 'effect'
 export class Ses extends Effect.Service<Ses>()('Ses', {
 	accessors: true,
 	effect: Effect.gen(function* () {
-		const AWS_ACCESS_KEY_ID = yield* Config.redacted('AWS_ACCESS_KEY_ID')
-		const AWS_SECRET_ACCESS_KEY = yield* Config.redacted('AWS_SECRET_ACCESS_KEY')
+		const AWS_ACCESS_KEY_ID = yield* Config.redacted(Config.nonEmptyString('AWS_ACCESS_KEY_ID'))
+		const AWS_SECRET_ACCESS_KEY = yield* Config.redacted(Config.nonEmptyString('AWS_SECRET_ACCESS_KEY'))
 		const AWS_REGION = yield* Config.nonEmptyString('AWS_REGION')
 		// yield* Effect.log({
 		// 	AWS_ACCESS_KEY_ID: Redacted.value(AWS_ACCESS_KEY_ID),
@@ -71,9 +71,9 @@ export class Ses extends Effect.Service<Ses>()('Ses', {
 						Source: from
 					}
 					const command = new SendEmailCommand(sendEmailCommandInput)
-					yield* Effect.log(`ses: sendEmail: command`, { command })
+					yield* Effect.log(`Ses.sendEmail: command`, { command })
 					const sendEmailCommandOutput = yield* Effect.tryPromise(() => client.send(command))
-					yield* Effect.log(`ses: sendEmail: sendEmailCommandOutput`, {
+					yield* Effect.log(`Ses.sendEmail: sendEmailCommandOutput`, {
 						sendEmailCommandOutput
 					})
 					return sendEmailCommandOutput
