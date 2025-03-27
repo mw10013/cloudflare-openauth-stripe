@@ -13,9 +13,9 @@ let resp = await aws.fetch('https://email.us-east-1.amazonaws.com/v2/email/outbo
 	},
 	body: JSON.stringify({
 		Destination: {
-			ToAddresses: ['motio@mail.com']
+			ToAddresses: ['motio1@mail.com']
 		},
-		FromEmailAddress: 'admin@carambaapp.com',
+		FromEmailAddress: 'motio@mail.com',
 		Content: {
 			Simple: {
 				Subject: {
