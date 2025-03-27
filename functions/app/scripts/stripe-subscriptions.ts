@@ -5,8 +5,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 	apiVersion: '2025-02-24.acacia'
 })
 
-// const { data: subscriptions } = await stripe.subscriptions.list({ limit: 10 })
-const { data: subscriptions } = await stripe.subscriptions.list({ limit: 1 })
+// const { data: subscriptions } = await stripe.subscriptions.list({ limit: 1 })
+const { data: subscriptions } = await stripe.subscriptions.list({ limit: 10 })
 console.log({ subscriptionCount: subscriptions.length })
 
 const effects = subscriptions.map((subscription) =>
@@ -22,5 +22,5 @@ const effects = subscriptions.map((subscription) =>
 	})
 )
 
-// await Effect.all(effects.concat(effects), { concurrency: 5 }).pipe(Effect.runPromise)
-await Effect.all(effects, { concurrency: 5 }).pipe(Effect.runPromise)
+// await Effect.all(effects, { concurrency: 5 }).pipe(Effect.runPromise)
+await Effect.all(effects.concat(effects, effects), { concurrency: 5 }).pipe(Effect.runPromise)

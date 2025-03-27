@@ -388,14 +388,10 @@ const makeRuntime = (env: Env) => {
 	).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
 }
 
-const STRIPE_DO_DELAY_SEC = 5
-const STRIPE_DO_LIMIT = 2
-
 export class StripeDurableObject extends DurableObject<Env> {
 	storage: DurableObjectStorage
 	sql: SqlStorage
 	runtime: ReturnType<typeof makeRuntime>
-	initialized = false
 
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env)
@@ -406,22 +402,16 @@ export class StripeDurableObject extends DurableObject<Env> {
 		this.sql.exec(`create table if not exists events(
 			customerId text primary key,
 			count integer not null default 1,
-			createdAt integer default (unixepoch()))`)
-		console.log(`StriperDurableObject: constructor`)
-		ctx.blockConcurrencyWhile(async () => {
-			console.log(`StriperDurableObject: constructor: blockConcurrencyWhile: console`)
-			// await Effect.gen(this, function* () {
-			// 	yield* Effect.log(`StripeDurableObject: constructor: blockConcurrencyWhile`)
-			// }).pipe(this.runtime.runPromise)
-			this.initialized = true
-		})
+			createdAt integer default (unixepoch()));
+			create index if not exists idxEventsCreatedAt on events(createdAt);`)
 	}
 
 	async handleEvent(customerId: string) {
 		await Effect.gen(this, function* () {
 			const alarm = yield* Effect.tryPromise(() => this.storage.getAlarm())
 			if (alarm === null) {
-				this.storage.setAlarm(Date.now() + 1000 * STRIPE_DO_DELAY_SEC)
+				const STRIPE_SYNC_INTERVAL_SEC = yield* Config.integer('STRIPE_SYNC_INTERVAL_SEC')
+				yield* Effect.tryPromise(() => this.storage.setAlarm(Date.now() + 1000 * STRIPE_SYNC_INTERVAL_SEC))
 			}
 			const { count } = this.sql
 				.exec<{
@@ -431,26 +421,29 @@ export class StripeDurableObject extends DurableObject<Env> {
 					customerId
 				)
 				.one()
-			yield* Effect.log(`StripeDurableObject: handleEvent: customerId: ${customerId} count: ${count} initialized: ${this.initialized}`)
+			yield* Effect.log(`StripeDurableObject: handleEvent: customerId: ${customerId} count: ${count}`)
 		}).pipe(this.runtime.runPromise)
 	}
 
 	async alarm() {
 		await Effect.gen(this, function* () {
+			const STRIPE_SYNC_BATCH_SIZE = yield* Config.integer('STRIPE_SYNC_BATCH_SIZE')
 			const events = this.sql
-				.exec<{ customerId: string; count: number }>(`select * from events order by createdAt asc limit ?`, STRIPE_DO_LIMIT + 1)
+				.exec<{ customerId: string; count: number }>(`select * from events order by createdAt asc limit ?`, STRIPE_SYNC_BATCH_SIZE + 1)
 				.toArray()
-			yield* Effect.log(`StripeDurableObject: alarm: eventCount: ${events.length} STRIPE_DO_LIMIT: ${STRIPE_DO_LIMIT}`, events)
-			if (events.length > STRIPE_DO_LIMIT) {
-				this.storage.setAlarm(Date.now() + 1000 * STRIPE_DO_DELAY_SEC)
+			yield* Effect.log(
+				`StripeDurableObject: alarm: eventCount: ${events.length} STRIPE_SYNC_BATCH_SIZE: ${STRIPE_SYNC_BATCH_SIZE}`,
+				events
+			)
+			if (events.length > STRIPE_SYNC_BATCH_SIZE) {
+				const STRIPE_SYNC_INTERVAL_SEC = yield* Config.integer('STRIPE_SYNC_INTERVAL_SEC')
+				yield* Effect.tryPromise(() => this.storage.setAlarm(Date.now() + 1000 * STRIPE_SYNC_INTERVAL_SEC))
 			}
-			const effects = events.slice(0, STRIPE_DO_LIMIT).map(({ customerId, count }) =>
+			const effects = events.slice(0, STRIPE_SYNC_BATCH_SIZE).map(({ customerId, count }) =>
 				Effect.gen(this, function* () {
-					yield* Effect.log(`StripeDurableObject: alarm: syncStripeData customerId: ${customerId} count: ${count}: willSyncSripeData`)
 					yield* Stripe.syncStripeData(customerId)
-					yield* Effect.sleep('4 seconds')
 					yield* Effect.try(() => this.sql.exec(`delete from events where customerId = ?1 and count = ?2`, customerId, count))
-					yield* Effect.log(`StripeDurableObject: alarm: syncStripeData customerId: ${customerId} count: ${count}: didSyncStripeData`)
+					yield* Effect.log(`StripeDurableObject: alarm: syncStripeData customerId: ${customerId} count: ${count}`)
 				})
 			)
 			yield* Effect.all(effects, { concurrency: 5 })
