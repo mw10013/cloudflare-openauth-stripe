@@ -176,6 +176,8 @@ function createOpenAuth({ env, runtime }: { env: Env; runtime: AppEnv['Variables
 				if (env.ENVIRONMENT === 'local') {
 					yield* Effect.tryPromise(() => env.KV.put(`local:code`, code, { expirationTtl: 60 }))
 				}
+				if (claims.email === 'a@a.com' || claims.email.startsWith('u')) return
+
 				// Body MUST contain email to help identify complaints.
 				yield* Ses.sendEmail({
 					to: claims.email,
