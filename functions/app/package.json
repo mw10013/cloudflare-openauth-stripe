@@ -45,6 +45,7 @@
 	},
 	"dependencies": {
 		"@aws-sdk/client-ses": "catalog:",
+		"@aws-sdk/client-sesv2": "catalog:",
 		"@openauthjs/openauth": "catalog:",
 		"@paralleldrive/cuid2": "catalog:",
 		"aws4fetch": "catalog:",
