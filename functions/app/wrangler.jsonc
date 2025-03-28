@@ -7,7 +7,7 @@
 	"name": "cloudflare-openauth-stripe-app",
 	"main": "src/index.tsx",
 	"compatibility_date": "2025-03-20",
-	"compatibility_flags": ["nodejs_compat"],
+	"compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
 	"assets": {
 		// https://github.com/cloudflare/workers-sdk/tree/main/packages/vite-plugin-cloudflare#create-your-worker-config-file-1
 		// https://github.com/cloudflare/workers-sdk/issues/8301
@@ -23,7 +23,8 @@
 		"COMPANY_EMAIL": "motio@mail.com",
 		"STRIPE_SYNC_INTERVAL_SEC": "5",
 		"STRIPE_SYNC_BATCH_SIZE": "10",
-		"AWS_REGION": "us-east-1"
+		"AWS_REGION": "us-east-1",
+		"AWS_ENDPOINT": "https://email.us-east-1.amazonaws.com"
 	},
 	"migrations": [
 		{
@@ -60,7 +61,8 @@
 				"COMPANY_EMAIL": "motio@mail.com",
 				"STRIPE_SYNC_INTERVAL_SEC": "5",
 				"STRIPE_SYNC_BATCH_SIZE": "10",
-				"AWS_REGION": "us-east-1"
+				"AWS_REGION": "us-east-1",
+				"AWS_ENDPOINT": "https://email.us-east-1.amazonaws.com"
 			},
 			"migrations": [
 				{
@@ -97,7 +99,8 @@
 				"COMPANY_EMAIL": "motio@mail.com",
 				"STRIPE_SYNC_INTERVAL_SEC": "5",
 				"STRIPE_SYNC_BATCH_SIZE": "10",
-				"AWS_REGION": "us-east-1"
+				"AWS_REGION": "us-east-1",
+				"AWS_ENDPOINT": "https://email.us-east-1.amazonaws.com"
 			},
 			"migrations": [
 				{

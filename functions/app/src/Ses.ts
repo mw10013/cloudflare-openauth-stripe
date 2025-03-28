@@ -9,6 +9,9 @@ export class Ses extends Effect.Service<Ses>()('Ses', {
 		const AWS_REGION = yield* Config.nonEmptyString('AWS_REGION')
 		const client = new SESClient({
 			region: AWS_REGION,
+			// https://docs.aws.amazon.com/general/latest/gr/ses.html
+			endpoint: `https://email.${AWS_REGION}.amazonaws.com`,
+			// endpoint: `https://email-fips.${AWS_REGION}.amazonaws.com`,
 			maxAttempts: 2,
 			credentials: {
 				accessKeyId: Redacted.value(AWS_ACCESS_KEY_ID),
