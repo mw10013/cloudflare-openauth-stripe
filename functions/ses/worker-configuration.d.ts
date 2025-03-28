@@ -3,7 +3,7 @@
 declare namespace Cloudflare {
 	interface Env {
 		ENVIRONMENT: "local" | "production";
-		DO: DurableObjectNamespace<import("./src/index").DoDurableObject>;
+		DO: DurableObjectNamespace<import("./src/index-").DoDurableObject>;
 	}
 }
 interface Env extends Cloudflare.Env {}
