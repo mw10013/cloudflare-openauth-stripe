@@ -25,7 +25,7 @@
 		"wrangler": "catalog:"
 	},
 	"dependencies": {
-		"@aws-sdk/client-ses": "catalog:",
+		"@aws-sdk/client-sesv2": "catalog:",
 		"unenv": "^1.10.0"
 	}
 }

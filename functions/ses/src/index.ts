@@ -1,46 +1,45 @@
-// prettier-ignore
-import { patchedFs } from './fs-monkeypatch';
-import { SendEmailCommand, SendEmailCommandInput, SESClient } from '@aws-sdk/client-ses'
+import * as Ses2 from '@aws-sdk/client-sesv2';
+
+// https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/sesv2/command/SendEmailCommand/
+// https://www.npmjs.com/package/@aws-sdk/client-sesv2
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
-		// globalThis.fs = patchedFs
-		globalThis.fs = null
-		const client = new SESClient({
-			region: env.AWS_REGION,
-			// https://docs.aws.amazon.com/general/latest/gr/ses.html
-			// endpoint: `https://email.${AWS_REGION}.amazonaws.com`,
-			// endpoint: `https://email-fips.${AWS_REGION}.amazonaws.com`,
-			maxAttempts: 2,
+		const client = new Ses2.SESv2Client({
 			credentials: {
 				accessKeyId: env.AWS_ACCESS_KEY_ID!,
 				secretAccessKey: env.AWS_SECRET_ACCESS_KEY!
-			}
+			},
+			region: env.AWS_REGION,
+			maxAttempts: 2
 		})
-		const sendEmailCommandInput: SendEmailCommandInput = {
+		const sendEmailCommandInput: Ses2.SendEmailCommandInput = {
+			FromEmailAddress: 'motio@mail.com',
 			Destination: {
 				ToAddresses: ['motio1@mail.com']
 			},
-			Message: {
-				Body: {
-					Text: {
+			Content: {
+				Simple: {
+					Subject: {
 						Charset: 'UTF-8',
-						Data: 'This is text'
+						Data: 'This is subject SESv2Client'
+					},
+					Body: {
+						// Html: {
+						//   Charset: 'UTF-8',
+						//   Data: html
+						// },
+						Text: {
+							Charset: 'UTF-8',
+							Data: 'This is email2.'
+						}
 					}
-				},
-				Subject: {
-					Charset: 'UTF-8',
-					Data: 'This is subject'
 				}
-			},
-			Source: 'motio@mail.com'
+			}
 		}
-		const command = new SendEmailCommand(sendEmailCommandInput)
+		const command = new Ses2.SendEmailCommand(sendEmailCommandInput)
 		const sendEmailCommandOutput = await client.send(command)
 		console.log('sendEmailCommandOutput', sendEmailCommandOutput)
-		// @ts-ignore
-		// readFile()
-
 		return new Response('Hello, world!')
 	}
 } satisfies ExportedHandler<Env>

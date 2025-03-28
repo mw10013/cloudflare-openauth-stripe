@@ -273,9 +273,9 @@ importers:
 
   functions/ses:
     dependencies:
-      '@aws-sdk/client-ses':
+      '@aws-sdk/client-sesv2':
         specifier: 'catalog:'
-        version: 3.775.0
+        version: 3.777.0
       unenv:
         specifier: ^1.10.0
         version: 1.10.0
