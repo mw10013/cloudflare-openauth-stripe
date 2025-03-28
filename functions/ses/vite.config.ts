@@ -1,3 +1,4 @@
+import path from 'path'
 import { cloudflare } from '@cloudflare/vite-plugin'
 import { defineConfig } from 'vite'
 
@@ -6,7 +7,8 @@ export default defineConfig({
 	// https://github.com/rollup/plugins/tree/master/packages/alias#entries
 	resolve: {
 		alias: {
-			fs: '/src/fs-polyfill'
+			// fs: '/src/fs-polyfill'
+			fs: path.resolve(__dirname, 'src/fs-polyfill.ts')
 		}
 	},
 	plugins: [cloudflare()]
