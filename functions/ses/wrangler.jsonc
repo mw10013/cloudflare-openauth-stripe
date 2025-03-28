@@ -12,15 +12,14 @@
 		"enabled": true
 	},
 	"vars": {
-		"ENVIRONMENT": "local"
-	},
-	"alias": {
-		"fs": "./src/fs-polyfill"
+		"ENVIRONMENT": "local",
+		"AWS_REGION": "us-east-1"
 	},
 	"env": {
 		"production": {
 			"vars": {
-				"ENVIRONMENT": "production"
+				"ENVIRONMENT": "production",
+				"AWS_REGION": "us-east-1"
 			}
 		}
 	}
