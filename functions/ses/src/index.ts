@@ -1,8 +1,11 @@
-import { readFile } from 'fs'
+// prettier-ignore
+import { patchedFs } from './fs-monkeypatch';
 import { SendEmailCommand, SendEmailCommandInput, SESClient } from '@aws-sdk/client-ses'
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
+		// globalThis.fs = patchedFs
+		globalThis.fs = null
 		const client = new SESClient({
 			region: env.AWS_REGION,
 			// https://docs.aws.amazon.com/general/latest/gr/ses.html

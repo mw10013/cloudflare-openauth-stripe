@@ -1,4 +1,3 @@
-import path from 'path'
 import { cloudflare } from '@cloudflare/vite-plugin'
 import { defineConfig } from 'vite'
 
@@ -8,7 +7,7 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			// fs: '/src/fs-polyfill'
-			fs: path.resolve(__dirname, 'src/fs-polyfill.ts')
+			// fs: path.resolve(__dirname, 'src/fs-polyfill.ts')
 		}
 	},
 	plugins: [cloudflare()]
