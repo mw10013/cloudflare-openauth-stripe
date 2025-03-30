@@ -426,17 +426,17 @@ function createFrontend({
 }
 
 const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
-	const ctx = useRequestContext<AppEnv>()
-	const ListItems = () => (
-		<>
-			<li>
-				<a href="/dashboard">Dashboard</a>
-			</li>
-			<li>
-				<a href="/admin">Admin</a>
-			</li>
-		</>
-	)
+	const c = useRequestContext<AppEnv>()
+	// const ListItems = () => (
+	// 	<>
+	// 		<li>
+	// 			<a href="/dashboard">Dashboard</a>
+	// 		</li>
+	// 		<li>
+	// 			<a href="/admin">Admin</a>
+	// 		</li>
+	// 	</>
+	// )
 	return (
 		<html>
 			<head>
@@ -454,24 +454,24 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h8m-8 6h16" />
 								</svg>
 							</div>
-							<ul tabIndex={0} class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
+							{/* <ul tabIndex={0} class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
 								<ListItems />
-							</ul>
+							</ul> */}
 						</div>
 						<a href="/" className="btn btn-ghost text-xl">
 							Cloudflare-OpenAUTH-Stripe v0.5
 						</a>
 					</div>
 					<div className="navbar-center hidden lg:flex">
-						<ul className="menu menu-horizontal px-1">
+						{/* <ul className="menu menu-horizontal px-1">
 							<ListItems />
-						</ul>
+						</ul> */}
 					</div>
 					<div className="navbar-end gap-2">
 						<a href="/pricing" className="btn">
 							Pricing
 						</a>
-						{ctx.var.sessionData.sessionUser ? (
+						{c.var.sessionData.sessionUser ? (
 							<form action="/signout" method="post">
 								<button type="submit" className="btn">
 									Sign Out
@@ -493,9 +493,25 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 const Home: FC = () => {
 	const c = useRequestContext<AppEnv>()
 	return (
-		<div className="flex flex-col gap-2">
-			<div>
-				<pre>{JSON.stringify({ sessionData: c.var.sessionData }, null, 2)}</pre>
+		<div className="hero bg-base-200 min-h-screen">
+			<div className="hero-content text-center">
+				<div className="max-w-md">
+					<h1 className="text-5xl font-bold">Cloudflare OpenAUTH Stripe</h1>
+					<p className="py-6"></p>
+					{!c.var.sessionData.sessionUser ? (
+						<a href="/authenticate" className="btn btn-primary">
+							Sign In / Up
+						</a>
+					) : c.var.sessionData.sessionUser.userType === 'staffer' ? (
+						<a href="/admin" className="btn btn-primary">
+							Enter
+						</a>
+					) : (
+						<a href="/dashboard" className="btn btn-primary">
+							Enter
+						</a>
+					)}
+				</div>
 			</div>
 		</div>
 	)

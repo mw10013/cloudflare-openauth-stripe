@@ -8,12 +8,12 @@ const config = {
 	semi: false,
 	singleQuote: true,
 	trailingComma: 'none', // None needed for .jsonc
-	useTabs: true,
+	// useTabs: true,
 
 	// https://github.com/IanVS/prettier-plugin-sort-imports
 	importOrder: ['<TYPES>^(node:)', '<TYPES>', '<TYPES>^[.]', '^(react/(.*)$)|^(react$)', '<THIRD_PARTY_MODULES>', '^~/(.*)$', '^[./]'],
 	importOrderParserPlugins: ['typescript', 'jsx', 'decorators-legacy'],
-	importOrderTypeScriptVersion: '5.7.3',
+	importOrderTypeScriptVersion: '5.8.2',
 
 	// https://github.com/tailwindlabs/prettier-plugin-tailwindcss?tab=readme-ov-file#specifying-your-tailwind-stylesheet-path
 	tailwindStylesheet: 'src/tailwind.css',
