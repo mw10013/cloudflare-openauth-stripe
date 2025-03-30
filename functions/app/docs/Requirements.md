@@ -51,6 +51,26 @@
   - active → left (when member leaves)
   - Any status → deleted (when owner deletes)
 
+## User Deletion Strategy
+
+- Users must be soft-deleted rather than hard-deleted due to Stripe integration requirements
+- Soft deletion is implemented using `deletedAt` timestamp in the User record
+- Email addresses must remain unique across all users (including soft-deleted users)
+- When a user attempts to register with an email that belongs to a soft-deleted user:
+  - The system will reactivate the soft-deleted user record
+  - This maintains the connection to existing Stripe customer records
+  - All existing account relationships are preserved
+- Email change process:
+  - When a user changes their email, the corresponding Stripe customer email must be updated
+  - System must ensure email synchronization between User and Stripe customer
+
+## Data Integrity Constraints
+
+- Account ownership is permanent but resources can be transferred
+- Stripe customers and subscriptions are permanently linked to accounts
+- Financial records must be preserved even when users are deleted
+- Queries for active users must include `WHERE deletedAt IS NULL` conditions
+
 ## Staffers Access
 
 - Staffers operate the administrative application

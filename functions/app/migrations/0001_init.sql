@@ -57,7 +57,8 @@ create table User (
 	email text not null unique,
 	userType text not null default 'customer' references UserType (userTypeId),
 	createdAt text not null default (datetime('now')),
-	updatedAt text not null default (datetime('now'))
+	updatedAt text not null default (datetime('now')),
+	deletedAt TEXT
 );
 
 --> statement-breakpoint
