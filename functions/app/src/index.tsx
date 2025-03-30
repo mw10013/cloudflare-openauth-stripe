@@ -512,34 +512,23 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 						<a href="/pricing" className="btn">
 							Pricing
 						</a>
-						<div className="dropdown dropdown-end">
-							<div tabIndex={0} role="button" className="btn btn-ghost btn-circle">
-								<div className="grid w-10 place-items-center rounded-full">
-									<Icon iconNode={userIconNode} />
-								</div>
-							</div>
-							<ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
-								<li>
-									<a className="justify-between">
-										Profile
-										<span className="badge">New</span>
-									</a>
-								</li>
-								<li>
-									<a>Settings</a>
-								</li>
-								<li>
-									<a>Logout</a>
-								</li>
-							</ul>
-						</div>
-
 						{c.var.sessionData.sessionUser ? (
-							<form action="/signout" method="post">
-								<button type="submit" className="btn">
-									Sign Out
-								</button>
-							</form>
+							<div className="dropdown dropdown-end">
+								<div tabIndex={0} role="button" className="btn btn-ghost btn-circle">
+									<div className="grid w-10 place-items-center rounded-full">
+										<Icon iconNode={userIconNode} />
+									</div>
+								</div>
+								<ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
+									<li>
+										<form action="/signout" method="post">
+											<button type="submit" className="">
+												Sign Out
+											</button>
+										</form>
+									</li>
+								</ul>
+							</div>
 						) : (
 							<a href="/authenticate" className="btn">
 								Sign In / Up
