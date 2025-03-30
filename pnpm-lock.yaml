@@ -45,6 +45,9 @@ catalogs:
     jsonc-parser:
       specifier: 3.3.1
       version: 3.3.1
+    lucide:
+      specifier: 0.485.0
+      version: 0.485.0
     stripe:
       specifier: 17.7.0
       version: 17.7.0
@@ -104,6 +107,9 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.7.5
+      lucide:
+        specifier: 'catalog:'
+        version: 0.485.0
       stripe:
         specifier: 'catalog:'
         version: 17.7.0
@@ -1797,6 +1803,9 @@ packages:
 
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
+
+  lucide@0.485.0:
+    resolution: {integrity: sha512-gHtED5mr/pFaw0shTgp80Cjgf6yp3Np0cVpL9aiken1XH0ZARcqU676ybDDqDJDJw4FETo0Kgs+5BMlFLu5vKw==}
 
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
@@ -3761,6 +3770,8 @@ snapshots:
   lodash.isplainobject@4.0.6: {}
 
   lodash.merge@4.6.2: {}
+
+  lucide@0.485.0: {}
 
   math-intrinsics@1.1.0: {}
 

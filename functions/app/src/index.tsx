@@ -1,4 +1,3 @@
-import { env } from 'node:process'
 import type { FC, PropsWithChildren } from 'hono/jsx'
 import { issuer } from '@openauthjs/openauth'
 import { Client, createClient } from '@openauthjs/openauth/client'
@@ -14,6 +13,7 @@ import { dual } from 'effect/Function'
 import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
+import { User as userIconNode } from 'lucide'
 import * as ConfigEx from './ConfigEx'
 import * as D1Ns from './D1'
 import { D1 } from './D1'
@@ -425,6 +425,45 @@ function createFrontend({
 	return app
 }
 
+/*
+<svg
+	data-v-14c8c335=""
+	xmlns="http://www.w3.org/2000/svg"
+	width="24"
+	height="24"
+	viewBox="0 0 24 24"
+	fill="none"
+	stroke="currentColor"
+	stroke-width="2"
+	stroke-linecap="round"
+	stroke-linejoin="round"
+	class="lucide lucide-user-icon lucide-user lucide-icon customizable"
+>
+	<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+	<circle cx="12" cy="7" r="4"></circle>
+</svg>
+*/
+
+function Icon({ icon }: { icon: typeof userIconNode }) {
+	return (
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			width="24"
+			height="24"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
+			{icon.map(([Tag, attrs]) => (
+				<Tag {...attrs} />
+			))}
+		</svg>
+	)
+}
+
 const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 	const c = useRequestContext<AppEnv>()
 	// const ListItems = () => (
@@ -471,6 +510,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 						<a href="/pricing" className="btn">
 							Pricing
 						</a>
+						<Icon icon={userIconNode} />
 						{c.var.sessionData.sessionUser ? (
 							<form action="/signout" method="post">
 								<button type="submit" className="btn">

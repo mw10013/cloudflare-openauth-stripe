@@ -49,6 +49,7 @@
 		"aws4fetch": "catalog:",
 		"effect": "catalog:",
 		"hono": "catalog:",
+		"lucide": "catalog:",
 		"stripe": "catalog:"
 	}
 }
