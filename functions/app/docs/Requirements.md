@@ -12,14 +12,14 @@
 - Users are either `customer` or `staffer` (mutually exclusive)
 - Type is immutable after user creation
 - Type determines application access:
-  - Customers -> Customer application
-  - Staffers -> Administrative application
+  - Customers -> /app/\*
+  - Staffers -> /admin/\*
 
 ## Customer Accounts
 
 - Each customer owns exactly one account
 - Accounts can have multiple members
-- Members must be customers (staff cannot be members)
+- Members must be customers (staffers cannot be members)
 
 ## Account Subscriptions
 
@@ -30,18 +30,22 @@
 ## Member Management
 
 - Account owners can invite customers by email
-- Invitees become account members upon acceptance
-- Members are assigned exactly one role
-
-## Roles
-
-- Each role specifies a set of capabilities
+  - The email must not be a staffer email.
+  - A user, account, and account member are upserted for the email.
+  - An invite email is sent to the email.
+- An account member has a status
+  - pending - Awaiting acceptance
+  - rejected - Rejected
+  - active - Current member
+  - revoked - Owner revoked access
+  - left - customer left the account
+  - deleted - Soft-deleted by owner
 
 ## Staffers Access
 
 - Staffers operate the administrative application
 - Staffers cannot be account members
-- Staffers cannot access customer application
+- Staffers cannot access /app/\*
 
 ## Deferred Requirements
 

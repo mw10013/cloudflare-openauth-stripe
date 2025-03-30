@@ -16,9 +16,9 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 		'accountMembers',
 		(select json_group_array(json_object(
 			'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId,
-			'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType) from users u where u.userId = am.userId)
-			)) from accountMembers am where am.accountId = a.accountId)
-		)) as data from accounts a`
+			'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType) from User u where u.userId = am.userId)
+			)) from AccountMember am where am.accountId = a.accountId)
+		)) as data from Account a`
 					),
 					d1.first,
 					Effect.flatMap(Effect.fromNullable),
@@ -27,14 +27,14 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 
 			getRequiredAccountForUser: ({ userId }: Pick<User, 'userId'>) =>
 				pipe(
-					d1.prepare(`select * from accounts where userId = ?`).bind(userId),
+					d1.prepare(`select * from Account where userId = ?`).bind(userId),
 					d1.first,
 					Effect.flatMap(Effect.fromNullable),
 					Effect.flatMap(Schema.decodeUnknown(Account))
 				),
 
 			updateStripeCustomerId: ({ userId, stripeCustomerId }: Pick<Account, 'userId' | 'stripeCustomerId'>) =>
-				pipe(d1.prepare('update accounts set stripeCustomerId = ? where userId = ?').bind(stripeCustomerId, userId), d1.run),
+				pipe(d1.prepare('update Account set stripeCustomerId = ? where userId = ?').bind(stripeCustomerId, userId), d1.run),
 
 			updateStripeSubscription: ({
 				stripeCustomerId,
@@ -48,7 +48,7 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 				pipe(
 					d1
 						.prepare(
-							'update accounts set stripeSubscriptionId = ?, stripeProductId = ?, planName = ?, subscriptionStatus = ? where stripeCustomerId = ?'
+							'update Account set stripeSubscriptionId = ?, stripeProductId = ?, planName = ?, subscriptionStatus = ? where stripeCustomerId = ?'
 						)
 						.bind(stripeSubscriptionId, stripeProductId, planName, subscriptionStatus, stripeCustomerId),
 					d1.run
@@ -58,12 +58,12 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 				d1
 					.batch([
 						// set email = email to ensure returning * works
-						d1.prepare('insert into users (email) values (?) on conflict (email) do update set email = email returning *').bind(email),
+						d1.prepare('insert into User (email) values (?) on conflict (email) do update set email = email returning *').bind(email),
 						d1
 							.prepare(
 								`
-insert into accounts (userId) 
-select userId from users where email = ?1 and userType = 'customer'
+insert into Account (userId) 
+select userId from User where email = ?1 and userType = 'customer'
 on conflict (userId) do nothing`
 							)
 							.bind(email),
@@ -73,9 +73,9 @@ on conflict (userId) do nothing`
 							.prepare(
 								`
 with c as (select u.userId, a.accountId
-	from users u inner join accounts a on a.userId = u.userId
+	from User u inner join Account a on a.userId = u.userId
 	where u.email = ?1 and u.userType = 'customer')
-insert into accountMembers (userId, accountId)
+insert into AccountMember (userId, accountId)
 select userId, accountId from c where true
 on conflict (userId, accountId) do nothing`
 							)

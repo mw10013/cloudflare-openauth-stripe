@@ -1,25 +1,46 @@
 -- Migration number: 0001 	 2025-01-31T00:42:00.000Z
-create table userTypes (userTypeId text primary key);
+create table UserType (userTypeId text primary key);
 
 --> statement-breakpoint
 insert into
-	userTypes (userTypeId)
+	UserType (userTypeId)
 values
 	('customer'),
 	('staffer');
 
 --> statement-breakpoint
-create table accountMembers (
+create table AccountMemberStatus (statusId text primary key);
+
+--> statement-breakpoint
+insert into
+	AccountMemberStatus (statusId)
+values
+	('pending'),
+	('rejected'),
+	('active'),
+	('revoked'),
+	('left'),
+	('deleted');
+
+--> statement-breakpoint
+create table AccountMember (
 	accountMemberId integer primary key,
-	userId integer not null references users (userId),
-	accountId integer not null references accounts (accountId),
+	userId integer not null references User (userId),
+	accountId integer not null references Account (accountId),
+	status text not null default 'pending',
 	unique (userId, accountId)
 );
 
 --> statement-breakpoint
-create table accounts (
+create index AccountMemberAccountIdIndex on AccountMember (accountId);
+
+--> statement-breakpoint
+create index AccountMemberStatusIndex on AccountMember (status);
+
+--> statement-breakpoint
+create table Account (
 	accountId integer primary key,
-	userId integer unique not null references users (userId),
+	userId integer unique not null references User (userId),
 	stripeCustomerId text unique,
 	stripeSubscriptionId text unique,
 	stripeProductId text,
@@ -30,28 +51,18 @@ create table accounts (
 );
 
 --> statement-breakpoint
-create table users (
+create table User (
 	userId integer primary key,
 	name text not null default '',
 	email text not null unique,
-	userType text not null default 'customer' references userTypes (userTypeId),
+	userType text not null default 'customer' references UserType (userTypeId),
 	createdAt text not null default (datetime('now')),
 	updatedAt text not null default (datetime('now'))
 );
 
 --> statement-breakpoint
-create table invitations (
-	invitationId integer primary key,
-	accountId integer not null references accounts (accountId),
-	email text not null,
-	invitedBy integer not null references users (userId),
-	invitedAt text not null default (datetime('now')),
-	status text not null default 'pending'
-);
-
---> statement-breakpoint
 insert into
-	users (name, email, userType)
+	User (name, email, userType)
 values
 	('Admin (motio)', 'motio@mail.com', 'staffer'),
 	('Admin (a)', 'a@a.com', 'staffer');

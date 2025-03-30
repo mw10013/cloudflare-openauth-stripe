@@ -426,11 +426,12 @@ function createFrontend({
 		'/app',
 		handler((c) => appLoaderData(c).pipe(Effect.map((loaderData) => c.render(<App loaderData={loaderData} />))))
 	)
+	app.get('/app/manage', (c) => c.render(<Manage />))
 	app.get(
 		'/app/billing',
 		handler((c) => billingLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Billing loaderData={loaderData} />))))
 	)
-	app.post('/app/billing', dashboardPost)
+	app.post('/app/billing', billingPost)
 	app.get('/admin', (c) => c.render(<Admin />))
 	app.post('/admin', adminPost)
 	app.get('/seed', seedGet)
@@ -634,12 +635,9 @@ const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
 		<div className="drawer lg:drawer-open">
 			<input id="drawer" type="checkbox" className="drawer-toggle" />
 			<div className="drawer-content flex flex-col gap-2 p-6">
-				<div className="flex justify-between">
-					<h1 className="text-lg font-medium lg:text-2xl">App</h1>
-					<label htmlFor="drawer" className="drawer-button lg:hidden">
-						<Icon iconNode={panelLeftOpenIconNode} />
-					</label>
-				</div>
+				<label htmlFor="drawer" className="drawer-button lg:hidden">
+					<Icon iconNode={panelLeftOpenIconNode} />
+				</label>
 				{children}
 			</div>
 			<div className="drawer-side">
@@ -662,32 +660,10 @@ const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
 
 const App: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof appLoaderData>> }> = async ({ loaderData }) => {
 	return (
-		<div className="drawer lg:drawer-open">
-			<input id="drawer" type="checkbox" className="drawer-toggle" />
-			<div className="drawer-content flex flex-col gap-2 p-6">
-				<div className="flex justify-between">
-					<h1 className="text-lg font-medium lg:text-2xl">App</h1>
-					<label htmlFor="drawer" className="drawer-button lg:hidden">
-						<Icon iconNode={panelLeftOpenIconNode} />
-					</label>
-				</div>
-				<pre>{JSON.stringify({ loaderData }, null, 2)}</pre>
-			</div>
-			<div className="drawer-side">
-				<label htmlFor="drawer" aria-label="close sidebar" className="drawer-overlay"></label>
-				<ul className="menu bg-base-200 text-base-content min-h-full w-80 p-4">
-					<li>
-						<a href="/app">App</a>
-					</li>
-					<li>
-						<a href="/app/manage">Manage</a>
-					</li>
-					<li>
-						<a href="/app/billing">Billing</a>
-					</li>
-				</ul>
-			</div>
-		</div>
+		<>
+			<h1 className="text-lg font-medium lg:text-2xl">App</h1>
+			<pre>{JSON.stringify({ loaderData }, null, 2)}</pre>
+		</>
 	)
 }
 
@@ -697,9 +673,28 @@ const appLoaderData = (c: HonoContext<AppEnv>) =>
 		Effect.map((account) => ({ account, sessionData: c.var.sessionData }))
 	)
 
+const Manage = () => {
+	return (
+		<>
+			<h1 className="text-lg font-medium lg:text-2xl">Manage</h1>
+			<div className="card bg-base-100 w-96 shadow-sm">
+				<div className="card-body">
+					<h2 className="card-title">Account Management</h2>
+					<p className="font-medium">Manage your account settings and preferences.</p>
+					<div className="card-actions justify-end">
+						<a href="/app/manage" className="btn btn-outline">
+							Manage Account
+						</a>
+					</div>
+				</div>
+			</div>
+		</>
+	)
+}
+
 const Billing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof billingLoaderData>> }> = async ({ loaderData }) => {
 	return (
-		<div className="flex flex-col gap-2">
+		<>
 			<h1 className="text-lg font-medium lg:text-2xl">Billing</h1>
 			<div className="card bg-base-100 w-96 shadow-sm">
 				<div className="card-body">
@@ -713,7 +708,7 @@ const Billing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof billingL
 				</div>
 			</div>
 			<pre>{JSON.stringify({ loaderData }, null, 2)}</pre>
-		</div>
+		</>
 	)
 }
 
@@ -723,7 +718,7 @@ const billingLoaderData = (c: HonoContext<AppEnv>) =>
 		Effect.map((account) => ({ account, sessionData: c.var.sessionData }))
 	)
 
-const dashboardPost = handler((c) =>
+const billingPost = handler((c) =>
 	Effect.gen(function* () {
 		const account = yield* Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
 			Effect.flatMap((user) => Repository.getRequiredAccountForUser(user))
@@ -740,7 +735,7 @@ const dashboardPost = handler((c) =>
 
 const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 	return (
-		<div className="flex flex-col gap-2">
+		<div className="flex flex-col gap-2 p-6">
 			<h1 className="text-lg font-medium lg:text-2xl">Admin</h1>
 			<div className="flex gap-2">
 				<form action="/admin" method="post">
