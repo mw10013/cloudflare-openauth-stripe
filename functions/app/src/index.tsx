@@ -444,7 +444,8 @@ function createFrontend({
 </svg>
 */
 
-function Icon({ icon }: { icon: typeof userIconNode }) {
+// https://github.com/lucide-icons/lucide/blob/main/packages/lucide-react/src/Icon.ts
+function Icon({ iconNode, className }: { iconNode: typeof userIconNode; className?: string }) {
 	return (
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
@@ -456,8 +457,9 @@ function Icon({ icon }: { icon: typeof userIconNode }) {
 			stroke-width="2"
 			stroke-linecap="round"
 			stroke-linejoin="round"
+			className={className}
 		>
-			{icon.map(([Tag, attrs]) => (
+			{iconNode.map(([Tag, attrs]) => (
 				<Tag {...attrs} />
 			))}
 		</svg>
@@ -510,7 +512,28 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 						<a href="/pricing" className="btn">
 							Pricing
 						</a>
-						<Icon icon={userIconNode} />
+						<div className="dropdown dropdown-end">
+							<div tabIndex={0} role="button" className="btn btn-ghost btn-circle">
+								<div className="grid w-10 place-items-center rounded-full">
+									<Icon iconNode={userIconNode} />
+								</div>
+							</div>
+							<ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
+								<li>
+									<a className="justify-between">
+										Profile
+										<span className="badge">New</span>
+									</a>
+								</li>
+								<li>
+									<a>Settings</a>
+								</li>
+								<li>
+									<a>Logout</a>
+								</li>
+							</ul>
+						</div>
+
 						{c.var.sessionData.sessionUser ? (
 							<form action="/signout" method="post">
 								<button type="submit" className="btn">
