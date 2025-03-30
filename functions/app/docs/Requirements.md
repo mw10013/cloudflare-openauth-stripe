@@ -20,12 +20,15 @@
 - Each customer owns exactly one account
 - Accounts can have multiple members
 - Members must be customers (staffers cannot be members)
+- Account ownership is permanent and cannot be transferred
+- Resources can be transferred between accounts as needed
 
 ## Account Subscriptions
 
 - Each account may have one Stripe customer
 - Each account may have one Stripe subscription
 - Account owner's email must match Stripe customer email
+- When user email changes, Stripe customer email must be updated to maintain synchronization
 
 ## Member Management
 
@@ -40,6 +43,13 @@
   - revoked - Owner revoked access
   - left - customer left the account
   - deleted - Soft-deleted by owner
+- Status transitions:
+  - Initial state → pending
+  - pending → active (when member accepts)
+  - pending → rejected (when member declines)
+  - active → revoked (when owner revokes access)
+  - active → left (when member leaves)
+  - Any status → deleted (when owner deletes)
 
 ## Staffers Access
 
@@ -54,6 +64,8 @@
 - [ ] Role hierarchy (if needed beyond capabilities)
 - [ ] Member invitation expiration
 - [ ] Member removal process
+- [ ] Multi-account resource transfer UI
+- [ ] Audit logs for membership status changes
 
 ## Reference
 
