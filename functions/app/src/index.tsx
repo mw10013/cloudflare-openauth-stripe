@@ -290,7 +290,7 @@ function createApi({ runtime }: { runtime: AppEnv['Variables']['runtime'] }) {
 				const sessionId = c.req.query('sessionId')
 				if (!sessionId) return c.redirect('/pricing')
 				yield* Stripe.finalizeCheckoutSession(sessionId)
-				return c.redirect('/dashboard')
+				return c.redirect('/app/billing')
 			})
 		)
 	)
@@ -352,6 +352,14 @@ function createFrontend({
 		} else if (c.var.sessionData.sessionUser.userType !== 'customer') {
 			return c.text('Forbidden', 403)
 		}
+		await next()
+	})
+	app.use('/app/*', async (c, next) => {
+		const render = c.render
+		c.render = (content) => {
+			return render(<AppLayout>{content}</AppLayout>)
+		}
+
 		await next()
 	})
 	app.use('/admin/*', async (c, next) => {
@@ -419,10 +427,10 @@ function createFrontend({
 		handler((c) => appLoaderData(c).pipe(Effect.map((loaderData) => c.render(<App loaderData={loaderData} />))))
 	)
 	app.get(
-		'/dashboard',
-		handler((c) => dashboardLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Dashboard loaderData={loaderData} />))))
+		'/app/billing',
+		handler((c) => billingLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Billing loaderData={loaderData} />))))
 	)
-	app.post('/dashboard', dashboardPost)
+	app.post('/app/billing', dashboardPost)
 	app.get('/admin', (c) => c.render(<Admin />))
 	app.post('/admin', adminPost)
 	app.get('/seed', seedGet)
@@ -515,7 +523,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 						)}
 					</div>
 				</div>
-				<div className="p-6">{children}</div>
+				<div>{children}</div>
 			</body>
 		</html>
 	)
@@ -605,7 +613,7 @@ const pricingPost = handler((c) =>
 		return yield* stripeSubscriptionId
 			? Stripe.createBillingPortalSession({
 					customer: stripeCustomerId,
-					return_url: `${origin}/dashboard`
+					return_url: `${origin}/app/billing`
 				}).pipe(Effect.map((session) => c.redirect(session.url)))
 			: Stripe.createCheckoutSession({
 					customer: stripeCustomerId,
@@ -621,11 +629,42 @@ const pricingPost = handler((c) =>
 	})
 )
 
+const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
+	return (
+		<div className="drawer lg:drawer-open">
+			<input id="drawer" type="checkbox" className="drawer-toggle" />
+			<div className="drawer-content flex flex-col gap-2 p-6">
+				<div className="flex justify-between">
+					<h1 className="text-lg font-medium lg:text-2xl">App</h1>
+					<label htmlFor="drawer" className="drawer-button lg:hidden">
+						<Icon iconNode={panelLeftOpenIconNode} />
+					</label>
+				</div>
+				{children}
+			</div>
+			<div className="drawer-side">
+				<label htmlFor="drawer" aria-label="close sidebar" className="drawer-overlay"></label>
+				<ul className="menu bg-base-200 text-base-content min-h-full w-80 p-4">
+					<li>
+						<a href="/app">App</a>
+					</li>
+					<li>
+						<a href="/app/manage">Manage</a>
+					</li>
+					<li>
+						<a href="/app/billing">Billing</a>
+					</li>
+				</ul>
+			</div>
+		</div>
+	)
+}
+
 const App: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof appLoaderData>> }> = async ({ loaderData }) => {
 	return (
 		<div className="drawer lg:drawer-open">
 			<input id="drawer" type="checkbox" className="drawer-toggle" />
-			<div className="drawer-content flex flex-col gap-2">
+			<div className="drawer-content flex flex-col gap-2 p-6">
 				<div className="flex justify-between">
 					<h1 className="text-lg font-medium lg:text-2xl">App</h1>
 					<label htmlFor="drawer" className="drawer-button lg:hidden">
@@ -658,16 +697,16 @@ const appLoaderData = (c: HonoContext<AppEnv>) =>
 		Effect.map((account) => ({ account, sessionData: c.var.sessionData }))
 	)
 
-const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashboardLoaderData>> }> = async ({ loaderData }) => {
+const Billing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof billingLoaderData>> }> = async ({ loaderData }) => {
 	return (
 		<div className="flex flex-col gap-2">
-			<h1 className="text-lg font-medium lg:text-2xl">Dashboard</h1>
+			<h1 className="text-lg font-medium lg:text-2xl">Billing</h1>
 			<div className="card bg-base-100 w-96 shadow-sm">
 				<div className="card-body">
 					<h2 className="card-title">Account Subscription</h2>
 					<p className="font-medium">Current Plan: {loaderData.account.planName || 'Free'}</p>
 					<div className="card-actions justify-end">
-						<form action="/dashboard" method="post">
+						<form action="/app/billing" method="post">
 							<button className="btn btn-outline">Manage Subscription</button>
 						</form>
 					</div>
@@ -678,7 +717,7 @@ const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashbo
 	)
 }
 
-const dashboardLoaderData = (c: HonoContext<AppEnv>) =>
+const billingLoaderData = (c: HonoContext<AppEnv>) =>
 	Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
 		Effect.flatMap((user) => Repository.getRequiredAccountForUser(user)),
 		Effect.map((account) => ({ account, sessionData: c.var.sessionData }))
@@ -694,7 +733,7 @@ const dashboardPost = handler((c) =>
 		}
 		return yield* Stripe.createBillingPortalSession({
 			customer: account.stripeCustomerId,
-			return_url: `${new URL(c.req.url).origin}/dashboard`
+			return_url: `${new URL(c.req.url).origin}/app/billing`
 		}).pipe(Effect.map((session) => c.redirect(session.url)))
 	})
 )
