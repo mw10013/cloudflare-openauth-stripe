@@ -13,7 +13,7 @@ import { dual } from 'effect/Function'
 import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
-import { User as userIconNode } from 'lucide'
+import { PanelLeftOpen as panelLeftOpenIconNode, User as userIconNode } from 'lucide'
 import * as ConfigEx from './ConfigEx'
 import * as D1Ns from './D1'
 import { D1 } from './D1'
@@ -346,7 +346,7 @@ function createFrontend({
 			await env.KV.put(sessionId, JSON.stringify(c.var.sessionData), { expirationTtl: 60 * 60 })
 		}
 	})
-	app.use('/dashboard/*', async (c, next) => {
+	app.use('/app/*', async (c, next) => {
 		if (!c.var.sessionData.sessionUser) {
 			return c.redirect('/authenticate')
 		} else if (c.var.sessionData.sessionUser.userType !== 'customer') {
@@ -404,7 +404,7 @@ function createFrontend({
 					userType: verified.subject.properties.userType
 				}
 			})
-			return c.redirect(verified.subject.properties.userType === 'staffer' ? '/admin' : '/dashboard')
+			return c.redirect(verified.subject.properties.userType === 'staffer' ? '/admin' : '/app')
 		} catch (e: any) {
 			return new Response(e.toString())
 		}
@@ -414,6 +414,10 @@ function createFrontend({
 		handler((c) => pricingLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Pricing loaderData={loaderData} />))))
 	)
 	app.post('/pricing', pricingPost)
+	app.get(
+		'/app',
+		handler((c) => appLoaderData(c).pipe(Effect.map((loaderData) => c.render(<App loaderData={loaderData} />))))
+	)
 	app.get(
 		'/dashboard',
 		handler((c) => dashboardLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Dashboard loaderData={loaderData} />))))
@@ -468,45 +472,20 @@ function Icon({ iconNode, className }: { iconNode: typeof userIconNode; classNam
 
 const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 	const c = useRequestContext<AppEnv>()
-	// const ListItems = () => (
-	// 	<>
-	// 		<li>
-	// 			<a href="/dashboard">Dashboard</a>
-	// 		</li>
-	// 		<li>
-	// 			<a href="/admin">Admin</a>
-	// 		</li>
-	// 	</>
-	// )
 	return (
 		<html>
 			<head>
 				<meta charset="UTF-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 				<link href={import.meta.env.MODE === 'development' ? '/src/tailwind.css' : '/tailwind.css'} rel="stylesheet"></link>
-				<title>COS App</title>
+				<title>COS</title>
 			</head>
 			<body>
 				<div className="navbar bg-base-100 shadow-sm">
 					<div className="navbar-start">
-						<div className="dropdown">
-							<div tabIndex={0} role="button" className="btn btn-ghost lg:hidden">
-								<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h8m-8 6h16" />
-								</svg>
-							</div>
-							{/* <ul tabIndex={0} class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
-								<ListItems />
-							</ul> */}
-						</div>
 						<a href="/" className="btn btn-ghost text-xl">
-							Cloudflare-OpenAUTH-Stripe v0.5
+							COS v0.5
 						</a>
-					</div>
-					<div className="navbar-center hidden lg:flex">
-						{/* <ul className="menu menu-horizontal px-1">
-							<ListItems />
-						</ul> */}
 					</div>
 					<div className="navbar-end gap-2">
 						<a href="/pricing" className="btn">
@@ -559,7 +538,7 @@ const Home: FC = () => {
 							Enter
 						</a>
 					) : (
-						<a href="/dashboard" className="btn btn-primary">
+						<a href="/app" className="btn btn-primary">
 							Enter
 						</a>
 					)}
@@ -641,6 +620,43 @@ const pricingPost = handler((c) =>
 				)
 	})
 )
+
+const App: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof appLoaderData>> }> = async ({ loaderData }) => {
+	return (
+		<div className="drawer lg:drawer-open">
+			<input id="drawer" type="checkbox" className="drawer-toggle" />
+			<div className="drawer-content flex flex-col gap-2">
+				<div className="flex justify-between">
+					<h1 className="text-lg font-medium lg:text-2xl">App</h1>
+					<label htmlFor="drawer" className="drawer-button lg:hidden">
+						<Icon iconNode={panelLeftOpenIconNode} />
+					</label>
+				</div>
+				<pre>{JSON.stringify({ loaderData }, null, 2)}</pre>
+			</div>
+			<div className="drawer-side">
+				<label htmlFor="drawer" aria-label="close sidebar" className="drawer-overlay"></label>
+				<ul className="menu bg-base-200 text-base-content min-h-full w-80 p-4">
+					<li>
+						<a href="/app">App</a>
+					</li>
+					<li>
+						<a href="/app/manage">Manage</a>
+					</li>
+					<li>
+						<a href="/app/billing">Billing</a>
+					</li>
+				</ul>
+			</div>
+		</div>
+	)
+}
+
+const appLoaderData = (c: HonoContext<AppEnv>) =>
+	Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
+		Effect.flatMap((user) => Repository.getRequiredAccountForUser(user)),
+		Effect.map((account) => ({ account, sessionData: c.var.sessionData }))
+	)
 
 const Dashboard: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof dashboardLoaderData>> }> = async ({ loaderData }) => {
 	return (
