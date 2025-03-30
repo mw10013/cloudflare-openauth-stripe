@@ -1,0 +1,16 @@
+{
+	"github.copilot.chat.codeGeneration.instructions": [
+		{
+			"file": "./.vscode/prompt.md"
+		},
+		{
+			"file": "./.vscode/effect.md"
+		},
+		{
+			"file": "./.vscode/hono.md"
+		},
+		{
+			"file": "./.vscode/daisyui.md"
+		}
+	]
+}

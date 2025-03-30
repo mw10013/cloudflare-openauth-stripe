@@ -58,7 +58,13 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 				d1
 					.batch([
 						// set email = email to ensure returning * works
-						d1.prepare('insert into User (email) values (?) on conflict (email) do update set email = email returning *').bind(email),
+						d1
+							.prepare(
+								`
+insert into User (email) values (?) 
+on conflict (email) do update set deletedAt = null, updatedAt = datetime('now') returning *`
+							)
+							.bind(email),
 						d1
 							.prepare(
 								`

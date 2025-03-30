@@ -7,7 +7,10 @@ export const User = Schema.Struct({
 	userId: Schema.Number,
 	name: Schema.NullOr(Schema.String),
 	email: Schema.String,
-	userType: UserType
+	userType: UserType,
+	createdAt: Schema.DateFromString,
+	updatedAt: Schema.DateFromString,
+	deletedAt: Schema.NullOr(Schema.DateFromString)
 })
 export type User = Schema.Schema.Type<typeof User>
 
