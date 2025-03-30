@@ -18,7 +18,6 @@
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "catalog:",
-		"@tailwindcss/cli": "catalog:",
 		"@tailwindcss/typography": "catalog:",
 		"@tailwindcss/vite": "catalog:",
 		"@types/node": "catalog:",

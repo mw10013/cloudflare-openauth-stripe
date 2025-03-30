@@ -10,8 +10,8 @@ catalogs:
       specifier: 3.777.0
       version: 3.777.0
     '@cloudflare/vite-plugin':
-      specifier: 0.1.17
-      version: 0.1.17
+      specifier: 0.1.19
+      version: 0.1.19
     '@openauthjs/openauth':
       specifier: 0.4.3
       version: 0.4.3
@@ -34,14 +34,14 @@ catalogs:
       specifier: 1.0.20
       version: 1.0.20
     daisyui:
-      specifier: 5.0.6
-      version: 5.0.6
+      specifier: 5.0.9
+      version: 5.0.9
     effect:
-      specifier: 3.14.1
-      version: 3.14.1
+      specifier: 3.14.2
+      version: 3.14.2
     hono:
-      specifier: 4.7.4
-      version: 4.7.4
+      specifier: 4.7.5
+      version: 4.7.5
     jsonc-parser:
       specifier: 3.3.1
       version: 3.3.1
@@ -49,17 +49,17 @@ catalogs:
       specifier: 17.7.0
       version: 17.7.0
     tailwindcss:
-      specifier: 4.0.14
-      version: 4.0.14
+      specifier: 4.0.17
+      version: 4.0.17
     typescript:
       specifier: 5.8.2
       version: 5.8.2
     vite:
-      specifier: 6.2.2
-      version: 6.2.2
+      specifier: 6.2.3
+      version: 6.2.3
     wrangler:
-      specifier: 4.5.0
-      version: 4.5.0
+      specifier: 4.6.0
+      version: 4.6.0
     zx:
       specifier: 8.4.1
       version: 8.4.1
@@ -91,7 +91,7 @@ importers:
         version: 3.777.0
       '@openauthjs/openauth':
         specifier: 'catalog:'
-        version: 0.4.3(arctic@2.3.4)(hono@4.7.4)
+        version: 0.4.3(arctic@2.3.4)(hono@4.7.5)
       '@paralleldrive/cuid2':
         specifier: 'catalog:'
         version: 2.2.2
@@ -100,47 +100,44 @@ importers:
         version: 1.0.20
       effect:
         specifier: 'catalog:'
-        version: 3.14.1
+        version: 3.14.2
       hono:
         specifier: 'catalog:'
-        version: 4.7.4
+        version: 4.7.5
       stripe:
         specifier: 'catalog:'
         version: 17.7.0
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 0.1.17(vite@6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))(workerd@1.20250321.0)(wrangler@4.5.0)
-      '@tailwindcss/cli':
-        specifier: 'catalog:'
-        version: 4.0.14
+        version: 0.1.19(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))(workerd@1.20250321.0)(wrangler@4.6.0)
       '@tailwindcss/typography':
         specifier: 'catalog:'
-        version: 0.5.16(tailwindcss@4.0.14)
+        version: 0.5.16(tailwindcss@4.0.17)
       '@tailwindcss/vite':
         specifier: 'catalog:'
-        version: 4.0.14(vite@6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))
+        version: 4.0.14(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))
       '@types/node':
         specifier: 'catalog:'
         version: 22.13.14
       daisyui:
         specifier: 'catalog:'
-        version: 5.0.6
+        version: 5.0.9
       jsonc-parser:
         specifier: 'catalog:'
         version: 3.3.1
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.0.14
+        version: 4.0.17
       typescript:
         specifier: 'catalog:'
         version: 5.8.2
       vite:
         specifier: 'catalog:'
-        version: 6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
+        version: 6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
       wrangler:
         specifier: 'catalog:'
-        version: 4.5.0(@cloudflare/workers-types@4.20250312.0)
+        version: 4.6.0(@cloudflare/workers-types@4.20250312.0)
       zx:
         specifier: 'catalog:'
         version: 8.4.1
@@ -149,121 +146,118 @@ importers:
     dependencies:
       effect:
         specifier: 'catalog:'
-        version: 3.14.1
+        version: 3.14.2
       hono:
         specifier: 'catalog:'
-        version: 4.7.4
+        version: 4.7.5
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 0.1.17(vite@6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))(workerd@1.20250321.0)(wrangler@4.5.0)
+        version: 0.1.19(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))(workerd@1.20250321.0)(wrangler@4.6.0)
       '@tailwindcss/cli':
         specifier: 'catalog:'
         version: 4.0.14
       '@tailwindcss/typography':
         specifier: 'catalog:'
-        version: 0.5.16(tailwindcss@4.0.14)
+        version: 0.5.16(tailwindcss@4.0.17)
       '@tailwindcss/vite':
         specifier: 'catalog:'
-        version: 4.0.14(vite@6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))
+        version: 4.0.14(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))
       '@types/node':
         specifier: 'catalog:'
         version: 22.13.14
       daisyui:
         specifier: 'catalog:'
-        version: 5.0.6
+        version: 5.0.9
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.0.14
+        version: 4.0.17
       typescript:
         specifier: 'catalog:'
         version: 5.8.2
       vite:
         specifier: 'catalog:'
-        version: 6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
+        version: 6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
       wrangler:
         specifier: 'catalog:'
-        version: 4.5.0(@cloudflare/workers-types@4.20250312.0)
+        version: 4.6.0(@cloudflare/workers-types@4.20250312.0)
 
   functions/do1:
     dependencies:
       effect:
         specifier: 'catalog:'
-        version: 3.14.1
+        version: 3.14.2
       hono:
         specifier: 'catalog:'
-        version: 4.7.4
+        version: 4.7.5
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 0.1.17(vite@6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))(workerd@1.20250321.0)(wrangler@4.5.0)
+        version: 0.1.19(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))(workerd@1.20250321.0)(wrangler@4.6.0)
       '@tailwindcss/cli':
         specifier: 'catalog:'
         version: 4.0.14
       '@tailwindcss/typography':
         specifier: 'catalog:'
-        version: 0.5.16(tailwindcss@4.0.14)
+        version: 0.5.16(tailwindcss@4.0.17)
       '@tailwindcss/vite':
         specifier: 'catalog:'
-        version: 4.0.14(vite@6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))
+        version: 4.0.14(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))
       '@types/node':
         specifier: 'catalog:'
         version: 22.13.14
       daisyui:
         specifier: 'catalog:'
-        version: 5.0.6
+        version: 5.0.9
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.0.14
+        version: 4.0.17
       typescript:
         specifier: 'catalog:'
         version: 5.8.2
       vite:
         specifier: 'catalog:'
-        version: 6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
+        version: 6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
       wrangler:
         specifier: 'catalog:'
-        version: 4.5.0(@cloudflare/workers-types@4.20250312.0)
+        version: 4.6.0(@cloudflare/workers-types@4.20250312.0)
 
   functions/hon:
     dependencies:
       effect:
         specifier: 'catalog:'
-        version: 3.14.1
+        version: 3.14.2
       hono:
         specifier: 'catalog:'
-        version: 4.7.4
+        version: 4.7.5
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 0.1.17(vite@6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))(workerd@1.20250321.0)(wrangler@4.5.0)
-      '@tailwindcss/cli':
-        specifier: 'catalog:'
-        version: 4.0.14
+        version: 0.1.19(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))(workerd@1.20250321.0)(wrangler@4.6.0)
       '@tailwindcss/typography':
         specifier: 'catalog:'
-        version: 0.5.16(tailwindcss@4.0.14)
+        version: 0.5.16(tailwindcss@4.0.17)
       '@tailwindcss/vite':
         specifier: 'catalog:'
-        version: 4.0.14(vite@6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))
+        version: 4.0.14(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))
       '@types/node':
         specifier: 'catalog:'
         version: 22.13.14
       daisyui:
         specifier: 'catalog:'
-        version: 5.0.6
+        version: 5.0.9
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.0.14
+        version: 4.0.17
       typescript:
         specifier: 'catalog:'
         version: 5.8.2
       vite:
         specifier: 'catalog:'
-        version: 6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
+        version: 6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
       wrangler:
         specifier: 'catalog:'
-        version: 4.5.0(@cloudflare/workers-types@4.20250312.0)
+        version: 4.6.0(@cloudflare/workers-types@4.20250312.0)
 
   functions/ses:
     dependencies:
@@ -276,7 +270,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 0.1.17(vite@6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))(workerd@1.20250321.0)(wrangler@4.5.0)
+        version: 0.1.19(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))(workerd@1.20250321.0)(wrangler@4.6.0)
       '@types/node':
         specifier: 'catalog:'
         version: 22.13.14
@@ -285,19 +279,19 @@ importers:
         version: 5.8.2
       vite:
         specifier: 'catalog:'
-        version: 6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
+        version: 6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
       wrangler:
         specifier: 'catalog:'
-        version: 4.5.0(@cloudflare/workers-types@4.20250312.0)
+        version: 4.6.0(@cloudflare/workers-types@4.20250312.0)
 
   functions/shared:
     dependencies:
       '@openauthjs/openauth':
         specifier: 'catalog:'
-        version: 0.4.3(arctic@2.3.4)(hono@4.7.4)
+        version: 0.4.3(arctic@2.3.4)(hono@4.7.5)
       effect:
         specifier: 'catalog:'
-        version: 3.14.1
+        version: 3.14.2
     devDependencies:
       typescript:
         specifier: 'catalog:'
@@ -313,7 +307,7 @@ importers:
         version: 5.8.2
       wrangler:
         specifier: 'catalog:'
-        version: 4.5.0(@cloudflare/workers-types@4.20250312.0)
+        version: 4.6.0(@cloudflare/workers-types@4.20250312.0)
 
 packages:
 
@@ -480,8 +474,8 @@ packages:
       workerd:
         optional: true
 
-  '@cloudflare/vite-plugin@0.1.17':
-    resolution: {integrity: sha512-yYRp++/ktyQvofUIUm9UKeru1qO++vctscYrf8lBuawCbDpwlAA0o6hyMefchdwmBMbIFyjFet4q+uT306SLFQ==}
+  '@cloudflare/vite-plugin@0.1.19':
+    resolution: {integrity: sha512-0bb07KFQIRsoj9iWK0DW7Yy6DhwQhoa5e22eJfmWLbAGvrGSpV2GGhRYZJuxMni0rCNLkHoVNV2v2gpRh2P2DA==}
     peerDependencies:
       vite: ^6.1.0
       wrangler: ^3.101.0 || ^4.0.0
@@ -1553,8 +1547,8 @@ packages:
     engines: {node: '>=4'}
     hasBin: true
 
-  daisyui@5.0.6:
-    resolution: {integrity: sha512-/e/9Gw/2y9oawBJlWkJMSEhRXdmfOLvcPl+6q/x2rPEdIVOtebs1t3ex2vwySl9vCRs1GGNBKCiL+P60Ps/wUw==}
+  daisyui@5.0.9:
+    resolution: {integrity: sha512-RsaehHh45f+0shWgZZaOY09/8eOae2voRsqJCD71j9yrnYgcke0Nj5ys0ZxrW4SPcc4+q96kWyJu0Z8P1zZdoA==}
 
   data-uri-to-buffer@2.0.2:
     resolution: {integrity: sha512-ND9qDTLc6diwj+Xe5cdAgVTbLVdXbtxTJRXRhli8Mowuaan+0EJOtdqJ0QCHNSSPyoXGx9HX2/VMnKeC34AChA==}
@@ -1587,8 +1581,8 @@ packages:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
     engines: {node: '>= 0.4'}
 
-  effect@3.14.1:
-    resolution: {integrity: sha512-YrE6KYUu8r+fF3/cvdM+SZRZRjarVGhfcJwQjP/YyMmF79fwE1Rf0nWqLZ9Xfw7a9njm5/wmrYP83RYt5WTTbQ==}
+  effect@3.14.2:
+    resolution: {integrity: sha512-AqLlvhkcWqSgfPnfGO/JdwvEqhtzFLb4qwe43YLwrvnN5ev2dqB4ve2Bv6oq64iplRMYO9lmYRibN0Ig6fK/nQ==}
 
   enhanced-resolve@5.18.1:
     resolution: {integrity: sha512-ZSW3ma5GkcQBIpwZTSRAI8N71Uuwgs93IezB7mf7R60tC8ZbJideoDNKjHn2O9KIlx6rkGTTEk1xUCK2E1Y2Yg==}
@@ -1690,8 +1684,8 @@ packages:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
 
-  hono@4.7.4:
-    resolution: {integrity: sha512-Pst8FuGqz3L7tFF+u9Pu70eI0xa5S3LPUmrNd5Jm8nTHze9FxLTK9Kaj5g/k4UcwuJSXTP65SyHOPLrffpcAJg==}
+  hono@4.7.5:
+    resolution: {integrity: sha512-fDOK5W2C1vZACsgLONigdZTRZxuBqFtcKh7bUQ5cVSbwI2RWjloJDcgFOVzbQrlI6pCmhlTsVYZ7zpLj4m4qMQ==}
     engines: {node: '>=16.9.0'}
 
   is-arrayish@0.3.2:
@@ -1825,8 +1819,8 @@ packages:
     engines: {node: '>=10.0.0'}
     hasBin: true
 
-  miniflare@4.20250321.0:
-    resolution: {integrity: sha512-os+NJA7Eqi00BJHdVhzIa+3PMotnCtZg3hiUIRYcsZF5W7He8SK2EkV8csAb+npZq3jZ4SNpDebO01swM5dcWw==}
+  miniflare@4.20250321.1:
+    resolution: {integrity: sha512-pQuVtF6vQ1zMvPCo3Z19mzSFjgnlEnybzNzAJZipsqIk6kMXpYBZq+d8cWmeQFkBYlgeZKeKJ4EBKT6KapfTNg==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -2051,6 +2045,9 @@ packages:
   tailwindcss@4.0.14:
     resolution: {integrity: sha512-92YT2dpt671tFiHH/e1ok9D987N9fHD5VWoly1CdPD/Cd1HMglvZwP3nx2yTj2lbXDAHt8QssZkxTLCCTNL+xw==}
 
+  tailwindcss@4.0.17:
+    resolution: {integrity: sha512-OErSiGzRa6rLiOvaipsDZvLMSpsBZ4ysB4f0VKGXUrjw2jfkJRd6kjRKV2+ZmTCNvwtvgdDam5D7w6WXsdLJZw==}
+
   tapable@2.2.1:
     resolution: {integrity: sha512-GNzQvQTOIP6RyTfE2Qxb8ZVlNmw0n88vp1szwWRimP02mnTsx3Wtn5qRdqY9w2XduFNUgvOwhNnQsjwCp+kqaQ==}
     engines: {node: '>=6'}
@@ -2097,8 +2094,8 @@ packages:
     resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
     hasBin: true
 
-  vite@6.2.2:
-    resolution: {integrity: sha512-yW7PeMM+LkDzc7CgJuRLMW2Jz0FxMOsVJ8Lv3gpgW9WLcb9cTW+121UEr1hvmfR7w3SegR5ItvYyzVz1vxNJgQ==}
+  vite@6.2.3:
+    resolution: {integrity: sha512-IzwM54g4y9JA/xAeBPNaDXiBF8Jsgl3VBQ2YQ/wOY6fyW3xMdSoltIV3Bo59DErdqdE6RxUfv8W69DvUorE4Eg==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
     hasBin: true
     peerDependencies:
@@ -2142,8 +2139,8 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
-  wrangler@4.5.0:
-    resolution: {integrity: sha512-avu5ob9B8aVkC4N8b3f0QVcD8oehz3Y4zRkrsiTHbbaCgXNaa2uFU00YYip9DLNZCYM8aCupsGBuWqe1cBB09Q==}
+  wrangler@4.6.0:
+    resolution: {integrity: sha512-2a2ZD0adlvxQ1H+nRKkuuD0dkgaYTOPlC7gBolItk5TfqOSliEV4m6DtZtKtJp33ioM+Uy6TlEWPpA2TrDveEQ==}
     engines: {node: '>=18.0.0'}
     hasBin: true
     peerDependencies:
@@ -2603,16 +2600,16 @@ snapshots:
     optionalDependencies:
       workerd: 1.20250321.0
 
-  '@cloudflare/vite-plugin@0.1.17(vite@6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))(workerd@1.20250321.0)(wrangler@4.5.0)':
+  '@cloudflare/vite-plugin@0.1.19(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))(workerd@1.20250321.0)(wrangler@4.6.0)':
     dependencies:
       '@cloudflare/unenv-preset': 2.3.1(unenv@2.0.0-rc.15)(workerd@1.20250321.0)
       '@hattip/adapter-node': 0.0.49
-      miniflare: 4.20250321.0
+      miniflare: 4.20250321.1
       picocolors: 1.1.1
       tinyglobby: 0.2.12
       unenv: 2.0.0-rc.15
-      vite: 6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
-      wrangler: 4.5.0(@cloudflare/workers-types@4.20250312.0)
+      vite: 6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
+      wrangler: 4.6.0(@cloudflare/workers-types@4.20250312.0)
       ws: 8.18.0
     transitivePeerDependencies:
       - bufferutil
@@ -2933,12 +2930,12 @@ snapshots:
 
   '@noble/hashes@1.7.1': {}
 
-  '@openauthjs/openauth@0.4.3(arctic@2.3.4)(hono@4.7.4)':
+  '@openauthjs/openauth@0.4.3(arctic@2.3.4)(hono@4.7.5)':
     dependencies:
       '@standard-schema/spec': 1.0.0-beta.3
       arctic: 2.3.4
       aws4fetch: 1.0.20
-      hono: 4.7.4
+      hono: 4.7.5
       jose: 5.9.6
 
   '@oslojs/asn1@1.0.0':
@@ -3419,21 +3416,21 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.0.14
       '@tailwindcss/oxide-win32-x64-msvc': 4.0.14
 
-  '@tailwindcss/typography@0.5.16(tailwindcss@4.0.14)':
+  '@tailwindcss/typography@0.5.16(tailwindcss@4.0.17)':
     dependencies:
       lodash.castarray: 4.4.0
       lodash.isplainobject: 4.0.6
       lodash.merge: 4.6.2
       postcss-selector-parser: 6.0.10
-      tailwindcss: 4.0.14
+      tailwindcss: 4.0.17
 
-  '@tailwindcss/vite@4.0.14(vite@6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))':
+  '@tailwindcss/vite@4.0.14(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2))':
     dependencies:
       '@tailwindcss/node': 4.0.14
       '@tailwindcss/oxide': 4.0.14
       lightningcss: 1.29.2
       tailwindcss: 4.0.14
-      vite: 6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
+      vite: 6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2)
 
   '@types/estree@1.0.6': {}
 
@@ -3525,7 +3522,7 @@ snapshots:
 
   cssesc@3.0.0: {}
 
-  daisyui@5.0.6: {}
+  daisyui@5.0.9: {}
 
   data-uri-to-buffer@2.0.2: {}
 
@@ -3547,7 +3544,7 @@ snapshots:
       es-errors: 1.3.0
       gopd: 1.2.0
 
-  effect@3.14.1:
+  effect@3.14.2:
     dependencies:
       '@standard-schema/spec': 1.0.0
       fast-check: 3.23.2
@@ -3689,7 +3686,7 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  hono@4.7.4: {}
+  hono@4.7.5: {}
 
   is-arrayish@0.3.2:
     optional: true
@@ -3780,7 +3777,7 @@ snapshots:
 
   mime@3.0.0: {}
 
-  miniflare@4.20250321.0:
+  miniflare@4.20250321.1:
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       acorn: 8.14.0
@@ -3997,6 +3994,8 @@ snapshots:
 
   tailwindcss@4.0.14: {}
 
+  tailwindcss@4.0.17: {}
+
   tapable@2.2.1: {}
 
   tinyglobby@0.2.12:
@@ -4042,7 +4041,7 @@ snapshots:
 
   uuid@9.0.1: {}
 
-  vite@6.2.2(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2):
+  vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(lightningcss@1.29.2):
     dependencies:
       esbuild: 0.25.1
       postcss: 8.5.3
@@ -4061,13 +4060,13 @@ snapshots:
       '@cloudflare/workerd-linux-arm64': 1.20250321.0
       '@cloudflare/workerd-windows-64': 1.20250321.0
 
-  wrangler@4.5.0(@cloudflare/workers-types@4.20250312.0):
+  wrangler@4.6.0(@cloudflare/workers-types@4.20250312.0):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.4.0
       '@cloudflare/unenv-preset': 2.3.1(unenv@2.0.0-rc.15)(workerd@1.20250321.0)
       blake3-wasm: 2.1.5
       esbuild: 0.24.2
-      miniflare: 4.20250321.0
+      miniflare: 4.20250321.1
       path-to-regexp: 6.3.0
       unenv: 2.0.0-rc.15
       workerd: 1.20250321.0
