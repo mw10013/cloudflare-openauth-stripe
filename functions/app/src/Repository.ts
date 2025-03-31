@@ -15,7 +15,7 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 		'accountId', accountId, 'userId', userId, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
 		'accountMembers',
 		(select json_group_array(json_object(
-			'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId,
+			'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status,
 			'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
 				'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) from User u where u.userId = am.userId)
 			)) from AccountMember am where am.accountId = a.accountId)
@@ -81,8 +81,8 @@ on conflict (userId) do nothing`
 with c as (select u.userId, a.accountId
 	from User u inner join Account a on a.userId = u.userId
 	where u.email = ?1 and u.userType = 'customer')
-insert into AccountMember (userId, accountId)
-select userId, accountId from c where true
+insert into AccountMember (userId, accountId, status)
+select userId, accountId, 'active' from c where true
 on conflict (userId, accountId) do nothing`
 							)
 							.bind(email)

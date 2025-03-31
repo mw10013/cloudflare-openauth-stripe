@@ -9,25 +9,21 @@ values
 	('staffer');
 
 --> statement-breakpoint
-create table AccountMemberStatus (statusId text primary key);
+create table AccountMemberStatus (accountMemberStatusId text primary key);
 
 --> statement-breakpoint
 insert into
-	AccountMemberStatus (statusId)
+	AccountMemberStatus (accountMemberStatusId)
 values
 	('pending'),
-	('rejected'),
-	('active'),
-	('revoked'),
-	('left'),
-	('deleted');
+	('active');
 
 --> statement-breakpoint
 create table AccountMember (
 	accountMemberId integer primary key,
 	userId integer not null references User (userId),
 	accountId integer not null references Account (accountId),
-	status text not null default 'pending',
+	status text not null default 'pending' references AccountMemberStatus (accountMemberStatusId),
 	unique (userId, accountId)
 );
 

@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-export const UserType = Schema.Literal('customer', 'staffer') // Must align with userTypes table
+export const UserType = Schema.Literal('customer', 'staffer') // Must align with UserType table
 export type UserType = Schema.Schema.Type<typeof UserType>
 
 export const User = Schema.Struct({
@@ -35,10 +35,14 @@ export const Account = Schema.Struct({
 })
 export type Account = Schema.Schema.Type<typeof Account>
 
+export const AccountMemberStatus = Schema.Literal('pending', 'active') // Must align with AccountMemberStatus table
+export type AccountMemberStatus = Schema.Schema.Type<typeof UserType>
+
 export const AccountMember = Schema.Struct({
 	accountMemberId: Schema.Number,
+	userId: Schema.Number,
 	accountId: Schema.Number,
-	userId: Schema.Number
+	status: AccountMemberStatus,
 })
 export type AccountMember = Schema.Schema.Type<typeof AccountMember>
 

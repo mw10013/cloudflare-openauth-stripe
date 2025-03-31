@@ -38,24 +38,11 @@
   - An invite email is sent to the email.
 - An account member has a status
   - pending - Awaiting acceptance
-  - rejected - Rejected
   - active - Current member
-  - revoked - Owner revoked access
-  - left - customer left the account
-- Status transitions:
-  - Initial state → pending
-  - pending → active (when member accepts)
-  - pending → rejected (when member declines)
-  - active → revoked (when owner revokes access)
-  - active → left (when member leaves)
-  - revoked → active (when owner reinstates access)
-- Visibility rules:
-  - Account owners see all members of their account, regardless of status
-  - Members only see accounts where their status is "active"
-  - Revoked members don't see the account in their account list
-- When reinstating a previously revoked member:
-  - The member is immediately granted access (status becomes "active")
-  - No new invitation or acceptance is required
+- Membership actions:
+  - Owners can revoke a member's access (hard deletes the membership record)
+  - Members can leave an account (hard deletes the membership record)
+  - Owners can invite a previously removed member again (creates a new membership record)
 
 ## User Deletion Strategy
 
