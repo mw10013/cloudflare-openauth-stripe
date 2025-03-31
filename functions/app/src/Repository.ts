@@ -16,7 +16,8 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 		'accountMembers',
 		(select json_group_array(json_object(
 			'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId,
-			'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType) from User u where u.userId = am.userId)
+			'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
+				'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) from User u where u.userId = am.userId)
 			)) from AccountMember am where am.accountId = a.accountId)
 		)) as data from Account a`
 					),
@@ -57,7 +58,6 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 			upsertUser: ({ email }: Pick<User, 'email'>) =>
 				d1
 					.batch([
-						// set email = email to ensure returning * works
 						d1
 							.prepare(
 								`
@@ -90,7 +90,13 @@ on conflict (userId, accountId) do nothing`
 					.pipe(
 						Effect.flatMap((results) => Effect.fromNullable(results[0].results[0])),
 						Effect.flatMap(Schema.decodeUnknown(User))
-					)
+					),
+
+			softDeleteUser: ({ userId }: Pick<User, 'userId'>) =>
+				d1.batch([
+					d1.prepare(`update User set deletedAt = datetime('now'), updatedAt = datetime('now') where userId = ?`).bind(userId),
+					d1.prepare(`delete from AccountMember where userId = ?1`).bind(userId)
+				])
 		}
 	}),
 	dependencies: [D1.Default]

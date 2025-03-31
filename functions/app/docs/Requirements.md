@@ -42,22 +42,29 @@
   - active - Current member
   - revoked - Owner revoked access
   - left - customer left the account
-  - deleted - Soft-deleted by owner
 - Status transitions:
   - Initial state → pending
   - pending → active (when member accepts)
   - pending → rejected (when member declines)
   - active → revoked (when owner revokes access)
   - active → left (when member leaves)
-  - Any status → deleted (when owner deletes)
+  - revoked → active (when owner reinstates access)
+- Visibility rules:
+  - Account owners see all members of their account, regardless of status
+  - Members only see accounts where their status is "active"
+  - Revoked members don't see the account in their account list
+- When reinstating a previously revoked member:
+  - The member is immediately granted access (status becomes "active")
+  - No new invitation or acceptance is required
 
 ## User Deletion Strategy
 
 - Users must be soft-deleted rather than hard-deleted due to Stripe integration requirements
+- Upon soft deletion of user, all AccountMembers for that user must be hard deleted, but the Account is untouched.
 - Soft deletion is implemented using `deletedAt` timestamp in the User record
 - Email addresses must remain unique across all users (including soft-deleted users)
 - When a user attempts to register with an email that belongs to a soft-deleted user:
-  - The system will reactivate the soft-deleted user record
+  - The system will reactivate the soft-deleted user record and insert AccountMember record.
   - This maintains the connection to existing Stripe customer records
   - All existing account relationships are preserved
 - Email change process:
