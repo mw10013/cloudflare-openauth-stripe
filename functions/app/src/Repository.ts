@@ -96,7 +96,13 @@ on conflict (userId, accountId) do nothing`
 				d1.batch([
 					d1.prepare(`update User set deletedAt = datetime('now'), updatedAt = datetime('now') where userId = ?`).bind(userId),
 					d1.prepare(`delete from AccountMember where userId = ?1`).bind(userId)
-				])
+				]),
+
+			invite: ({ emails }: { readonly emails: readonly string[] }) =>
+				Effect.gen(function* () {
+					yield* Effect.log('Repository: invite', { emails })
+					return yield* d1.batch([...emails.map((email) => d1.prepare(`select * from User where email = ?1`).bind(email))])
+				})
 		}
 	}),
 	dependencies: [D1.Default]

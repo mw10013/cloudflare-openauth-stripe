@@ -18,7 +18,7 @@
 ## Customer Accounts
 
 - Each customer owns exactly one account
-- Accounts can have multiple members
+- Accounts can have multiple members up to 5
 - Members must be customers (staffers cannot be members)
 - Account ownership is permanent and cannot be transferred
 - Resources can be transferred between accounts as needed
@@ -33,9 +33,17 @@
 ## Member Management
 
 - Account owners can invite customers by email
-  - The email must not be a staffer email.
-  - A user, account, and account member are upserted for the email.
-  - An invite email is sent to the email.
+  - Email must not belong to a staffer
+  - Email must not belong to an existing account member
+- When inviting a user:
+  - Upsert user only if user type is customer.
+  - Upsert must reactivate user if soft deleted (clear deletedAt)
+  - Create account member with 'pending' status
+  - Send invitation email
+- Edge cases to handle:
+  - Preventing staffers from being invited
+  - Preventing duplicate invitations
+  - Proper handling of soft-deleted users
 - An account member has a status
   - pending - Awaiting acceptance
   - active - Current member
@@ -54,6 +62,7 @@
   - The system will reactivate the soft-deleted user record and insert AccountMember record.
   - This maintains the connection to existing Stripe customer records
   - All existing account relationships are preserved
+  - Upserting a user who is a customer must reactivate if soft-deleted (clear deletedAt)
 - Email change process:
   - When a user changes their email, the corresponding Stripe customer email must be updated
   - System must ensure email synchronization between User and Stripe customer

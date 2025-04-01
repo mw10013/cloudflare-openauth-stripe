@@ -14,6 +14,7 @@ import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import { PanelLeftOpen as panelLeftOpenIconNode, User as userIconNode } from 'lucide'
+import { AccountMgr } from './AccountMgr'
 import * as ConfigEx from './ConfigEx'
 import * as D1Ns from './D1'
 import { D1 } from './D1'
@@ -47,6 +48,7 @@ export const makeRuntime = (env: Env) => {
 	)
 	const ConfigLive = ConfigEx.fromObject(env)
 	return Layer.mergeAll(
+		AccountMgr.Default,
 		Stripe.Default,
 		Repository.Default,
 		D1.Default,
@@ -730,7 +732,8 @@ const membersPost = handler((c) =>
 		let actionData = {}
 		switch (formData.intent) {
 			case 'invite':
-				actionData = { formData }
+				yield* AccountMgr.invite(formData)
+				actionData = { formData, invite: yield* AccountMgr.invite(formData) }
 				break
 			default:
 				return yield* Effect.fail(new Error('Invalid intent'))
