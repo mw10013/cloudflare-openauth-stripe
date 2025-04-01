@@ -10,7 +10,7 @@ import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
 import { Cause, Chunk, Config, Effect, Layer, Logger, LogLevel, ManagedRuntime, Predicate, Schema } from 'effect'
 import { dual } from 'effect/Function'
-import { Handler, Hono, Context as HonoContext, Env as HonoEnv } from 'hono'
+import { Handler, Hono, Context as HonoContext, Env as HonoEnv, MiddlewareHandler, Next } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import { PanelLeftOpen as panelLeftOpenIconNode, User as userIconNode } from 'lucide'
@@ -58,6 +58,30 @@ export const makeRuntime = (env: Env) => {
 	).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
 }
 
+export const handler =
+	<A, E>(
+		h: (
+			...args: Parameters<Handler<AppEnv>>
+		) => Effect.Effect<A | Promise<A>, E, ManagedRuntime.ManagedRuntime.Context<Parameters<Handler<AppEnv>>[0]['var']['runtime']>>
+	) =>
+	(...args: Parameters<Handler<AppEnv>>) =>
+		h(...args).pipe(
+			Effect.flatMap((response) => (Predicate.isPromise(response) ? Effect.tryPromise(() => response) : Effect.succeed(response))),
+			orErrorResponse(args[0]),
+			args[0].var.runtime.runPromise
+		)
+
+export const middleware =
+	<A, E>(
+		mw: (
+			...args: Parameters<MiddlewareHandler<AppEnv>>
+		) => Effect.Effect<Promise<A> | void, E, ManagedRuntime.ManagedRuntime.Context<Parameters<Handler<AppEnv>>[0]['var']['runtime']>>
+	) =>
+	(...args: Parameters<MiddlewareHandler<AppEnv>>) =>
+		mw(...args).pipe(
+			args[0].var.runtime.runPromise
+		)
+
 export const orErrorResponse: {
 	<A, E, R, Env extends HonoEnv>(c: HonoContext<Env>): (self: Effect.Effect<A, E, R>) => Effect.Effect<A, never, R>
 	<A, E, R, Env extends HonoEnv>(self: Effect.Effect<A, E, R>, c: HonoContext<Env>): Effect.Effect<A, never, R>
@@ -75,83 +99,70 @@ export const orErrorResponse: {
 			const failuresHtml = Chunk.isEmpty(failures)
 				? ''
 				: `<div class="failures">
-			<h2>Failures</h2>
-			<ul>
-				${Chunk.join(
-					Chunk.map(
-						failures,
-						(error) =>
-							`<li>${
-								typeof error === 'object' && error !== null && 'message' in error
-									? String(error.message).replace(/</g, '&lt;').replace(/>/g, '&gt;') +
-										('cause' in error && error.cause
-											? `<br>Cause: ${
-													typeof error.cause === 'object' && error.cause !== null && 'message' in error.cause
-														? String(error.cause.message).replace(/</g, '&lt;').replace(/>/g, '&gt;')
-														: String(error.cause).replace(/</g, '&lt;').replace(/>/g, '&gt;')
-												}`
-											: '')
-									: String(error).replace(/</g, '&lt;').replace(/>/g, '&gt;')
-							}</li>`
-					),
-					''
-				)}
-			</ul>
-		</div>`
+					<h2>Failures</h2>
+					<ul>
+						${Chunk.join(
+							Chunk.map(
+								failures,
+								(error) =>
+									`<li>${
+										typeof error === 'object' && error !== null && 'message' in error
+											? String(error.message).replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+												('cause' in error && error.cause
+													? `<br>Cause: ${
+															typeof error.cause === 'object' && error.cause !== null && 'message' in error.cause
+																? String(error.cause.message).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+																: String(error.cause).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+														}`
+													: '')
+											: String(error).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+									}</li>`
+							),
+							''
+						)}
+					</ul>
+				</div>`
 
 			const defectsHtml = Chunk.isEmpty(defects)
 				? ''
 				: `<div class="defects">
-			<h2>Defects</h2>
-			<ul>
-				${Chunk.join(
-					Chunk.map(defects, (defect) => `<li>${String(defect).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`),
-					''
-				)}
-			</ul>
-		</div>`
+					<h2>Defects</h2>
+					<ul>
+						${Chunk.join(
+							Chunk.map(defects, (defect) => `<li>${String(defect).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`),
+							''
+						)}
+					</ul>
+				</div>`
 
 			const html = `
-		<!DOCTYPE html>
-		<html>
-		<head>
-			<title>Error Occurred</title>
-			<style>
-				body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
-				h1 { color: #e53e3e; }
-				.failures { background: #fff5f5; border-left: 4px solid #fc8181; padding: 1rem; margin: 1rem 0; }
-				.defects { background: #fff5f5; border-left: 4px solid #f56565; padding: 1rem; margin: 1rem 0; }
-				pre { background: #f7fafc; padding: 1rem; overflow-x: auto; }
-			</style>
-		</head>
-		<body>
-			<h1>An Error Occurred</h1>
-			${failuresHtml}
-			${defectsHtml}
-			<div>
-				<h2>Full Error Details</h2>
-				<pre>${Cause.pretty(cause).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
-			</div>
-		</body>
-		</html>
-	`
+				<!DOCTYPE html>
+				<html>
+				<head>
+					<title>Error Occurred</title>
+					<style>
+						body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+						h1 { color: #e53e3e; }
+						.failures { background: #fff5f5; border-left: 4px solid #fc8181; padding: 1rem; margin: 1rem 0; }
+						.defects { background: #fff5f5; border-left: 4px solid #f56565; padding: 1rem; margin: 1rem 0; }
+						pre { background: #f7fafc; padding: 1rem; overflow-x: auto; }
+					</style>
+				</head>
+				<body>
+					<h1>An Error Occurred</h1>
+					${failuresHtml}
+					${defectsHtml}
+					<div>
+						<h2>Full Error Details</h2>
+						<pre>${Cause.pretty(cause).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+					</div>
+				</body>
+				</html>
+			`
 			return Effect.succeed(c.html(html))
 		})
 	)
 )
-
-export const handler =
-	<A, E>(
-		h: (
-			...args: Parameters<Handler<AppEnv>>
-		) => Effect.Effect<A | Promise<A>, E, ManagedRuntime.ManagedRuntime.Context<Parameters<Handler<AppEnv>>[0]['var']['runtime']>>
-	) =>
-	(...args: Parameters<Handler<AppEnv>>) =>
-		h(...args).pipe(
-			Effect.flatMap((response) => (Predicate.isPromise(response) ? Effect.tryPromise(() => response) : Effect.succeed(response))),
-			orErrorResponse(args[0]),
-			args[0].var.runtime.runPromise
-		)
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
@@ -732,8 +743,7 @@ const membersPost = handler((c) =>
 		let actionData = {}
 		switch (formData.intent) {
 			case 'invite':
-				yield* AccountMgr.invite(formData)
-				actionData = { formData, invite: yield* AccountMgr.invite(formData) }
+				// actionData = { formData, invite: yield* AccountMgr.invite(formData) }
 				break
 			default:
 				return yield* Effect.fail(new Error('Invalid intent'))

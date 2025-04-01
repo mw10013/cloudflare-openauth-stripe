@@ -98,7 +98,10 @@ on conflict (userId, accountId) do nothing`
 					d1.prepare(`delete from AccountMember where userId = ?1`).bind(userId)
 				]),
 
-			invite: ({ emails }: { readonly emails: readonly string[] }) =>
+			getAccountMemberCount: ({ accountId }: Pick<Account, 'accountId'>) =>
+				pipe(d1.prepare(`select count(*) as count from AccountMember where accountId = ?`).bind(accountId), d1.first),
+
+			invite: ({ emails }: { readonly emails: readonly User['email'][] }) =>
 				Effect.gen(function* () {
 					yield* Effect.log('Repository: invite', { emails })
 					return yield* d1.batch([...emails.map((email) => d1.prepare(`select * from User where email = ?1`).bind(email))])
