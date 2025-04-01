@@ -426,7 +426,8 @@ function createFrontend({
 		'/app',
 		handler((c) => appLoaderData(c).pipe(Effect.map((loaderData) => c.render(<App loaderData={loaderData} />))))
 	)
-	app.get('/app/manage', (c) => c.render(<Manage />))
+	app.get('/app/members', (c) => c.render(<Members />))
+	app.post('/app/members', membersPost)
 	app.get(
 		'/app/billing',
 		handler((c) => billingLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Billing loaderData={loaderData} />))))
@@ -647,10 +648,17 @@ const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
 						<a href="/app">App</a>
 					</li>
 					<li>
-						<a href="/app/manage">Manage</a>
-					</li>
-					<li>
-						<a href="/app/billing">Billing</a>
+						<details open>
+							<summary>Manage Account</summary>
+							<ul>
+								<li>
+									<a href="/app/members">Members</a>
+								</li>
+								<li>
+									<a href="/app/billing">Billing</a>
+								</li>
+							</ul>
+						</details>
 					</li>
 				</ul>
 			</div>
@@ -673,24 +681,63 @@ const appLoaderData = (c: HonoContext<AppEnv>) =>
 		Effect.map((account) => ({ account, sessionData: c.var.sessionData }))
 	)
 
-const Manage = () => {
+const Members: FC<{ actionData?: any }> = async ({ actionData }) => {
 	return (
 		<>
-			<h1 className="text-lg font-medium lg:text-2xl">Manage</h1>
-			<div className="card bg-base-100 w-96 shadow-sm">
+			<h1 className="text-lg font-medium lg:text-2xl">Manage Account</h1>
+			<div className="card bg-base-100 w-full shadow-sm">
 				<div className="card-body">
-					<h2 className="card-title">Account Management</h2>
-					<p className="font-medium">Manage your account settings and preferences.</p>
-					<div className="card-actions justify-end">
-						<a href="/app/manage" className="btn btn-outline">
-							Manage Account
-						</a>
-					</div>
+					<h2 className="card-title">Members</h2>
+					<p className="font-medium">Add new account members, edit or revoke permissions and access, and resend verifications emails.</p>
+					<form action="/app/members" method="post">
+						<div className="card-body">
+							<h2 className="card-title">Invite members to join your account.</h2>
+							<fieldset className="fieldset">
+								<legend className="fieldset-legend">Emails</legend>
+								<input type="text" name="emails" className="input w-full" placeholder="Separate multiple email addresses with commas" />
+							</fieldset>
+							<div className="card-actions justify-end">
+								<button name="intent" value="invite" className="btn btn-primary">
+									Invite
+								</button>
+							</div>
+						</div>
+					</form>
 				</div>
+				<pre>{JSON.stringify({ actionData }, null, 2)}</pre>
 			</div>
 		</>
 	)
 }
+
+Schema.Array
+
+const membersPost = handler((c) =>
+	Effect.gen(function* () {
+		const MembersFormDataSchema = FormDataSchema(
+			Schema.Union(
+				Schema.Struct({
+					intent: Schema.Literal('invite'),
+					emails: Schema.transform(Schema.compose(Schema.NonEmptyString, Schema.split(',')), Schema.Array(Schema.String), {
+						strict: false,
+						decode: (emails) => [...new Set(emails.map((email) => email.trim()))],
+						encode: (emails) => emails
+					})
+				})
+			)
+		)
+		const formData = yield* Effect.tryPromise(() => c.req.formData()).pipe(Effect.flatMap(Schema.decode(MembersFormDataSchema)))
+		let actionData = {}
+		switch (formData.intent) {
+			case 'invite':
+				actionData = { formData }
+				break
+			default:
+				return yield* Effect.fail(new Error('Invalid intent'))
+		}
+		return c.render(<Members actionData={actionData} />)
+	})
+)
 
 const Billing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof billingLoaderData>> }> = async ({ loaderData }) => {
 	return (
