@@ -386,7 +386,9 @@ function createFrontend({
 		Effect.gen(function* () {
 			const AccountIdFromPath = Schema.compose(Schema.NumberFromString, Account.fields.accountId)
 			const accountId = yield* Schema.decodeUnknown(AccountIdFromPath)(c.req.param('accountId'))
-			yield* Effect.log(`accountIdMiddleware: accountId: ${accountId}`)
+			if (!c.var.accounts.find((v) => v.accountId === accountId)) {
+				return c.redirect('/app')
+			}
 			c.set('accountId', accountId)
 			yield* Effect.tryPromise(() => next())
 		})
