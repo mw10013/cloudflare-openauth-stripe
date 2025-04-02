@@ -2,11 +2,11 @@ import { Effect } from 'effect'
 import { Repository } from './Repository'
 import { Account, User } from './schemas'
 
-export const AccountLimits = Object.freeze({
-	maxMembers: 5
+export const IdentityMgrLimits = Object.freeze({
+	maxAccountMembers: 5
 })
 
-export class AccountMgr extends Effect.Service<AccountMgr>()('AccountMgr', {
+export class IdentityMgr extends Effect.Service<IdentityMgr>()('IdentityMgr', {
 	accessors: true,
 	dependencies: [Repository.Default],
 	effect: Effect.gen(function* () {

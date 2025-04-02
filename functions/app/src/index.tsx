@@ -10,15 +10,15 @@ import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
 import { Cause, Chunk, Config, Effect, Layer, Logger, LogLevel, ManagedRuntime, Predicate, Schema } from 'effect'
 import { dual } from 'effect/Function'
-import { Handler, Hono, Context as HonoContext, Env as HonoEnv, MiddlewareHandler, Next } from 'hono'
+import { Handler, Hono, Context as HonoContext, Env as HonoEnv, MiddlewareHandler } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import { PanelLeftOpen as panelLeftOpenIconNode, User as userIconNode } from 'lucide'
-import { AccountMgr } from './AccountMgr'
 import * as ConfigEx from './ConfigEx'
 import * as D1Ns from './D1'
 import { D1 } from './D1'
 import { InvariantError, InvariantResponseError } from './ErrorEx'
+import { IdentityMgr } from './IdentityMgr'
 import { Repository } from './Repository'
 import { FormDataSchema, SessionData, UserSubject } from './schemas'
 import { Ses } from './Ses'
@@ -48,7 +48,7 @@ export const makeRuntime = (env: Env) => {
 	)
 	const ConfigLive = ConfigEx.fromObject(env)
 	return Layer.mergeAll(
-		AccountMgr.Default,
+		IdentityMgr.Default,
 		Stripe.Default,
 		Repository.Default,
 		D1.Default,
@@ -75,12 +75,10 @@ export const middleware =
 	<A, E>(
 		mw: (
 			...args: Parameters<MiddlewareHandler<AppEnv>>
-		) => Effect.Effect<Promise<A> | void, E, ManagedRuntime.ManagedRuntime.Context<Parameters<Handler<AppEnv>>[0]['var']['runtime']>>
+		) => Effect.Effect<Awaited<ReturnType<MiddlewareHandler>>, E, ManagedRuntime.ManagedRuntime.Context<Parameters<Handler<AppEnv>>[0]['var']['runtime']>>
 	) =>
 	(...args: Parameters<MiddlewareHandler<AppEnv>>) =>
-		mw(...args).pipe(
-			args[0].var.runtime.runPromise
-		)
+		mw(...args).pipe(args[0].var.runtime.runPromise)
 
 export const orErrorResponse: {
 	<A, E, R, Env extends HonoEnv>(c: HonoContext<Env>): (self: Effect.Effect<A, E, R>) => Effect.Effect<A, never, R>
@@ -365,24 +363,29 @@ function createFrontend({
 		} else if (c.var.sessionData.sessionUser.userType !== 'customer') {
 			return c.text('Forbidden', 403)
 		}
-		await next()
-	})
-	app.use('/app/*', async (c, next) => {
 		const render = c.render
 		c.render = (content) => {
 			return render(<AppLayout>{content}</AppLayout>)
 		}
-
 		await next()
 	})
-	app.use('/admin/*', async (c, next) => {
+	app.use('/admin/*', middleware((c, next) => Effect.gen(function* () {
 		if (!c.var.sessionData.sessionUser) {
 			return c.redirect('/authenticate')
 		} else if (c.var.sessionData.sessionUser.userType !== 'staffer') {
 			return c.text('Forbidden', 403)
 		}
-		await next()
-	})
+		yield* Effect.tryPromise(() => next())
+	})))
+
+	// app.use('/admin/*', async (c, next) => {
+	// 	if (!c.var.sessionData.sessionUser) {
+	// 		return c.redirect('/authenticate')
+	// 	} else if (c.var.sessionData.sessionUser.userType !== 'staffer') {
+	// 		return c.text('Forbidden', 403)
+	// 	}
+	// 	await next()
+	// })
 	app.use(
 		'/*',
 		jsxRenderer(({ children }) => <Layout>{children}</Layout>)
