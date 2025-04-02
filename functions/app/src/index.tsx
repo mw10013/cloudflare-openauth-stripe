@@ -20,7 +20,7 @@ import { D1 } from './D1'
 import { InvariantError, InvariantResponseError } from './ErrorEx'
 import { IdentityMgr } from './IdentityMgr'
 import { Repository } from './Repository'
-import { AccountWithUser, FormDataSchema, SessionData, UserSubject } from './schemas'
+import { Account, AccountWithUser, FormDataSchema, SessionData, UserSubject } from './schemas'
 import { Ses } from './Ses'
 import { Stripe } from './Stripe'
 
@@ -34,6 +34,7 @@ type AppEnv = {
 		client: Client
 		redirectUri: string
 		accounts: readonly AccountWithUser[]
+		accountId?: Account['accountId']
 	}
 }
 
@@ -380,6 +381,17 @@ function createFrontend({
 			})
 		)
 	)
+
+	const accountIdMiddleware = middleware((c, next) =>
+		Effect.gen(function* () {
+			const AccountIdFromPath = Schema.compose(Schema.NumberFromString, Account.fields.accountId)
+			const accountId = yield* Schema.decodeUnknown(AccountIdFromPath)(c.req.param('accountId'))
+			yield* Effect.log(`accountIdMiddleware: accountId: ${accountId}`)
+			c.set('accountId', accountId)
+			yield* Effect.tryPromise(() => next())
+		})
+	)
+
 	app.use(
 		'/admin/*',
 		middleware((c, next) =>
@@ -449,13 +461,15 @@ function createFrontend({
 		'/app',
 		handler((c) => appLoaderData(c).pipe(Effect.map((loaderData) => c.render(<App loaderData={loaderData} />))))
 	)
-	app.get('/app/members', (c) => c.render(<Members />))
-	app.post('/app/members', membersPost)
+	app.get('/app/:accountId', accountIdMiddleware, (c) => c.render(<AccountHome />))
+	app.get('/app/:accountId/members', accountIdMiddleware, (c) => c.render(<Members />))
+	app.post('/app/:accountId/members', accountIdMiddleware, membersPost)
 	app.get(
-		'/app/billing',
+		'/app/:accountId/billing',
+		accountIdMiddleware,
 		handler((c) => billingLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Billing loaderData={loaderData} />))))
 	)
-	app.post('/app/billing', billingPost)
+	app.post('/app/:accountId/billing', accountIdMiddleware, billingPost)
 	app.get('/admin', (c) => c.render(<Admin />))
 	app.post('/admin', adminPost)
 	app.get('/seed', seedGet)
@@ -655,6 +669,8 @@ const pricingPost = handler((c) =>
 )
 
 const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
+	const c = useRequestContext<AppEnv>()
+	c.var.accountId
 	return (
 		<div className="drawer lg:drawer-open">
 			<input id="drawer" type="checkbox" className="drawer-toggle" />
@@ -668,21 +684,28 @@ const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
 				<label htmlFor="drawer" aria-label="close sidebar" className="drawer-overlay"></label>
 				<ul className="menu bg-base-200 text-base-content min-h-full w-80 p-4">
 					<li>
-						<a href="/app">App</a>
+						<a href="/app">Accounts</a>
 					</li>
-					<li>
-						<details open>
-							<summary>Manage Account</summary>
-							<ul>
-								<li>
-									<a href="/app/members">Members</a>
-								</li>
-								<li>
-									<a href="/app/billing">Billing</a>
-								</li>
-							</ul>
-						</details>
-					</li>
+					{c.var.accountId ? (
+						<>
+							<li>
+								<a href={`/app/${c.var.accountId}`}>Home</a>
+							</li>
+							<li>
+								<details open>
+									<summary>Manage Account</summary>
+									<ul>
+										<li>
+											<a href={`/app/${c.var.accountId}/members`}>Members</a>
+										</li>
+										<li>
+											<a href={`/app/${c.var.accountId}/billing`}>Billing</a>
+										</li>
+									</ul>
+								</details>
+							</li>
+						</>
+					) : null}
 				</ul>
 			</div>
 		</div>
@@ -692,12 +715,14 @@ const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
 const App: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof appLoaderData>> }> = async ({ loaderData }) => {
 	return (
 		<>
-			<h1 className="text-lg font-medium lg:text-2xl">App</h1>
+			<h1 className="text-lg font-medium lg:text-2xl">Accounts</h1>
 			<ul className="list bg-base-100 rounded-box shadow-md">
 				<li className="p-4 pb-2 text-xs tracking-wide opacity-60">Accounts</li>
 				{loaderData.accounts.map((account) => (
 					<li key={account.accountId} className="list-row">
-						<div className="list-col-grow"><a href={`/app/${account.accountId}`}>{account.user.email}</a></div>
+						<div className="list-col-grow">
+							<a href={`/app/${account.accountId}`}>{account.user.email}</a>
+						</div>
 					</li>
 				))}
 			</ul>
@@ -715,6 +740,14 @@ const appLoaderData = (c: HonoContext<AppEnv>) =>
 			sessionUser
 		}
 	})
+
+const AccountHome: FC = () => {
+	return (
+		<>
+			<h1 className="text-lg font-medium lg:text-2xl">Home</h1>
+		</>
+	)
+}
 
 const Members: FC<{ actionData?: any }> = async ({ actionData }) => {
 	return (
@@ -745,8 +778,6 @@ const Members: FC<{ actionData?: any }> = async ({ actionData }) => {
 	)
 }
 
-Schema.Array
-
 const membersPost = handler((c) =>
 	Effect.gen(function* () {
 		const MembersFormDataSchema = FormDataSchema(
@@ -775,6 +806,7 @@ const membersPost = handler((c) =>
 )
 
 const Billing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof billingLoaderData>> }> = async ({ loaderData }) => {
+	const c = useRequestContext<AppEnv>()
 	return (
 		<>
 			<h1 className="text-lg font-medium lg:text-2xl">Billing</h1>
@@ -783,7 +815,7 @@ const Billing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof billingL
 					<h2 className="card-title">Account Subscription</h2>
 					<p className="font-medium">Current Plan: {loaderData.account.planName || 'Free'}</p>
 					<div className="card-actions justify-end">
-						<form action="/app/billing" method="post">
+						<form action={`/app/${c.var.accountId}/billing`} method="post">
 							<button className="btn btn-outline">Manage Subscription</button>
 						</form>
 					</div>
@@ -810,7 +842,7 @@ const billingPost = handler((c) =>
 		}
 		return yield* Stripe.createBillingPortalSession({
 			customer: account.stripeCustomerId,
-			return_url: `${new URL(c.req.url).origin}/app/billing`
+			return_url: `${new URL(c.req.url).origin}/app/${c.var.accountId}/billing`
 		}).pipe(Effect.map((session) => c.redirect(session.url)))
 	})
 )
