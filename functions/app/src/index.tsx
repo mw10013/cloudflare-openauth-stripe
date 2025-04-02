@@ -20,7 +20,7 @@ import { D1 } from './D1'
 import { InvariantError, InvariantResponseError } from './ErrorEx'
 import { IdentityMgr } from './IdentityMgr'
 import { Repository } from './Repository'
-import { FormDataSchema, SessionData, UserSubject } from './schemas'
+import { AccountWithUser, FormDataSchema, SessionData, UserSubject } from './schemas'
 import { Ses } from './Ses'
 import { Stripe } from './Stripe'
 
@@ -33,6 +33,7 @@ type AppEnv = {
 		sessionData: SessionData
 		client: Client
 		redirectUri: string
+		accounts: readonly AccountWithUser[]
 	}
 }
 
@@ -75,7 +76,11 @@ export const middleware =
 	<A, E>(
 		mw: (
 			...args: Parameters<MiddlewareHandler<AppEnv>>
-		) => Effect.Effect<Awaited<ReturnType<MiddlewareHandler>>, E, ManagedRuntime.ManagedRuntime.Context<Parameters<Handler<AppEnv>>[0]['var']['runtime']>>
+		) => Effect.Effect<
+			Awaited<ReturnType<MiddlewareHandler>>,
+			E,
+			ManagedRuntime.ManagedRuntime.Context<Parameters<Handler<AppEnv>>[0]['var']['runtime']>
+		>
 	) =>
 	(...args: Parameters<MiddlewareHandler<AppEnv>>) =>
 		mw(...args).pipe(args[0].var.runtime.runPromise)
@@ -357,35 +362,37 @@ function createFrontend({
 			await env.KV.put(sessionId, JSON.stringify(c.var.sessionData), { expirationTtl: 60 * 60 })
 		}
 	})
-	app.use('/app/*', async (c, next) => {
-		if (!c.var.sessionData.sessionUser) {
-			return c.redirect('/authenticate')
-		} else if (c.var.sessionData.sessionUser.userType !== 'customer') {
-			return c.text('Forbidden', 403)
-		}
-		const render = c.render
-		c.render = (content) => {
-			return render(<AppLayout>{content}</AppLayout>)
-		}
-		await next()
-	})
-	app.use('/admin/*', middleware((c, next) => Effect.gen(function* () {
-		if (!c.var.sessionData.sessionUser) {
-			return c.redirect('/authenticate')
-		} else if (c.var.sessionData.sessionUser.userType !== 'staffer') {
-			return c.text('Forbidden', 403)
-		}
-		yield* Effect.tryPromise(() => next())
-	})))
-
-	// app.use('/admin/*', async (c, next) => {
-	// 	if (!c.var.sessionData.sessionUser) {
-	// 		return c.redirect('/authenticate')
-	// 	} else if (c.var.sessionData.sessionUser.userType !== 'staffer') {
-	// 		return c.text('Forbidden', 403)
-	// 	}
-	// 	await next()
-	// })
+	app.use(
+		'/app/*',
+		middleware((c, next) =>
+			Effect.gen(function* () {
+				if (!c.var.sessionData.sessionUser) {
+					return c.redirect('/authenticate')
+				} else if (c.var.sessionData.sessionUser.userType !== 'customer') {
+					return c.text('Forbidden', 403)
+				}
+				const render = c.render
+				c.render = (content) => {
+					return render(<AppLayout>{content}</AppLayout>)
+				}
+				c.set('accounts', yield* Repository.getAccountsForUser(c.var.sessionData.sessionUser))
+				yield* Effect.tryPromise(() => next())
+			})
+		)
+	)
+	app.use(
+		'/admin/*',
+		middleware((c, next) =>
+			Effect.gen(function* () {
+				if (!c.var.sessionData.sessionUser) {
+					return c.redirect('/authenticate')
+				} else if (c.var.sessionData.sessionUser.userType !== 'staffer') {
+					return c.text('Forbidden', 403)
+				}
+				yield* Effect.tryPromise(() => next())
+			})
+		)
+	)
 	app.use(
 		'/*',
 		jsxRenderer(({ children }) => <Layout>{children}</Layout>)
@@ -692,10 +699,14 @@ const App: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof appLoaderDat
 }
 
 const appLoaderData = (c: HonoContext<AppEnv>) =>
-	Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
-		Effect.flatMap((user) => Repository.getRequiredAccountForUser(user)),
-		Effect.map((account) => ({ account, sessionData: c.var.sessionData }))
-	)
+	Effect.gen(function* () {
+		const sessionUser = yield* Effect.fromNullable(c.var.sessionData.sessionUser)
+		return {
+			account: yield* Repository.getRequiredAccountForUser(sessionUser),
+			accounts: c.var.accounts,
+			sessionUser
+		}
+	})
 
 const Members: FC<{ actionData?: any }> = async ({ actionData }) => {
 	return (

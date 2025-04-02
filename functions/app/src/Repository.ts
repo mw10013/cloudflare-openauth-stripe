@@ -1,6 +1,6 @@
 import { Effect, pipe, Schema } from 'effect'
 import { D1 } from './D1'
-import { Account, AccountsResult, User } from './schemas'
+import { Account, AccountsResult, AccountsWithUserResult, User } from './schemas'
 
 export class Repository extends Effect.Service<Repository>()('Repository', {
 	accessors: true,
@@ -97,6 +97,25 @@ on conflict (userId, accountId) do nothing`
 					d1.prepare(`update User set deletedAt = datetime('now'), updatedAt = datetime('now') where userId = ?`).bind(userId),
 					d1.prepare(`delete from AccountMember where userId = ?1`).bind(userId)
 				]),
+
+			getAccountsForUser: ({ userId }: Pick<User, 'userId'>) =>
+				pipe(
+					d1
+						.prepare(
+							`
+select json_group_array(json_object(
+	'accountId', a.accountId, 'userId', a.userId, 'stripeCustomerId', a.stripeCustomerId, 'stripeSubscriptionId', a.stripeSubscriptionId, 'stripeProductId', a.stripeProductId, 'planName', a.planName, 'subscriptionStatus', a.subscriptionStatus,
+	'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType,
+	'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) as user from User u where u.userId = a.userId)
+	)) as data 
+from Account a inner join AccountMember am on am.accountId = a.accountId
+where am.userId = ?1 and am.status = 'active'`
+						)
+						.bind(userId),
+					d1.first,
+					Effect.flatMap(Effect.fromNullable),
+					Effect.flatMap(Schema.decodeUnknown(AccountsWithUserResult))
+				),
 
 			getAccountMemberCount: ({ accountId }: Pick<Account, 'accountId'>) =>
 				pipe(d1.prepare(`select count(*) as count from AccountMember where accountId = ?`).bind(accountId), d1.first),

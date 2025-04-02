@@ -35,6 +35,12 @@ export const Account = Schema.Struct({
 })
 export type Account = Schema.Schema.Type<typeof Account>
 
+export const AccountWithUser = Schema.Struct({
+	...Account.fields,
+	user: User
+})
+export type AccountWithUser = Schema.Schema.Type<typeof AccountWithUser>
+
 export const AccountMemberStatus = Schema.Literal('pending', 'active') // Must align with AccountMemberStatus table
 export type AccountMemberStatus = Schema.Schema.Type<typeof UserType>
 
@@ -91,6 +97,9 @@ export type AccountResult = Schema.Schema.Type<typeof AccountResult>
 
 export const AccountsResult = DataFromResult(Schema.Array(AccountWithAccountMembers))
 export type AccountsResult = Schema.Schema.Type<typeof AccountsResult>
+
+export const AccountsWithUserResult = DataFromResult(Schema.Array(AccountWithUser))
+export type AccountsWithUserResult = Schema.Schema.Type<typeof AccountsWithUserResult>
 
 export const FormDataFromSelf = Schema.instanceOf(FormData).annotations({ identifier: 'FormDataFromSelf' })
 
