@@ -693,6 +693,14 @@ const App: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof appLoaderDat
 	return (
 		<>
 			<h1 className="text-lg font-medium lg:text-2xl">App</h1>
+			<ul className="list bg-base-100 rounded-box shadow-md">
+				<li className="p-4 pb-2 text-xs tracking-wide opacity-60">Accounts</li>
+				{loaderData.accounts.map((account) => (
+					<li key={account.accountId} className="list-row">
+						<div className="list-col-grow"><a href={`/app/${account.accountId}`}>{account.user.email}</a></div>
+					</li>
+				))}
+			</ul>
 			<pre>{JSON.stringify({ loaderData }, null, 2)}</pre>
 		</>
 	)
