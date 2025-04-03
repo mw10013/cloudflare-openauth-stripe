@@ -1,5 +1,16 @@
 # cloudflare-openauth-stripe-client
 
+## TODO
+
+- invite
+- email brand (lowercase, trimmed)
+- mail queue
+- rbac
+- ses: policy, docs, unenv
+- stripe do: schema for customer
+- string split regex
+- pretty logger
+
 ## Local Dev
 
 - pnpm i

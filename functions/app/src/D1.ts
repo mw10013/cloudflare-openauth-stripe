@@ -39,7 +39,7 @@ export class D1 extends Effect.Service<D1>()('D1', {
 			prepare: (query: string) => db.prepare(query),
 			batch: (statements: D1PreparedStatement[]) => tryPromise(() => db.batch(statements)),
 			run: (statement: D1PreparedStatement) => tryPromise(() => statement.run()),
-			first: (statement: D1PreparedStatement) => tryPromise(() => statement.first())
+			first: <T>(statement: D1PreparedStatement) => tryPromise(() => statement.first<T>())
 		}
 	})
 }) {}

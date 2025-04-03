@@ -118,12 +118,27 @@ where am.userId = ?1 and am.status = 'active'`
 				),
 
 			getAccountMemberCount: ({ accountId }: Pick<Account, 'accountId'>) =>
-				pipe(d1.prepare(`select count(*) as count from AccountMember where accountId = ?`).bind(accountId), d1.first),
+				pipe(
+					d1.prepare(`select count(*) as accountMemberCount from AccountMember where accountId = ?`).bind(accountId),
+					d1.first<{ accountMemberCount: number }>,
+					Effect.flatMap(Effect.fromNullable),
+					Effect.map((result) => result.accountMemberCount)
+				),
 
-			invite: ({ emails }: { readonly emails: readonly User['email'][] }) =>
+			invite: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
 				Effect.gen(function* () {
 					yield* Effect.log('Repository: invite', { emails })
-					return yield* d1.batch([...emails.map((email) => d1.prepare(`select * from User where email = ?1`).bind(email))])
+					return yield* d1.batch([
+						...emails.map((email) =>
+							d1
+								.prepare(
+									`
+select u.* from User u where email = ?1 and 
+(userType = 'staffer' or exists (select 1 from AccountMember am where am.userId = u.userId and accountId = ?2))`
+								)
+								.bind(email, accountId)
+						)
+					])
 				})
 		}
 	}),

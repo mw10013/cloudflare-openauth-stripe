@@ -752,6 +752,7 @@ const AccountHome: FC = () => {
 }
 
 const Members: FC<{ actionData?: any }> = async ({ actionData }) => {
+	const c = useRequestContext<AppEnv>()
 	return (
 		<>
 			<h1 className="text-lg font-medium lg:text-2xl">Manage Account</h1>
@@ -759,7 +760,7 @@ const Members: FC<{ actionData?: any }> = async ({ actionData }) => {
 				<div className="card-body">
 					<h2 className="card-title">Members</h2>
 					<p className="font-medium">Add new account members, edit or revoke permissions and access, and resend verifications emails.</p>
-					<form action="/app/members" method="post">
+					<form action={`/app/${c.var.accountId}/members`} method="post">
 						<div className="card-body">
 							<h2 className="card-title">Invite members to join your account.</h2>
 							<fieldset className="fieldset">
@@ -798,7 +799,10 @@ const membersPost = handler((c) =>
 		let actionData = {}
 		switch (formData.intent) {
 			case 'invite':
-				// actionData = { formData, invite: yield* AccountMgr.invite(formData) }
+				actionData = {
+					formData,
+					invite: yield* IdentityMgr.invite({ emails: formData.emails, accountId: yield* Effect.fromNullable(c.var.accountId) })
+				}
 				break
 			default:
 				return yield* Effect.fail(new Error('Invalid intent'))
