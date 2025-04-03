@@ -124,8 +124,43 @@ where am.userId = ?1 and am.status = 'active'`
 					Effect.flatMap(Effect.fromNullable),
 					Effect.map((result) => result.accountMemberCount)
 				),
-
 			invite: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
+				Effect.gen(function* () {
+					yield* Effect.log('Repository: invite', { emails })
+
+					if (emails.length === 0) {
+						return []
+					}
+
+					const valuesPlaceholders = emails.map((_, i) => `(?${i + 1})`).join(',')
+
+					return yield* pipe(
+						d1
+							.prepare(
+								`
+							with email_list(email) as (values ${valuesPlaceholders})
+							select 
+								e.email,
+								u.userId,
+								u.userType,
+								case 
+									when u.userType = 'staffer' then 'staffer'
+									when am.userId is not null then 'existing_member'
+									when u.userId is null then 'new_user'
+									else 'eligible' 
+								end as status
+							from 
+								email_list e
+								left join User u on e.email = u.email
+								left join AccountMember am on u.userId = am.userId and am.accountId = ?${emails.length + 1}
+						`
+							)
+							.bind(...emails, accountId),
+						d1.run
+					)
+				}),
+
+			invite1: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
 				Effect.gen(function* () {
 					yield* Effect.log('Repository: invite', { emails })
 					return yield* d1.batch([
