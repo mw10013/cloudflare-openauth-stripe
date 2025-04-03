@@ -126,53 +126,47 @@ where am.userId = ?1 and am.status = 'active'`
 				),
 			invite: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
 				Effect.gen(function* () {
-					yield* Effect.log('Repository: invite', { emails })
-
-					if (emails.length === 0) {
-						return []
-					}
-
 					const emailPlaceholders = emails.map(() => `(?)`).join(',')
-
 					return yield* pipe(
 						d1
 							.prepare(
 								`
-with Email (email) as (values ${emailPlaceholders})
-select 
-	e.email,
-	u.userId,
-	u.userType,
-	case 
-		when u.userType = 'staffer' then 'staffer'
-		when am.status = 'pending' then 'already_invited'
-		when am.status = 'active' then 'member'
-	end as status
-from Email e
-	inner join User u on e.email = u.email
-	left join AccountMember am on u.userId = am.userId and am.accountId = ?
-where u.userType = 'staffer' or am.status is not null
+with Email (email) as (values ${emailPlaceholders}),
+IneligibleEmail as (
+  select 
+    e.email,
+    case 
+      when u.userType = 'staffer' then 'staffer'
+      when am.status = 'pending' then 'pending'
+      when am.status = 'active' then 'active'
+    end as reason
+  from Email e
+    inner join User u on e.email = u.email
+    left join AccountMember am on u.userId = am.userId and am.accountId = ?
+  where u.userType = 'staffer' or am.status is not null
+)
+select json_object(
+  'staffers', (
+    select json_group_array(email)
+    from IneligibleEmail
+    where reason = 'staffer'
+  ),
+  'pending', (
+    select json_group_array(email)
+    from IneligibleEmail
+    where reason = 'pending'
+  ),
+  'active', (
+    select json_group_array(email)
+    from IneligibleEmail
+    where reason = 'active'
+  )
+) as data
 						`
 							)
 							.bind(...emails, accountId),
 						d1.run
 					)
-				}),
-
-			invite1: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
-				Effect.gen(function* () {
-					yield* Effect.log('Repository: invite', { emails })
-					return yield* d1.batch([
-						...emails.map((email) =>
-							d1
-								.prepare(
-									`
-select u.* from User u where email = ?1 and 
-(userType = 'staffer' or exists (select 1 from AccountMember am where am.userId = u.userId and accountId = ?2))`
-								)
-								.bind(email, accountId)
-						)
-					])
 				})
 		}
 	}),
