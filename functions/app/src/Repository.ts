@@ -1,6 +1,6 @@
 import { Effect, pipe, Schema } from 'effect'
 import { D1 } from './D1'
-import { Account, AccountsResult, AccountsWithUserResult, User } from './schemas'
+import { Account, AccountsResult, AccountsWithUserResult, DataFromResult, User } from './schemas'
 
 export class Repository extends Effect.Service<Repository>()('Repository', {
 	accessors: true,
@@ -124,8 +124,14 @@ where am.userId = ?1 and am.status = 'active'`
 					Effect.flatMap(Effect.fromNullable),
 					Effect.map((result) => result.accountMemberCount)
 				),
-			invite: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
+
+			identifyInvalidInviteEmails: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
 				Effect.gen(function* () {
+					const DataSchema = Schema.Struct({
+						staffers: Schema.Array(Schema.String),
+						pending: Schema.Array(Schema.String),
+						active: Schema.Array(Schema.String)
+					})
 					const emailPlaceholders = emails.map(() => `(?)`).join(',')
 					return yield* pipe(
 						d1
@@ -165,7 +171,9 @@ select json_object(
 						`
 							)
 							.bind(...emails, accountId),
-						d1.run
+						d1.first<{ data: { staffers: string[]; pending: string[]; active: string[] } }>,
+						Effect.flatMap(Effect.fromNullable),
+						Effect.flatMap(Schema.decodeUnknown(DataFromResult(DataSchema)))
 					)
 				})
 		}

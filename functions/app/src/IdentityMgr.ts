@@ -17,9 +17,11 @@ export class IdentityMgr extends Effect.Service<IdentityMgr>()('IdentityMgr', {
 					yield* Effect.log('AccountManager: invite', { emails })
 					const accountMemberCount = yield* repository.getAccountMemberCount({ accountId })
 					if (accountMemberCount + emails.length > IdentityMgrLimits.maxAccountMembers) {
-						return yield* Effect.fail(new Error(`Account member count exceeds the maximum limit of ${IdentityMgrLimits.maxAccountMembers}.`))
+						return yield* Effect.fail(
+							new Error(`Account member count exceeds the maximum limit of ${IdentityMgrLimits.maxAccountMembers}.`)
+						)
 					}
-					return yield* repository.invite({ emails, accountId })
+					return yield* repository.identifyInvalidInviteEmails({ emails, accountId })
 				})
 		}
 	})
