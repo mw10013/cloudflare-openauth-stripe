@@ -464,7 +464,11 @@ function createFrontend({
 		handler((c) => appLoaderData(c).pipe(Effect.map((loaderData) => c.render(<App loaderData={loaderData} />))))
 	)
 	app.get('/app/:accountId', accountIdMiddleware, (c) => c.render(<AccountHome />))
-	app.get('/app/:accountId/members', accountIdMiddleware, (c) => c.render(<Members />))
+	app.get(
+		'/app/:accountId/members',
+		accountIdMiddleware,
+		handler((c) => membersLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Members loaderData={loaderData} />))))
+	)
 	app.post('/app/:accountId/members', accountIdMiddleware, membersPost)
 	app.get(
 		'/app/:accountId/billing',
@@ -751,7 +755,10 @@ const AccountHome: FC = () => {
 	)
 }
 
-const Members: FC<{ actionData?: any }> = async ({ actionData }) => {
+const Members: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof membersLoaderData>>; actionData?: any }> = async ({
+	loaderData,
+	actionData
+}) => {
 	const c = useRequestContext<AppEnv>()
 	return (
 		<>
@@ -775,11 +782,17 @@ const Members: FC<{ actionData?: any }> = async ({ actionData }) => {
 						</div>
 					</form>
 				</div>
-				<pre>{JSON.stringify({ actionData }, null, 2)}</pre>
+				<pre>{JSON.stringify({ loaderData, actionData }, null, 2)}</pre>
 			</div>
 		</>
 	)
 }
+
+const membersLoaderData = (c: HonoContext<AppEnv>) =>
+	Effect.fromNullable(c.var.accountId).pipe(
+		Effect.flatMap((accountId) => Repository.getAccountMembers({ accountId })),
+		Effect.map((members) => ({ members }))
+	)
 
 const membersPost = handler((c) =>
 	Effect.gen(function* () {
@@ -807,7 +820,8 @@ const membersPost = handler((c) =>
 			default:
 				return yield* Effect.fail(new Error('Invalid intent'))
 		}
-		return c.render(<Members actionData={actionData} />)
+		const loaderData = yield* membersLoaderData(c)
+		return c.render(<Members loaderData={loaderData} actionData={actionData} />)
 	})
 )
 

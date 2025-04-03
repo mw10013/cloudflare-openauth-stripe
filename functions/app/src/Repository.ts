@@ -6,6 +6,38 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 	accessors: true,
 	effect: Effect.gen(function* () {
 		const d1 = yield* D1
+
+		const upsertUserStatements = ({ email }: Pick<User, 'email'>) => [
+			d1
+				.prepare(
+					`
+insert into User (email) values (?) 
+on conflict (email) do update set deletedAt = null, updatedAt = datetime('now') returning *`
+				)
+				.bind(email),
+			d1
+				.prepare(
+					`
+insert into Account (userId) 
+select userId from User where email = ?1 and userType = 'customer'
+on conflict (userId) do nothing`
+				)
+				.bind(email),
+			// https://www.sqlite.org/lang_insert.html
+			// To avoid a parsing ambiguity, the SELECT statement should always contain a WHERE clause, even if that clause is simply "WHERE true", if the upsert-clause is present.
+			d1
+				.prepare(
+					`
+with c as (select u.userId, a.accountId
+  from User u inner join Account a on a.userId = u.userId
+  where u.email = ?1 and u.userType = 'customer')
+insert into AccountMember (userId, accountId, status)
+select userId, accountId, 'active' from c where true
+on conflict (userId, accountId) do nothing`
+				)
+				.bind(email)
+		]
+
 		return {
 			getAccounts: () =>
 				pipe(
@@ -56,41 +88,10 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
 				),
 
 			upsertUser: ({ email }: Pick<User, 'email'>) =>
-				d1
-					.batch([
-						d1
-							.prepare(
-								`
-insert into User (email) values (?) 
-on conflict (email) do update set deletedAt = null, updatedAt = datetime('now') returning *`
-							)
-							.bind(email),
-						d1
-							.prepare(
-								`
-insert into Account (userId) 
-select userId from User where email = ?1 and userType = 'customer'
-on conflict (userId) do nothing`
-							)
-							.bind(email),
-						// https://www.sqlite.org/lang_insert.html
-						// To avoid a parsing ambiguity, the SELECT statement should always contain a WHERE clause, even if that clause is simply "WHERE true", if the upsert-clause is present.
-						d1
-							.prepare(
-								`
-with c as (select u.userId, a.accountId
-	from User u inner join Account a on a.userId = u.userId
-	where u.email = ?1 and u.userType = 'customer')
-insert into AccountMember (userId, accountId, status)
-select userId, accountId, 'active' from c where true
-on conflict (userId, accountId) do nothing`
-							)
-							.bind(email)
-					])
-					.pipe(
-						Effect.flatMap((results) => Effect.fromNullable(results[0].results[0])),
-						Effect.flatMap(Schema.decodeUnknown(User))
-					),
+				d1.batch([...upsertUserStatements({ email })]).pipe(
+					Effect.flatMap((results) => Effect.fromNullable(results[0].results[0])),
+					Effect.flatMap(Schema.decodeUnknown(User))
+				),
 
 			softDeleteUser: ({ userId }: Pick<User, 'userId'>) =>
 				d1.batch([
@@ -175,6 +176,25 @@ select json_object(
 						Effect.flatMap(Effect.fromNullable),
 						Effect.flatMap(Schema.decodeUnknown(DataFromResult(DataSchema)))
 					)
+				}),
+
+			getAccountMembers: ({ accountId }: Pick<Account, 'accountId'>) =>
+				pipe(d1.prepare(`select * from AccountMember where accountId = ?`).bind(accountId), d1.run),
+
+			createAccountMembers: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
+				Effect.gen(function* () {
+					yield* Effect.log('Repository: createAccountMembers', { emails, accountId })
+					const createAccountMemberStatements = ({ email, accountId }: Pick<User, 'email'> & Pick<Account, 'accountId'>) => [
+						...upsertUserStatements({ email }),
+						d1
+							.prepare(
+								`
+insert into AccountMember (userId, accountId) values ((select userId from User where email = ?), ?)							
+							`
+							)
+							.bind(email, accountId)
+					]
+					d1.batch([...emails.flatMap((email) => createAccountMemberStatements({ email, accountId }))])
 				})
 		}
 	}),
