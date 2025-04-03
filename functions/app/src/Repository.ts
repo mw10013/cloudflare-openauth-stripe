@@ -132,27 +132,26 @@ where am.userId = ?1 and am.status = 'active'`
 						return []
 					}
 
-					const valuesPlaceholders = emails.map((_, i) => `(?${i + 1})`).join(',')
+					const emailPlaceholders = emails.map(() => `(?)`).join(',')
 
 					return yield* pipe(
 						d1
 							.prepare(
 								`
-							with email_list(email) as (values ${valuesPlaceholders})
-							select 
-								e.email,
-								u.userId,
-								u.userType,
-								case 
-									when u.userType = 'staffer' then 'staffer'
-									when am.userId is not null then 'existing_member'
-									when u.userId is null then 'new_user'
-									else 'eligible' 
-								end as status
-							from 
-								email_list e
-								left join User u on e.email = u.email
-								left join AccountMember am on u.userId = am.userId and am.accountId = ?${emails.length + 1}
+with Email (email) as (values ${emailPlaceholders})
+select 
+	e.email,
+	u.userId,
+	u.userType,
+	case 
+		when u.userType = 'staffer' then 'staffer'
+		when am.status = 'pending' then 'already_invited'
+		when am.status = 'active' then 'member'
+	end as status
+from Email e
+	inner join User u on e.email = u.email
+	left join AccountMember am on u.userId = am.userId and am.accountId = ?
+where u.userType = 'staffer' or am.status is not null
 						`
 							)
 							.bind(...emails, accountId),
