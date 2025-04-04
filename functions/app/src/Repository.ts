@@ -1,6 +1,7 @@
 import { Effect, pipe, Schema } from 'effect'
 import { D1 } from './D1'
-import { Account, AccountsResult, AccountsWithUserResult, DataFromResult, User } from './schemas'
+import { Account, AccountMemberWithUser, AccountsResult, AccountsWithUserResult, User } from './Domain'
+import { DataFromResult } from './SchemaEx'
 
 export class Repository extends Effect.Service<Repository>()('Repository', {
 	accessors: true,
@@ -43,15 +44,16 @@ on conflict (userId, accountId) do nothing`
 				pipe(
 					d1.prepare(
 						`
-	select json_group_array(json_object(
-		'accountId', accountId, 'userId', userId, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
-		'accountMembers',
-		(select json_group_array(json_object(
-			'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status,
-			'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
-				'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) from User u where u.userId = am.userId)
-			)) from AccountMember am where am.accountId = a.accountId)
-		)) as data from Account a`
+select json_group_array(json_object(
+	'accountId', accountId, 'userId', userId, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
+	'accountMembers',
+	(select json_group_array(json_object(
+		'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status,
+		'user', 
+		(select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
+			'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) from User u where u.userId = am.userId)
+	)) from AccountMember am where am.accountId = a.accountId)
+)) as data from Account a`
 					),
 					d1.first,
 					Effect.flatMap(Effect.fromNullable),
@@ -150,7 +152,7 @@ IneligibleEmail as (
   from Email e
     inner join User u on e.email = u.email
     left join AccountMember am on u.userId = am.userId and am.accountId = ?
-  where u.userType = 'staffer' or am.status is not null
+  where u.userType = 'staffer' or am.userId is not null
 )
 select json_object(
   'staffers', (
@@ -172,14 +174,29 @@ select json_object(
 						`
 							)
 							.bind(...emails, accountId),
-						d1.first<{ data: { staffers: string[]; pending: string[]; active: string[] } }>,
+						d1.first,
 						Effect.flatMap(Effect.fromNullable),
 						Effect.flatMap(Schema.decodeUnknown(DataFromResult(DataSchema)))
 					)
 				}),
 
 			getAccountMembers: ({ accountId }: Pick<Account, 'accountId'>) =>
-				pipe(d1.prepare(`select * from AccountMember where accountId = ?`).bind(accountId), d1.run),
+				pipe(
+					d1
+						.prepare(
+							`
+select json_group_array(json_object(
+	'accountMemberId', accountMemberId, 'userId', userId, 'accountId', accountId, 'status', status,
+	'user',
+	(select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
+		'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) from User u where u.userId = am.userId))) as data
+from AccountMember am where accountId = ?`
+						)
+						.bind(accountId),
+					d1.first,
+					Effect.flatMap(Effect.fromNullable),
+					Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(AccountMemberWithUser))))
+				),
 
 			createAccountMembers: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
 				Effect.gen(function* () {

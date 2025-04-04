@@ -1,4 +1,5 @@
 import { Schema } from 'effect'
+import { DataFromResult } from './SchemaEx'
 
 export const UserType = Schema.Literal('customer', 'staffer') // Must align with UserType table
 export type UserType = Schema.Schema.Type<typeof UserType>
@@ -48,7 +49,7 @@ export const AccountMember = Schema.Struct({
 	accountMemberId: Schema.Number,
 	userId: Schema.Number,
 	accountId: Schema.Number,
-	status: AccountMemberStatus,
+	status: AccountMemberStatus
 })
 export type AccountMember = Schema.Schema.Type<typeof AccountMember>
 
@@ -64,34 +65,6 @@ export const AccountWithAccountMembers = Schema.Struct({
 })
 export type AccountWithAccountMembers = Schema.Schema.Type<typeof AccountWithAccountMembers>
 
-// export const DataFromResult = <A, I>(DataSchema: Schema.Schema<A, I>) =>
-// 	Schema.NullOr(
-// 		Schema.transform(
-// 			Schema.Struct({
-// 				data: Schema.String
-// 			}),
-// 			Schema.parseJson(DataSchema),
-// 			{
-// 				strict: true,
-// 				decode: (result) => result.data,
-// 				encode: (value) => ({ data: value })
-// 			}
-// 		)
-// 	)
-
-export const DataFromResult = <A, I>(DataSchema: Schema.Schema<A, I>) =>
-	Schema.transform(
-		Schema.Struct({
-			data: Schema.String
-		}),
-		Schema.parseJson(DataSchema),
-		{
-			strict: true,
-			decode: (result) => result.data,
-			encode: (value) => ({ data: value })
-		}
-	)
-
 export const AccountResult = Schema.NullOr(Account)
 export type AccountResult = Schema.Schema.Type<typeof AccountResult>
 
@@ -100,24 +73,3 @@ export type AccountsResult = Schema.Schema.Type<typeof AccountsResult>
 
 export const AccountsWithUserResult = DataFromResult(Schema.Array(AccountWithUser))
 export type AccountsWithUserResult = Schema.Schema.Type<typeof AccountsWithUserResult>
-
-export const FormDataFromSelf = Schema.instanceOf(FormData).annotations({ identifier: 'FormDataFromSelf' })
-
-// https://discord.com/channels/795981131316985866/847382157861060618/threads/1270826681505939517
-// https://raw.githubusercontent.com/react-hook-form/resolvers/refs/heads/dev/effect-ts/src/effect-ts.ts
-export const RecordFromFormData = Schema.transform(FormDataFromSelf, Schema.Record({ key: Schema.String, value: Schema.String }), {
-	strict: false,
-	decode: (formData) => Object.fromEntries(formData.entries()),
-	encode: (data) => {
-		const formData = new FormData()
-		for (const [key, value] of Object.entries(data)) {
-			formData.append(key, value)
-		}
-		return formData
-	}
-}).annotations({ identifier: 'RecordFromFormData' })
-
-export const FormDataSchema = <A, I extends Record<string, string>, R>(schema: Schema.Schema<A, I, R>) =>
-	Schema.compose(RecordFromFormData, schema, { strict: false })
-
-// export const FormSchema = FormDataSchema(Schema.Struct({ name: Schema.String, age: Schema.NumberFromString }))

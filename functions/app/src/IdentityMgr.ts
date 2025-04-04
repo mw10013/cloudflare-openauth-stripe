@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
+import { Account, User } from './Domain'
 import { Repository } from './Repository'
-import { Account, User } from './schemas'
 
 export const IdentityMgrLimits = Object.freeze({
 	maxAccountMembers: 5
