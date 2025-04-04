@@ -1,6 +1,6 @@
 import { Effect, pipe, Schema } from 'effect'
 import { D1 } from './D1'
-import { Account, AccountMemberWithUser, AccountWithAccountMembers, AccountWithUser, User } from './Domain'
+import { Account, AccountMember, AccountMemberWithUser, AccountWithAccountMembers, AccountWithUser, User } from './Domain'
 import { DataFromResult } from './SchemaEx'
 
 export class Repository extends Effect.Service<Repository>()('Repository', {
@@ -179,6 +179,9 @@ select json_object(
 						Effect.flatMap(Schema.decodeUnknown(DataFromResult(DataSchema)))
 					)
 				}),
+
+			deleteAccountMember: ({ accountMemberId }: Pick<AccountMember, 'accountMemberId'>) =>
+				pipe(d1.prepare(`delete from AccountMember where accountMemberId = ?`).bind(accountMemberId), d1.run),
 
 			getAccountMembers: ({ accountId }: Pick<Account, 'accountId'>) =>
 				pipe(

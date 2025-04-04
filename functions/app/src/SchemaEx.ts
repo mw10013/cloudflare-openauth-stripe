@@ -17,20 +17,7 @@ export const RecordFromFormData = Schema.transform(FormDataFromSelf, Schema.Reco
 }).annotations({ identifier: 'RecordFromFormData' })
 
 export const FormDataSchema = <A, I extends Record<string, string>, R>(schema: Schema.Schema<A, I, R>) =>
-	Schema.compose(RecordFromFormData, schema, { strict: false }) // export const DataFromResult = <A, I>(DataSchema: Schema.Schema<A, I>) =>
-// 	Schema.NullOr(
-// 		Schema.transform(
-// 			Schema.Struct({
-// 				data: Schema.String
-// 			}),
-// 			Schema.parseJson(DataSchema),
-// 			{
-// 				strict: true,
-// 				decode: (result) => result.data,
-// 				encode: (value) => ({ data: value })
-// 			}
-// 		)
-// 	)
+	Schema.compose(RecordFromFormData, schema, { strict: false }) 
 
 export const DataFromResult = <A, I>(DataSchema: Schema.Schema<A, I>) =>
 	Schema.transform(

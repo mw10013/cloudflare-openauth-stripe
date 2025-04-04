@@ -19,9 +19,9 @@ import * as D1Ns from './D1'
 import { D1 } from './D1'
 import { Account, AccountWithUser, SessionData, UserSubject } from './Domain'
 import { InvariantError, InvariantResponseError } from './ErrorEx'
-import { FormDataSchema } from './SchemaEx'
 import { IdentityMgr } from './IdentityMgr'
 import { Repository } from './Repository'
+import { FormDataSchema } from './SchemaEx'
 import { Ses } from './Ses'
 import { Stripe } from './Stripe'
 
@@ -768,8 +768,8 @@ const Members: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof membersL
 				<div className="card-body">
 					<h2 className="card-title">Members</h2>
 					<p className="font-medium">Add new account members, edit or revoke permissions and access, and resend verifications emails.</p>
-					<form action={`/app/${c.var.accountId}/members`} method="post">
-						<div className="card-body">
+					<div className="card-body">
+						<form action={`/app/${c.var.accountId}/members`} method="post">
 							<h2 className="card-title">Invite members to join your account.</h2>
 							<fieldset className="fieldset">
 								<legend className="fieldset-legend">Emails</legend>
@@ -780,8 +780,23 @@ const Members: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof membersL
 									Invite
 								</button>
 							</div>
-						</div>
-					</form>
+						</form>
+						<h2 className="card-title">Members</h2>
+						<ul className="list bg-base-100 rounded-box shadow-md">
+							<li className="p-4 pb-2 text-xs tracking-wide opacity-60">Most played songs this week</li>
+							{loaderData.members.map((m) => (
+								<li className="list-row">
+									<div className="list-col-grow">{m.user.email}</div>
+									<form action={`/app/${c.var.accountId}/members`} method="post">
+										<input type="hidden" name="accountMemberId" value={m.accountMemberId} />{' '}
+										<button name="intent" value="revoke" className="btn btn-sm btn-outline">
+											Revoke
+										</button>
+									</form>
+								</li>
+							))}
+						</ul>
+					</div>
 				</div>
 				<pre>{JSON.stringify({ loaderData, actionData }, null, 2)}</pre>
 			</div>
@@ -806,6 +821,10 @@ const membersPost = handler((c) =>
 						decode: (emails) => [...new Set(emails.map((email) => email.trim()))],
 						encode: (emails) => emails
 					})
+				}),
+				Schema.Struct({
+					intent: Schema.Literal('revoke'),
+					accountMemberId: Schema.NumberFromString
 				})
 			)
 		)
@@ -816,6 +835,13 @@ const membersPost = handler((c) =>
 				actionData = {
 					formData,
 					invite: yield* IdentityMgr.invite({ emails: formData.emails, accountId: yield* Effect.fromNullable(c.var.accountId) })
+				}
+				break
+			case 'revoke':
+				yield* IdentityMgr.revokeAccountMembership({ accountMemberId: formData.accountMemberId })
+				actionData = {
+					message: `Account membership revoked: accountMemberId: ${formData.accountMemberId}`,
+					formData
 				}
 				break
 			default:

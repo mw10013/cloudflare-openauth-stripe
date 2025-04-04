@@ -1,5 +1,5 @@
 import { Effect } from 'effect'
-import { Account, User } from './Domain'
+import { Account, AccountMember, User } from './Domain'
 import { Repository } from './Repository'
 
 export const IdentityMgrLimits = Object.freeze({
@@ -12,7 +12,10 @@ export class IdentityMgr extends Effect.Service<IdentityMgr>()('IdentityMgr', {
 	effect: Effect.gen(function* () {
 		const repository = yield* Repository
 		return {
-			getAccountMembers: ({ accountId }: Pick<Account, 'accountId'>) => Repository.getAccountMembers({ accountId }),
+			declineAccountMembership: ({ accountMemberId }: Pick<AccountMember, 'accountMemberId'>) => repository.deleteAccountMember({ accountMemberId}),
+			revokeAccountMembership: ({ accountMemberId }: Pick<AccountMember, 'accountMemberId'>) => repository.deleteAccountMember({ accountMemberId}),
+
+			getAccountMembers: ({ accountId }: Pick<Account, 'accountId'>) => repository.getAccountMembers({ accountId }),
 
 			invite: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
 				Effect.gen(function* () {
