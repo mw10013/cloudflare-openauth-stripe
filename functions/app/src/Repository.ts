@@ -182,8 +182,8 @@ select json_object(
 
 			deleteAccountMember: ({
 				accountMemberId,
-				noopAccountOwnerDeletion
-			}: Pick<AccountMember, 'accountMemberId'> & { noopAccountOwnerDeletion?: boolean }) =>
+				skipIfOwner: noopAccountOwnerDeletion
+			}: Pick<AccountMember, 'accountMemberId'> & { skipIfOwner?: boolean }) =>
 				noopAccountOwnerDeletion
 					? pipe(
 							d1
@@ -227,12 +227,13 @@ from AccountMember am where accountId = ?`
 						d1
 							.prepare(
 								`
-insert into AccountMember (userId, accountId) values ((select userId from User where email = ?), ?)							
+insert into AccountMember (userId, accountId, status) 
+values ((select userId from User where email = ?), ?, 'pending') returning *							
 							`
 							)
 							.bind(email, accountId)
 					]
-					d1.batch([...emails.flatMap((email) => createAccountMemberStatements({ email, accountId }))])
+					return yield* d1.batch([...emails.flatMap((email) => createAccountMemberStatements({ email, accountId }))])
 				})
 		}
 	}),
