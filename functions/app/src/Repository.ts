@@ -180,8 +180,26 @@ select json_object(
 					)
 				}),
 
-			deleteAccountMember: ({ accountMemberId }: Pick<AccountMember, 'accountMemberId'>) =>
-				pipe(d1.prepare(`delete from AccountMember where accountMemberId = ?`).bind(accountMemberId), d1.run),
+			deleteAccountMember: ({
+				accountMemberId,
+				noopAccountOwnerDeletion
+			}: Pick<AccountMember, 'accountMemberId'> & { noopAccountOwnerDeletion?: boolean }) =>
+				noopAccountOwnerDeletion
+					? pipe(
+							d1
+								.prepare(
+									`
+with t as (
+	select accountMemberId
+	from AccountMember am inner join Account a on a.accountId = am.accountId
+	where am.accountId = ? and a.userId <> am.userId)
+delete from AccountMember
+where accountMemberId in (select accountMemberId from t)`
+								)
+								.bind(accountMemberId),
+							d1.run
+						)
+					: pipe(d1.prepare(`delete from AccountMember where accountMemberId = ?`).bind(accountMemberId), d1.run),
 
 			getAccountMembers: ({ accountId }: Pick<Account, 'accountId'>) =>
 				pipe(

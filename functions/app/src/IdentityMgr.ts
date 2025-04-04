@@ -12,8 +12,10 @@ export class IdentityMgr extends Effect.Service<IdentityMgr>()('IdentityMgr', {
 	effect: Effect.gen(function* () {
 		const repository = yield* Repository
 		return {
-			declineAccountMembership: ({ accountMemberId }: Pick<AccountMember, 'accountMemberId'>) => repository.deleteAccountMember({ accountMemberId}),
-			revokeAccountMembership: ({ accountMemberId }: Pick<AccountMember, 'accountMemberId'>) => repository.deleteAccountMember({ accountMemberId}),
+			declineAccountMembership: ({ accountMemberId }: Pick<AccountMember, 'accountMemberId'>) =>
+				repository.deleteAccountMember({ accountMemberId }),
+			revokeAccountMembership: ({ accountMemberId }: Pick<AccountMember, 'accountMemberId'>) =>
+				repository.deleteAccountMember({ accountMemberId, noopAccountOwnerDeletion: true }),
 
 			getAccountMembers: ({ accountId }: Pick<Account, 'accountId'>) => repository.getAccountMembers({ accountId }),
 
