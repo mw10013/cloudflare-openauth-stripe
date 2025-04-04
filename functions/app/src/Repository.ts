@@ -1,6 +1,6 @@
 import { Effect, pipe, Schema } from 'effect'
 import { D1 } from './D1'
-import { Account, AccountMemberWithUser, AccountsResult, AccountsWithUserResult, User } from './Domain'
+import { Account, AccountMemberWithUser, AccountWithAccountMembers, AccountWithUser, User } from './Domain'
 import { DataFromResult } from './SchemaEx'
 
 export class Repository extends Effect.Service<Repository>()('Repository', {
@@ -57,7 +57,7 @@ select json_group_array(json_object(
 					),
 					d1.first,
 					Effect.flatMap(Effect.fromNullable),
-					Effect.flatMap(Schema.decodeUnknown(AccountsResult))
+					Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(AccountWithAccountMembers))))
 				),
 
 			getRequiredAccountForUser: ({ userId }: Pick<User, 'userId'>) =>
@@ -117,7 +117,7 @@ where am.userId = ?1 and am.status = 'active'`
 						.bind(userId),
 					d1.first,
 					Effect.flatMap(Effect.fromNullable),
-					Effect.flatMap(Schema.decodeUnknown(AccountsWithUserResult))
+					Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(AccountWithUser))))
 				),
 
 			getAccountMemberCount: ({ accountId }: Pick<Account, 'accountId'>) =>

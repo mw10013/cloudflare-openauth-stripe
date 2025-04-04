@@ -65,11 +65,5 @@ export const AccountWithAccountMembers = Schema.Struct({
 })
 export type AccountWithAccountMembers = Schema.Schema.Type<typeof AccountWithAccountMembers>
 
-export const AccountResult = Schema.NullOr(Account)
-export type AccountResult = Schema.Schema.Type<typeof AccountResult>
-
-export const AccountsResult = DataFromResult(Schema.Array(AccountWithAccountMembers))
-export type AccountsResult = Schema.Schema.Type<typeof AccountsResult>
-
 export const AccountsWithUserResult = DataFromResult(Schema.Array(AccountWithUser))
 export type AccountsWithUserResult = Schema.Schema.Type<typeof AccountsWithUserResult>
