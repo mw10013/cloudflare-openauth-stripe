@@ -116,7 +116,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
       // https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#checkout-flow
       ensureStripeCustomerId: ({ userId, email }: { userId: number; email: string }) =>
         Effect.gen(function* () {
-          const account = yield* repository.getRequiredAccountForUser({ userId })
+          const account = yield* repository.getAccountForUser({ userId })
           if (account.stripeCustomerId)
             return {
               stripeCustomerId: account.stripeCustomerId,

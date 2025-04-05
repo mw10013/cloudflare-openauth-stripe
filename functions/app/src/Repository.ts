@@ -1,14 +1,6 @@
 import { Effect, pipe, Schema } from 'effect'
 import { D1 } from './D1'
-import {
-  Account,
-  AccountMember,
-  AccountMemberWithAccount,
-  AccountMemberWithUser,
-  AccountWithUser,
-  Customer,
-  User
-} from './Domain'
+import { Account, AccountMember, AccountMemberWithAccount, AccountMemberWithUser, AccountWithUser, Customer, User } from './Domain'
 import { DataFromResult } from './SchemaEx'
 
 export class Repository extends Effect.Service<Repository>()('Repository', {
@@ -74,7 +66,7 @@ select json_group_array(json_object(
           Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(Customer))))
         ),
 
-      getRequiredAccountForUser: ({ userId }: Pick<User, 'userId'>) =>
+      getAccountForUser: ({ userId }: Pick<User, 'userId'>) =>
         pipe(
           d1.prepare(`select * from Account where userId = ?`).bind(userId),
           d1.first,
@@ -82,7 +74,7 @@ select json_group_array(json_object(
           Effect.flatMap(Schema.decodeUnknown(Account))
         ),
 
-      getRequiredAccountForMember: ({ accountId, userId }: Pick<Account, 'accountId'> & Pick<User, 'userId'>) =>
+      getAccountForMember: ({ accountId, userId }: Pick<Account, 'accountId'> & Pick<User, 'userId'>) =>
         pipe(
           d1
             .prepare(

@@ -16,9 +16,9 @@ export class IdentityMgr extends Effect.Service<IdentityMgr>()('IdentityMgr', {
 
       getCustomers: () => repository.getCustomers(),
 
-      getAccountForUser: ({ userId }: Pick<User, 'userId'>) => repository.getRequiredAccountForUser({ userId }),
+      getAccountForUser: ({ userId }: Pick<User, 'userId'>) => repository.getAccountForUser({ userId }),
       getAccountForMember: ({ accountId, userId }: Pick<Account, 'accountId'> & Pick<User, 'userId'>) =>
-        repository.getRequiredAccountForMember({ accountId, userId }),
+        repository.getAccountForMember({ accountId, userId }),
 
       getAccounts: ({ userId }: Pick<User, 'userId'>) =>
         repository
