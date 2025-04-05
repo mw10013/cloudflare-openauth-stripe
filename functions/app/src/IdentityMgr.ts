@@ -14,6 +14,11 @@ export class IdentityMgr extends Effect.Service<IdentityMgr>()('IdentityMgr', {
 		return {
 			getCustomers: () => repository.getCustomers(),
 
+			getActiveMemberships: ({ userId }: Pick<AccountMember, 'userId'>) =>
+				repository.getAccountMembersForUser({ userId, status: 'active' }),
+			getPendingMemberships: ({ userId }: Pick<AccountMember, 'userId'>) =>
+				repository.getAccountMembersForUser({ userId, status: 'pending' }),
+
 			declineAccountMembership: ({ accountMemberId }: Pick<AccountMember, 'accountMemberId'>) =>
 				repository.deleteAccountMember({ accountMemberId }),
 			revokeAccountMembership: ({ accountMemberId }: Pick<AccountMember, 'accountMemberId'>) =>

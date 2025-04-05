@@ -17,7 +17,7 @@ import { PanelLeftOpen as panelLeftOpenIconNode, User as userIconNode } from 'lu
 import * as ConfigEx from './ConfigEx'
 import * as D1Ns from './D1'
 import { D1 } from './D1'
-import { Account, AccountWithUser, SessionData, UserSubject } from './Domain'
+import { Account, AccountMemberWithAccount, AccountWithUser, SessionData, UserSubject } from './Domain'
 import { InvariantError, InvariantResponseError } from './ErrorEx'
 import { IdentityMgr } from './IdentityMgr'
 import { Repository } from './Repository'
@@ -34,7 +34,7 @@ type AppEnv = {
 		sessionData: SessionData
 		client: Client
 		redirectUri: string
-		accounts: readonly AccountWithUser[]
+		activeMemberships: readonly AccountMemberWithAccount[]
 		accountId?: Account['accountId']
 	}
 }
@@ -377,7 +377,7 @@ function createFrontend({
 				c.render = (content) => {
 					return render(<AppLayout>{content}</AppLayout>)
 				}
-				c.set('accounts', yield* Repository.getAccountsForUser(c.var.sessionData.sessionUser))
+				c.set('activeMemberships', yield* IdentityMgr.getActiveMemberships(c.var.sessionData.sessionUser))
 				yield* Effect.tryPromise(() => next())
 			})
 		)
@@ -387,7 +387,7 @@ function createFrontend({
 		Effect.gen(function* () {
 			const AccountIdFromPath = Schema.compose(Schema.NumberFromString, Account.fields.accountId)
 			const accountId = yield* Schema.decodeUnknown(AccountIdFromPath)(c.req.param('accountId'))
-			if (!c.var.accounts.find((v) => v.accountId === accountId)) {
+			if (!c.var.activeMemberships.find((v) => v.accountId === accountId)) {
 				return c.redirect('/app')
 			}
 			c.set('accountId', accountId)
@@ -720,20 +720,31 @@ const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
 }
 
 const App: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof appLoaderData>> }> = async ({ loaderData }) => {
+	const c = useRequestContext<AppEnv>()
 	return (
 		<>
 			<h1 className="text-lg font-medium lg:text-2xl">Accounts</h1>
 			<ul className="list bg-base-100 rounded-box shadow-md">
-				<li className="p-4 pb-2 text-xs tracking-wide opacity-60">Accounts</li>
-				{loaderData.accounts.map((account) => (
-					<li key={account.accountId} className="list-row">
+				<li className="p-4 pb-2 text-xs tracking-wide opacity-60">Invitations</li>
+				{loaderData.invitations.map((m) => (
+					<li key={m.accountMemberId} className="list-row">
 						<div className="list-col-grow">
-							<a href={`/app/${account.accountId}`}>{account.user.email}</a>
+							<a href={`/app/${m.accountId}`}>{m.account.user.email}</a>
 						</div>
 					</li>
 				))}
 			</ul>
-			<pre>{JSON.stringify({ loaderData }, null, 2)}</pre>
+
+			<ul className="list bg-base-100 rounded-box shadow-md">
+				<li className="p-4 pb-2 text-xs tracking-wide opacity-60">Accounts</li>
+				{c.var.activeMemberships.map((m) => (
+					<li key={m.accountMemberId} className="list-row">
+						<div className="list-col-grow">
+							<a href={`/app/${m.accountId}`}>{m.account.user.email}</a>
+						</div>
+					</li>
+				))}
+			</ul>
 		</>
 	)
 }
@@ -742,10 +753,7 @@ const appLoaderData = (c: HonoContext<AppEnv>) =>
 	Effect.gen(function* () {
 		const sessionUser = yield* Effect.fromNullable(c.var.sessionData.sessionUser)
 		return {
-			accountMembersForUser: yield* Repository.getAccountMembersForUser({ userId: sessionUser.userId, status: 'active' }),
-			account: yield* Repository.getRequiredAccountForUser(sessionUser),
-			accounts: c.var.accounts,
-			sessionUser
+			invitations: yield* IdentityMgr.getPendingMemberships(sessionUser)
 		}
 	})
 
