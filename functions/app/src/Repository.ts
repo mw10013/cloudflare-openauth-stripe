@@ -1,6 +1,15 @@
 import { Effect, pipe, Schema } from 'effect'
 import { D1 } from './D1'
-import { Account, AccountMember, AccountMemberWithUser, AccountWithAccountMembers, AccountWithUser, Customer, User } from './Domain'
+import {
+	Account,
+	AccountMember,
+	AccountMemberWithAccount,
+	AccountMemberWithUser,
+	AccountWithAccountMembers,
+	AccountWithUser,
+	Customer,
+	User
+} from './Domain'
 import { DataFromResult } from './SchemaEx'
 
 export class Repository extends Effect.Service<Repository>()('Repository', {
@@ -106,6 +115,31 @@ select json_group_array(json_object(
 					d1.prepare(`update User set deletedAt = datetime('now'), updatedAt = datetime('now') where userId = ?`).bind(userId),
 					d1.prepare(`delete from AccountMember where userId = ?1`).bind(userId)
 				]),
+
+			getAccountMembersForUser: ({ userId, status }: Pick<AccountMember, 'userId' | 'status'>) =>
+				pipe(
+					d1
+						.prepare(
+							`
+select json_group_array(json_object(
+	'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status,
+	'account',
+	(select json_object(
+		'accountId', a.accountId, 'userId', a.userId, 'stripeCustomerId', a.stripeCustomerId, 'stripeSubscriptionId', a.stripeSubscriptionId, 'stripeProductId', a.stripeProductId, 'planName', a.planName, 'subscriptionStatus', a.subscriptionStatus,
+		'user',
+		(select json_object(
+			'userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
+			'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt
+		) from User u where u.userId = a.userId)
+	) from Account a where a.accountId = am.accountId)
+)) as data from AccountMember am where am.userId = ? and am.status = ?					
+					`
+						)
+						.bind(userId, status),
+					d1.first,
+					Effect.flatMap(Effect.fromNullable),
+					Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(AccountMemberWithAccount))))
+				),
 
 			getAccountsForUser: ({ userId }: Pick<User, 'userId'>) =>
 				pipe(

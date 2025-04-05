@@ -742,6 +742,7 @@ const appLoaderData = (c: HonoContext<AppEnv>) =>
 	Effect.gen(function* () {
 		const sessionUser = yield* Effect.fromNullable(c.var.sessionData.sessionUser)
 		return {
+			accountMembersForUser: yield* Repository.getAccountMembersForUser({ userId: sessionUser.userId, status: 'active' }),
 			account: yield* Repository.getRequiredAccountForUser(sessionUser),
 			accounts: c.var.accounts,
 			sessionUser
@@ -956,22 +957,6 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 						</div>
 					</form>
 				</div>
-				<div className="card bg-base-100 w-96 shadow-sm">
-					<form action="/admin" method="post">
-						<div className="card-body">
-							<h2 className="card-title">Create User</h2>
-							<fieldset className="fieldset">
-								<legend className="fieldset-legend">Email</legend>
-								<input type="email" name="email" className="input" />
-							</fieldset>
-							<div className="card-actions justify-end">
-								<button type="submit" name="intent" value="create_user" className="btn btn-primary">
-									Submit
-								</button>
-							</div>
-						</div>
-					</form>
-				</div>
 			</div>
 			<pre>{JSON.stringify({ actionData }, null, 2)}</pre>
 		</div>
@@ -988,10 +973,6 @@ const adminPost = handler((c) =>
 				Schema.Struct({
 					intent: Schema.Literal('sync_stripe_data', 'customer_subscription'),
 					customerId: Schema.NonEmptyString
-				}),
-				Schema.Struct({
-					intent: Schema.Literal('create_user'),
-					email: Schema.NonEmptyString
 				})
 			)
 		)
@@ -1018,7 +999,7 @@ const adminPost = handler((c) =>
 				}
 				break
 			case 'customers':
-				actionData = { customers: yield* Repository.getCustomers() }
+				actionData = { customers: yield* IdentityMgr.getCustomers() }
 				break
 			case 'seed':
 				yield* Stripe.seed()
@@ -1038,11 +1019,6 @@ const adminPost = handler((c) =>
 					actionData = {
 						subscription
 					}
-				}
-				break
-			case 'create_user':
-				{
-					actionData = { user: yield* Repository.upsertUser({ email: formData.email }) }
 				}
 				break
 			default:
