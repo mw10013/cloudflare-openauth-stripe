@@ -35,7 +35,7 @@ type AppEnv = {
 		client: Client
 		redirectUri: string
 		activeMemberships: readonly AccountMemberWithAccount[]
-		accountId?: Account['accountId']
+		currentAccount?: AccountMemberWithAccount
 	}
 }
 
@@ -383,14 +383,15 @@ function createFrontend({
 		)
 	)
 
-	const accountIdMiddleware = middleware((c, next) =>
+	const currentAccountMiddleware = middleware((c, next) =>
 		Effect.gen(function* () {
 			const AccountIdFromPath = Schema.compose(Schema.NumberFromString, Account.fields.accountId)
 			const accountId = yield* Schema.decodeUnknown(AccountIdFromPath)(c.req.param('accountId'))
-			if (!c.var.activeMemberships.find((v) => v.accountId === accountId)) {
+			const currentAccount = c.var.activeMemberships.find((v) => v.accountId === accountId)
+			if (!currentAccount) {
 				return c.redirect('/app')
 			}
-			c.set('accountId', accountId)
+			c.set('currentAccount', currentAccount)
 			yield* Effect.tryPromise(() => next())
 		})
 	)
@@ -464,19 +465,20 @@ function createFrontend({
 		'/app',
 		handler((c) => appLoaderData(c).pipe(Effect.map((loaderData) => c.render(<App loaderData={loaderData} />))))
 	)
-	app.get('/app/:accountId', accountIdMiddleware, (c) => c.render(<AccountHome />))
+	app.post('/app', appPost)
+	app.get('/app/:accountId', currentAccountMiddleware, (c) => c.render(<AccountHome />))
 	app.get(
 		'/app/:accountId/members',
-		accountIdMiddleware,
+		currentAccountMiddleware,
 		handler((c) => membersLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Members loaderData={loaderData} />))))
 	)
-	app.post('/app/:accountId/members', accountIdMiddleware, membersPost)
+	app.post('/app/:accountId/members', currentAccountMiddleware, membersPost)
 	app.get(
 		'/app/:accountId/billing',
-		accountIdMiddleware,
+		currentAccountMiddleware,
 		handler((c) => billingLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Billing loaderData={loaderData} />))))
 	)
-	app.post('/app/:accountId/billing', accountIdMiddleware, billingPost)
+	app.post('/app/:accountId/billing', currentAccountMiddleware, billingPost)
 	app.get('/admin', (c) => c.render(<Admin />))
 	app.post('/admin', adminPost)
 	app.get('/seed', seedGet)
@@ -553,6 +555,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
 									</div>
 								</div>
 								<ul tabIndex={0} className="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
+									<li>{c.var.sessionData.sessionUser.email}</li>
 									<li>
 										<form action="/signout" method="post">
 											<button type="submit" className="">
@@ -677,7 +680,7 @@ const pricingPost = handler((c) =>
 
 const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
 	const c = useRequestContext<AppEnv>()
-	c.var.accountId
+	c.var.currentAccount
 	return (
 		<div className="drawer lg:drawer-open">
 			<input id="drawer" type="checkbox" className="drawer-toggle" />
@@ -693,20 +696,22 @@ const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
 					<li>
 						<a href="/app">Accounts</a>
 					</li>
-					{c.var.accountId ? (
+					{c.var.currentAccount ? (
 						<>
 							<li>
-								<a href={`/app/${c.var.accountId}`}>Home</a>
+								<a href={`/app/${c.var.currentAccount.accountId}`} className="capitalize">
+									{c.var.currentAccount.account.user.email} Home
+								</a>
 							</li>
 							<li>
 								<details open>
 									<summary>Manage Account</summary>
 									<ul>
 										<li>
-											<a href={`/app/${c.var.accountId}/members`}>Members</a>
+											<a href={`/app/${c.var.currentAccount.accountId}/members`}>Members</a>
 										</li>
 										<li>
-											<a href={`/app/${c.var.accountId}/billing`}>Billing</a>
+											<a href={`/app/${c.var.currentAccount.accountId}/billing`}>Billing</a>
 										</li>
 									</ul>
 								</details>
@@ -731,6 +736,20 @@ const App: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof appLoaderDat
 						<div className="list-col-grow">
 							<a href={`/app/${m.accountId}`}>{m.account.user.email}</a>
 						</div>
+						<div className="flex gap-2">
+							<form action="/app" method="post">
+								<input type="hidden" name="accountMemberId" value={m.accountMemberId} />
+								<button name="intent" value="accept" className="btn btn-sm btn-outline">
+									Accept
+								</button>
+							</form>
+							<form action="/app" method="post">
+								<input type="hidden" name="accountMemberId" value={m.accountMemberId} />
+								<button name="intent" value="decline" className="btn btn-sm btn-outline btn-error">
+									Decline
+								</button>
+							</form>
+						</div>
 					</li>
 				))}
 			</ul>
@@ -753,9 +772,32 @@ const appLoaderData = (c: HonoContext<AppEnv>) =>
 	Effect.gen(function* () {
 		const sessionUser = yield* Effect.fromNullable(c.var.sessionData.sessionUser)
 		return {
-			invitations: yield* IdentityMgr.getPendingMemberships(sessionUser)
+			invitations: yield* IdentityMgr.getInvitations(sessionUser)
 		}
 	})
+
+const appPost = handler((c) =>
+	Effect.gen(function* () {
+		const AppFormDataSchema = FormDataSchema(
+			Schema.Struct({
+				accountMemberId: Schema.NumberFromString,
+				intent: Schema.Literal('accept', 'decline')
+			})
+		)
+		const formData = yield* Effect.tryPromise(() => c.req.formData()).pipe(Effect.flatMap(Schema.decode(AppFormDataSchema)))
+		switch (formData.intent) {
+			case 'accept':
+				yield* IdentityMgr.acceptInvitation({ accountMemberId: formData.accountMemberId })
+				break
+			case 'decline':
+				yield* IdentityMgr.declineInvitation({ accountMemberId: formData.accountMemberId })
+				break
+			default:
+				return yield* Effect.fail(new Error('Invalid intent'))
+		}
+		return c.redirect('/app')
+	})
+)
 
 const AccountHome: FC = () => {
 	return (
@@ -778,7 +820,7 @@ const Members: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof membersL
 					<h2 className="card-title">Members</h2>
 					<p className="font-medium">Add new account members, edit or revoke permissions and access, and resend verifications emails.</p>
 					<div className="card-body">
-						<form action={`/app/${c.var.accountId}/members`} method="post">
+						<form action={`/app/${c.var.currentAccount?.accountId}/members`} method="post">
 							<h2 className="card-title">Invite members to join your account.</h2>
 							<fieldset className="fieldset">
 								<legend className="fieldset-legend">Emails</legend>
@@ -796,7 +838,7 @@ const Members: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof membersL
 							{loaderData.members.map((m) => (
 								<li className="list-row">
 									<div className="list-col-grow">{m.user.email}</div>
-									<form action={`/app/${c.var.accountId}/members`} method="post">
+									<form action={`/app/${c.var.currentAccount?.accountId}/members`} method="post">
 										<input type="hidden" name="accountMemberId" value={m.accountMemberId} />{' '}
 										<button name="intent" value="revoke" className="btn btn-sm btn-outline">
 											Revoke
@@ -814,8 +856,8 @@ const Members: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof membersL
 }
 
 const membersLoaderData = (c: HonoContext<AppEnv>) =>
-	Effect.fromNullable(c.var.accountId).pipe(
-		Effect.flatMap((accountId) => Repository.getAccountMembers({ accountId })),
+	Effect.fromNullable(c.var.currentAccount).pipe(
+		Effect.flatMap((currentAccount) => Repository.getAccountMembers({ accountId: currentAccount.accountId })),
 		Effect.map((members) => ({ members }))
 	)
 
@@ -843,7 +885,10 @@ const membersPost = handler((c) =>
 			case 'invite':
 				actionData = {
 					formData,
-					invite: yield* IdentityMgr.invite({ emails: formData.emails, accountId: yield* Effect.fromNullable(c.var.accountId) })
+					invite: yield* IdentityMgr.invite({
+						emails: formData.emails,
+						accountId: yield* Effect.fromNullable(c.var.currentAccount).pipe(Effect.map((currentAccount) => currentAccount.accountId))
+					})
 				}
 				break
 			case 'revoke':
@@ -871,7 +916,7 @@ const Billing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof billingL
 					<h2 className="card-title">Account Subscription</h2>
 					<p className="font-medium">Current Plan: {loaderData.account.planName || 'Free'}</p>
 					<div className="card-actions justify-end">
-						<form action={`/app/${c.var.accountId}/billing`} method="post">
+						<form action={`/app/${c.var.currentAccount?.accountId}/billing`} method="post">
 							<button className="btn btn-outline">Manage Subscription</button>
 						</form>
 					</div>
@@ -898,7 +943,7 @@ const billingPost = handler((c) =>
 		}
 		return yield* Stripe.createBillingPortalSession({
 			customer: account.stripeCustomerId,
-			return_url: `${new URL(c.req.url).origin}/app/${c.var.accountId}/billing`
+			return_url: `${new URL(c.req.url).origin}/app/${c.var.currentAccount?.accountId}/billing`
 		}).pipe(Effect.map((session) => c.redirect(session.url)))
 	})
 )

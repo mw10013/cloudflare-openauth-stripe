@@ -141,23 +141,16 @@ select json_group_array(json_object(
 					Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(AccountMemberWithAccount))))
 				),
 
-			getAccountsForUser: ({ userId }: Pick<User, 'userId'>) =>
+			updateAccountMemberStatus: ({ accountMemberId, status }: Pick<AccountMember, 'accountMemberId' | 'status'>) =>
 				pipe(
 					d1
 						.prepare(
 							`
-select json_group_array(json_object(
-	'accountId', a.accountId, 'userId', a.userId, 'stripeCustomerId', a.stripeCustomerId, 'stripeSubscriptionId', a.stripeSubscriptionId, 'stripeProductId', a.stripeProductId, 'planName', a.planName, 'subscriptionStatus', a.subscriptionStatus,
-	'user', (select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType,
-	'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) as user from User u where u.userId = a.userId)
-	)) as data 
-from Account a inner join AccountMember am on am.accountId = a.accountId
-where am.userId = ?1 and am.status = 'active'`
+update AccountMember set status = ?
+where accountMemberId = ?`
 						)
-						.bind(userId),
-					d1.first,
-					Effect.flatMap(Effect.fromNullable),
-					Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(AccountWithUser))))
+						.bind(status, accountMemberId),
+					d1.run
 				),
 
 			getAccountMemberCount: ({ accountId }: Pick<Account, 'accountId'>) =>
