@@ -17,7 +17,7 @@ import { PanelLeftOpen as panelLeftOpenIconNode, User as userIconNode } from 'lu
 import * as ConfigEx from './ConfigEx'
 import * as D1Ns from './D1'
 import { D1 } from './D1'
-import { Account, AccountMemberWithAccount, AccountWithUser, SessionData, UserSubject } from './Domain'
+import { Account, AccountWithUser, SessionData, UserSubject } from './Domain'
 import { InvariantError, InvariantResponseError } from './ErrorEx'
 import { IdentityMgr } from './IdentityMgr'
 import { Repository } from './Repository'
@@ -34,7 +34,7 @@ type AppEnv = {
     sessionData: SessionData
     client: Client
     redirectUri: string
-    currentAccount?: AccountWithUser
+    account?: AccountWithUser
   }
 }
 
@@ -399,7 +399,7 @@ function createFrontend({
       if (!account) {
         return c.redirect('/app')
       }
-      c.set('currentAccount', account)
+      c.set('account', account)
       yield* Effect.tryPromise(() => next())
     })
   )
@@ -688,7 +688,7 @@ const pricingPost = handler((c) =>
 
 const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
   const c = useRequestContext<AppEnv>()
-  c.var.currentAccount
+  c.var.account
   return (
     <div className="drawer lg:drawer-open">
       <input id="drawer" type="checkbox" className="drawer-toggle" />
@@ -704,11 +704,11 @@ const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
           <li>
             <a href="/app">Accounts</a>
           </li>
-          {c.var.currentAccount ? (
+          {c.var.account ? (
             <>
               <li>
-                <a href={`/app/${c.var.currentAccount.accountId}`} className="capitalize">
-                  {c.var.currentAccount.user.email} Home
+                <a href={`/app/${c.var.account.accountId}`} className="capitalize">
+                  {c.var.account.user.email} Home
                 </a>
               </li>
               <li>
@@ -716,10 +716,10 @@ const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
                   <summary>Manage Account</summary>
                   <ul>
                     <li>
-                      <a href={`/app/${c.var.currentAccount.accountId}/members`}>Members</a>
+                      <a href={`/app/${c.var.account.accountId}/members`}>Members</a>
                     </li>
                     <li>
-                      <a href={`/app/${c.var.currentAccount.accountId}/billing`}>Billing</a>
+                      <a href={`/app/${c.var.account.accountId}/billing`}>Billing</a>
                     </li>
                   </ul>
                 </details>
@@ -829,7 +829,7 @@ const Members: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof membersL
           <h2 className="card-title">Members</h2>
           <p className="font-medium">Add new account members, edit or revoke permissions and access, and resend verifications emails.</p>
           <div className="card-body">
-            <form action={`/app/${c.var.currentAccount?.accountId}/members`} method="post">
+            <form action={`/app/${c.var.account?.accountId}/members`} method="post">
               <h2 className="card-title">Invite members to join your account.</h2>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Emails</legend>
@@ -847,7 +847,7 @@ const Members: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof membersL
               {loaderData.members.map((m) => (
                 <li className="list-row">
                   <div className="list-col-grow">{m.user.email}</div>
-                  <form action={`/app/${c.var.currentAccount?.accountId}/members`} method="post">
+                  <form action={`/app/${c.var.account?.accountId}/members`} method="post">
                     <input type="hidden" name="accountMemberId" value={m.accountMemberId} />{' '}
                     <button name="intent" value="revoke" className="btn btn-sm btn-outline">
                       Revoke
@@ -865,7 +865,7 @@ const Members: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof membersL
 }
 
 const membersLoaderData = (c: HonoContext<AppEnv>) =>
-  Effect.fromNullable(c.var.currentAccount).pipe(
+  Effect.fromNullable(c.var.account).pipe(
     Effect.flatMap((currentAccount) => Repository.getAccountMembers({ accountId: currentAccount.accountId })),
     Effect.map((members) => ({ members }))
   )
@@ -896,7 +896,7 @@ const membersPost = handler((c) =>
           formData,
           invite: yield* IdentityMgr.invite({
             emails: formData.emails,
-            accountId: yield* Effect.fromNullable(c.var.currentAccount).pipe(Effect.map((currentAccount) => currentAccount.accountId))
+            accountId: yield* Effect.fromNullable(c.var.account).pipe(Effect.map((currentAccount) => currentAccount.accountId))
           })
         }
         break
@@ -925,7 +925,7 @@ const Billing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof billingL
           <h2 className="card-title">Account Subscription</h2>
           <p className="font-medium">Current Plan: {loaderData.account.planName || 'Free'}</p>
           <div className="card-actions justify-end">
-            <form action={`/app/${c.var.currentAccount?.accountId}/billing`} method="post">
+            <form action={`/app/${c.var.account?.accountId}/billing`} method="post">
               <button className="btn btn-outline">Manage Subscription</button>
             </form>
           </div>
@@ -952,7 +952,7 @@ const billingPost = handler((c) =>
     }
     return yield* Stripe.createBillingPortalSession({
       customer: account.stripeCustomerId,
-      return_url: `${new URL(c.req.url).origin}/app/${c.var.currentAccount?.accountId}/billing`
+      return_url: `${new URL(c.req.url).origin}/app/${c.var.account?.accountId}/billing`
     }).pipe(Effect.map((session) => c.redirect(session.url)))
   })
 )
