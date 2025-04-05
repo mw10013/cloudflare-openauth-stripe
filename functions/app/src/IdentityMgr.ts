@@ -12,6 +12,8 @@ export class IdentityMgr extends Effect.Service<IdentityMgr>()('IdentityMgr', {
   effect: Effect.gen(function* () {
     const repository = yield* Repository
     return {
+      provisionUser: ({ email }: Pick<User, 'email'>) => repository.upsertUser({ email }),
+
       getCustomers: () => repository.getCustomers(),
 
       getAccountForUser: ({ userId }: Pick<User, 'userId'>) => repository.getRequiredAccountForUser({ userId }),

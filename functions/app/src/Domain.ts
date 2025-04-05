@@ -71,9 +71,6 @@ export const AccountWithAccountMembers = Schema.Struct({
 })
 export type AccountWithAccountMembers = Schema.Schema.Type<typeof AccountWithAccountMembers>
 
-export const AccountsWithUserResult = DataFromResult(Schema.Array(AccountWithUser))
-export type AccountsWithUserResult = Schema.Schema.Type<typeof AccountsWithUserResult>
-
 export const Customer = Schema.Struct({
 	...User.fields,
 	account: AccountWithAccountMembers

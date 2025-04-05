@@ -278,7 +278,7 @@ function createOpenAuth({ env, runtime }: { env: Env; runtime: AppEnv['Variables
       })
     },
     success: (ctx, value) =>
-      Repository.upsertUser({ email: value.claims.email }).pipe(
+      IdentityMgr.provisionUser({ email: value.claims.email }).pipe(
         Effect.flatMap((user) =>
           Effect.tryPromise(() =>
             ctx.subject('user', {
