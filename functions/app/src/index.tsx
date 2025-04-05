@@ -381,27 +381,29 @@ function createFrontend({
     )
   )
 
-  const currentAccountMiddleware = middleware((c, next) =>
-    Effect.gen(function* () {
-      const AccountIdFromPath = Schema.compose(Schema.NumberFromString, Account.fields.accountId)
-      const accountId = yield* Schema.decodeUnknown(AccountIdFromPath)(c.req.param('accountId'))
-      const account = yield* Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
-        Effect.tap((v) => Effect.log(`currentAccountMiddleware: sessionUser`, v)),
-        Effect.flatMap((sessionUser) =>
-          IdentityMgr.getAccountForMember({
-            accountId,
-            userId: sessionUser.userId
-          })
-        ),
-        Effect.tapError((e) => Effect.log(`currentAccountMiddleware: getAccountFor error`, e)),
-        Effect.orElseSucceed(() => null)
-      )
-      if (!account) {
-        return c.redirect('/app')
-      }
-      c.set('account', account)
-      yield* Effect.tryPromise(() => next())
-    })
+  app.use(
+    'app/:accountId/*',
+    middleware((c, next) =>
+      Effect.gen(function* () {
+        const AccountIdFromPath = Schema.compose(Schema.NumberFromString, Account.fields.accountId)
+        const accountId = yield* Schema.decodeUnknown(AccountIdFromPath)(c.req.param('accountId'))
+        const account = yield* Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
+          Effect.flatMap((sessionUser) =>
+            IdentityMgr.getAccountForMember({
+              accountId,
+              userId: sessionUser.userId
+            })
+          ),
+          Effect.tapError((e) => Effect.log(`middleware accountId error:`, e)),
+          Effect.orElseSucceed(() => null)
+        )
+        if (!account) {
+          return c.redirect('/app')
+        }
+        c.set('account', account)
+        yield* Effect.tryPromise(() => next())
+      })
+    )
   )
 
   app.use(
@@ -474,19 +476,17 @@ function createFrontend({
     handler((c) => appLoaderData(c).pipe(Effect.map((loaderData) => c.render(<App loaderData={loaderData} />))))
   )
   app.post('/app', appPost)
-  app.get('/app/:accountId', currentAccountMiddleware, (c) => c.render(<AccountHome />))
+  app.get('/app/:accountId', (c) => c.render(<AccountHome />))
   app.get(
     '/app/:accountId/members',
-    currentAccountMiddleware,
     handler((c) => membersLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Members loaderData={loaderData} />))))
   )
-  app.post('/app/:accountId/members', currentAccountMiddleware, membersPost)
+  app.post('/app/:accountId/members', membersPost)
   app.get(
     '/app/:accountId/billing',
-    currentAccountMiddleware,
     handler((c) => billingLoaderData(c).pipe(Effect.map((loaderData) => c.render(<Billing loaderData={loaderData} />))))
   )
-  app.post('/app/:accountId/billing', currentAccountMiddleware, billingPost)
+  app.post('/app/:accountId/billing', billingPost)
   app.get('/admin', (c) => c.render(<Admin />))
   app.post('/admin', adminPost)
   app.get('/seed', seedGet)
