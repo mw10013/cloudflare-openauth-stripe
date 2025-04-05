@@ -1,58 +1,58 @@
 import { Effect, pipe, Schema } from 'effect'
 import { D1 } from './D1'
 import {
-	Account,
-	AccountMember,
-	AccountMemberWithAccount,
-	AccountMemberWithUser,
-	AccountWithAccountMembers,
-	AccountWithUser,
-	Customer,
-	User
+  Account,
+  AccountMember,
+  AccountMemberWithAccount,
+  AccountMemberWithUser,
+  AccountWithAccountMembers,
+  AccountWithUser,
+  Customer,
+  User
 } from './Domain'
 import { DataFromResult } from './SchemaEx'
 
 export class Repository extends Effect.Service<Repository>()('Repository', {
-	accessors: true,
-	effect: Effect.gen(function* () {
-		const d1 = yield* D1
+  accessors: true,
+  effect: Effect.gen(function* () {
+    const d1 = yield* D1
 
-		const upsertUserStatements = ({ email }: Pick<User, 'email'>) => [
-			d1
-				.prepare(
-					`
+    const upsertUserStatements = ({ email }: Pick<User, 'email'>) => [
+      d1
+        .prepare(
+          `
 insert into User (email) values (?) 
 on conflict (email) do update set deletedAt = null, updatedAt = datetime('now') returning *`
-				)
-				.bind(email),
-			d1
-				.prepare(
-					`
+        )
+        .bind(email),
+      d1
+        .prepare(
+          `
 insert into Account (userId) 
 select userId from User where email = ?1 and userType = 'customer'
 on conflict (userId) do nothing`
-				)
-				.bind(email),
-			// https://www.sqlite.org/lang_insert.html
-			// To avoid a parsing ambiguity, the SELECT statement should always contain a WHERE clause, even if that clause is simply "WHERE true", if the upsert-clause is present.
-			d1
-				.prepare(
-					`
+        )
+        .bind(email),
+      // https://www.sqlite.org/lang_insert.html
+      // To avoid a parsing ambiguity, the SELECT statement should always contain a WHERE clause, even if that clause is simply "WHERE true", if the upsert-clause is present.
+      d1
+        .prepare(
+          `
 with c as (select u.userId, a.accountId
   from User u inner join Account a on a.userId = u.userId
   where u.email = ?1 and u.userType = 'customer')
 insert into AccountMember (userId, accountId, status)
 select userId, accountId, 'active' from c where true
 on conflict (userId, accountId) do nothing`
-				)
-				.bind(email)
-		]
+        )
+        .bind(email)
+    ]
 
-		return {
-			getCustomers: () =>
-				pipe(
-					d1.prepare(
-						`
+    return {
+      getCustomers: () =>
+        pipe(
+          d1.prepare(
+            `
 select json_group_array(json_object(
 	'userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
 	'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt,
@@ -69,58 +69,92 @@ select json_group_array(json_object(
 		) from Account a where a.userId = u.userId)
 )) as data from User u where userType = 'customer' order by u.email
 				`
-					),
-					d1.first,
-					Effect.flatMap(Effect.fromNullable),
-					Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(Customer))))
-				),
+          ),
+          d1.first,
+          Effect.flatMap(Effect.fromNullable),
+          Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(Customer))))
+        ),
 
-			getRequiredAccountForUser: ({ userId }: Pick<User, 'userId'>) =>
-				pipe(
-					d1.prepare(`select * from Account where userId = ?`).bind(userId),
-					d1.first,
-					Effect.flatMap(Effect.fromNullable),
-					Effect.flatMap(Schema.decodeUnknown(Account))
-				),
+      getRequiredAccountForUser: ({ userId }: Pick<User, 'userId'>) =>
+        pipe(
+          d1.prepare(`select * from Account where userId = ?`).bind(userId),
+          d1.first,
+          Effect.flatMap(Effect.fromNullable),
+          Effect.flatMap(Schema.decodeUnknown(Account))
+        ),
 
-			updateStripeCustomerId: ({ userId, stripeCustomerId }: Pick<Account, 'userId' | 'stripeCustomerId'>) =>
-				pipe(d1.prepare('update Account set stripeCustomerId = ? where userId = ?').bind(stripeCustomerId, userId), d1.run),
+      getRequiredAccountForMember: ({ accountId, userId }: Pick<Account, 'accountId'> & Pick<User, 'userId'>) =>
+        pipe(
+          d1
+            .prepare(
+              `
+select json_object(
+	'accountId', a.accountId, 
+	'userId', a.userId, 
+	'stripeCustomerId', a.stripeCustomerId, 
+	'stripeSubscriptionId', a.stripeSubscriptionId, 
+	'stripeProductId', a.stripeProductId, 
+	'planName', a.planName, 
+	'subscriptionStatus', a.subscriptionStatus,
+	'user', json_object(
+		'userId', u.userId, 
+		'name', u.name, 
+		'email', u.email, 
+		'userType', u.userType, 
+		'createdAt', u.createdAt, 
+		'updatedAt', u.updatedAt, 
+		'deletedAt', u.deletedAt
+	)
+) as data 
+from Account a 
+inner join AccountMember am on a.accountId = am.accountId
+inner join User u on u.userId = a.userId
+where a.accountId = ?1 and am.userId = ?2 and am.status = 'active'`
+            )
+            .bind(accountId, userId),
+          d1.first,
+          Effect.flatMap(Effect.fromNullable),
+          Effect.flatMap(Schema.decodeUnknown(DataFromResult(AccountWithUser)))
+        ),
 
-			updateStripeSubscription: ({
-				stripeCustomerId,
-				stripeSubscriptionId,
-				stripeProductId,
-				planName,
-				subscriptionStatus
-			}: Pick<Account, 'stripeSubscriptionId' | 'stripeProductId' | 'planName' | 'subscriptionStatus'> & {
-				stripeCustomerId: NonNullable<Account['stripeCustomerId']>
-			}) =>
-				pipe(
-					d1
-						.prepare(
-							'update Account set stripeSubscriptionId = ?, stripeProductId = ?, planName = ?, subscriptionStatus = ? where stripeCustomerId = ?'
-						)
-						.bind(stripeSubscriptionId, stripeProductId, planName, subscriptionStatus, stripeCustomerId),
-					d1.run
-				),
+      updateAccountStripeCustomerId: ({ userId, stripeCustomerId }: Pick<Account, 'userId' | 'stripeCustomerId'>) =>
+        pipe(d1.prepare('update Account set stripeCustomerId = ? where userId = ?').bind(stripeCustomerId, userId), d1.run),
 
-			upsertUser: ({ email }: Pick<User, 'email'>) =>
-				d1.batch([...upsertUserStatements({ email })]).pipe(
-					Effect.flatMap((results) => Effect.fromNullable(results[0].results[0])),
-					Effect.flatMap(Schema.decodeUnknown(User))
-				),
+      updateAccountStripeSubscription: ({
+        stripeCustomerId,
+        stripeSubscriptionId,
+        stripeProductId,
+        planName,
+        subscriptionStatus
+      }: Pick<Account, 'stripeSubscriptionId' | 'stripeProductId' | 'planName' | 'subscriptionStatus'> & {
+        stripeCustomerId: NonNullable<Account['stripeCustomerId']>
+      }) =>
+        pipe(
+          d1
+            .prepare(
+              'update Account set stripeSubscriptionId = ?, stripeProductId = ?, planName = ?, subscriptionStatus = ? where stripeCustomerId = ?'
+            )
+            .bind(stripeSubscriptionId, stripeProductId, planName, subscriptionStatus, stripeCustomerId),
+          d1.run
+        ),
 
-			softDeleteUser: ({ userId }: Pick<User, 'userId'>) =>
-				d1.batch([
-					d1.prepare(`update User set deletedAt = datetime('now'), updatedAt = datetime('now') where userId = ?`).bind(userId),
-					d1.prepare(`delete from AccountMember where userId = ?1`).bind(userId)
-				]),
+      upsertUser: ({ email }: Pick<User, 'email'>) =>
+        d1.batch([...upsertUserStatements({ email })]).pipe(
+          Effect.flatMap((results) => Effect.fromNullable(results[0].results[0])),
+          Effect.flatMap(Schema.decodeUnknown(User))
+        ),
 
-			getAccountMembersForUser: ({ userId, status }: Pick<AccountMember, 'userId' | 'status'>) =>
-				pipe(
-					d1
-						.prepare(
-							`
+      softDeleteUser: ({ userId }: Pick<User, 'userId'>) =>
+        d1.batch([
+          d1.prepare(`update User set deletedAt = datetime('now'), updatedAt = datetime('now') where userId = ?`).bind(userId),
+          d1.prepare(`delete from AccountMember where userId = ?1`).bind(userId)
+        ]),
+
+      getAccountMembersForUser: ({ userId, status }: Pick<AccountMember, 'userId' | 'status'>) =>
+        pipe(
+          d1
+            .prepare(
+              `
 select json_group_array(json_object(
 	'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status,
 	'account',
@@ -134,138 +168,137 @@ select json_group_array(json_object(
 	) from Account a where a.accountId = am.accountId)
 )) as data from AccountMember am where am.userId = ? and am.status = ?					
 					`
-						)
-						.bind(userId, status),
-					d1.first,
-					Effect.flatMap(Effect.fromNullable),
-					Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(AccountMemberWithAccount))))
-				),
+            )
+            .bind(userId, status),
+          d1.first,
+          Effect.flatMap(Effect.fromNullable),
+          Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(AccountMemberWithAccount))))
+        ),
 
-			updateAccountMemberStatus: ({ accountMemberId, status }: Pick<AccountMember, 'accountMemberId' | 'status'>) =>
-				pipe(
-					d1
-						.prepare(
-							`
-update AccountMember set status = ?
-where accountMemberId = ?`
-						)
-						.bind(status, accountMemberId),
-					d1.run
-				),
-
-			getAccountMemberCount: ({ accountId }: Pick<Account, 'accountId'>) =>
-				pipe(
-					d1.prepare(`select count(*) as accountMemberCount from AccountMember where accountId = ?`).bind(accountId),
-					d1.first<{ accountMemberCount: number }>,
-					Effect.flatMap(Effect.fromNullable),
-					Effect.map((result) => result.accountMemberCount)
-				),
-
-			identifyInvalidInviteEmails: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
-				Effect.gen(function* () {
-					const DataSchema = Schema.Struct({
-						staffers: Schema.Array(Schema.String),
-						pending: Schema.Array(Schema.String),
-						active: Schema.Array(Schema.String)
-					})
-					const emailPlaceholders = emails.map(() => `(?)`).join(',')
-					return yield* pipe(
-						d1
-							.prepare(
-								`
-with Email (email) as (values ${emailPlaceholders}),
-IneligibleEmail as (
-  select 
-    e.email,
-    case 
-      when u.userType = 'staffer' then 'staffer'
-      when am.status = 'pending' then 'pending'
-      when am.status = 'active' then 'active'
-    end as reason
-  from Email e
-    inner join User u on e.email = u.email
-    left join AccountMember am on u.userId = am.userId and am.accountId = ?
-  where u.userType = 'staffer' or am.userId is not null
-)
-select json_object(
-  'staffers', (
-    select json_group_array(email)
-    from IneligibleEmail
-    where reason = 'staffer'
-  ),
-  'pending', (
-    select json_group_array(email)
-    from IneligibleEmail
-    where reason = 'pending'
-  ),
-  'active', (
-    select json_group_array(email)
-    from IneligibleEmail
-    where reason = 'active'
-  )
-) as data
-						`
-							)
-							.bind(...emails, accountId),
-						d1.first,
-						Effect.flatMap(Effect.fromNullable),
-						Effect.flatMap(Schema.decodeUnknown(DataFromResult(DataSchema)))
-					)
-				}),
-
-			deleteAccountMember: ({ accountMemberId, skipIfOwner }: Pick<AccountMember, 'accountMemberId'> & { skipIfOwner?: boolean }) =>
-				skipIfOwner
-					? pipe(
-							d1
-								.prepare(
-									`
-with t as (
-	select accountMemberId
-	from AccountMember am inner join Account a on a.accountId = am.accountId
-	where am.accountMemberId = ? and a.userId <> am.userId)
-delete from AccountMember
-where accountMemberId in (select accountMemberId from t)`
-								)
-								.bind(accountMemberId),
-							d1.run
-						)
-					: pipe(d1.prepare(`delete from AccountMember where accountMemberId = ?`).bind(accountMemberId), d1.run),
-
-			getAccountMembers: ({ accountId }: Pick<Account, 'accountId'>) =>
-				pipe(
-					d1
-						.prepare(
-							`
+      getAccountMembers: ({ accountId }: Pick<Account, 'accountId'>) =>
+        pipe(
+          d1
+            .prepare(
+              `
 select json_group_array(json_object(
 	'accountMemberId', accountMemberId, 'userId', userId, 'accountId', accountId, 'status', status,
 	'user',
 	(select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
 		'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) from User u where u.userId = am.userId))) as data
 from AccountMember am where accountId = ?`
-						)
-						.bind(accountId),
-					d1.first,
-					Effect.flatMap(Effect.fromNullable),
-					Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(AccountMemberWithUser))))
-				),
+            )
+            .bind(accountId),
+          d1.first,
+          Effect.flatMap(Effect.fromNullable),
+          Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(AccountMemberWithUser))))
+        ),
 
-			createAccountMembers: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
-				Effect.gen(function* () {
-					yield* Effect.log('Repository: createAccountMembers', { emails, accountId })
-					const createAccountMemberStatements = ({ email, accountId }: Pick<User, 'email'> & Pick<Account, 'accountId'>) => [
-						...upsertUserStatements({ email }),
-						d1
-							.prepare(
-								`
+      getAccountMemberCount: ({ accountId }: Pick<Account, 'accountId'>) =>
+        pipe(
+          d1.prepare(`select count(*) as accountMemberCount from AccountMember where accountId = ?`).bind(accountId),
+          d1.first<{ accountMemberCount: number }>,
+          Effect.flatMap(Effect.fromNullable),
+          Effect.map((result) => result.accountMemberCount)
+        ),
+
+      createAccountMembers: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
+        Effect.gen(function* () {
+          yield* Effect.log('Repository: createAccountMembers', { emails, accountId })
+          const createAccountMemberStatements = ({ email, accountId }: Pick<User, 'email'> & Pick<Account, 'accountId'>) => [
+            ...upsertUserStatements({ email }),
+            d1
+              .prepare(
+                `
 insert into AccountMember (userId, accountId, status) 
 values ((select userId from User where email = ?), ?, 'pending') returning *							
 							`
-							)
-							.bind(email, accountId)
-					]
-					return yield* d1.batch([...emails.flatMap((email) => createAccountMemberStatements({ email, accountId }))])
-				})
-		}
-	}),
-	dependencies: [D1.Default]
+              )
+              .bind(email, accountId)
+          ]
+          return yield* d1.batch([...emails.flatMap((email) => createAccountMemberStatements({ email, accountId }))])
+        }),
+
+      updateAccountMemberStatus: ({ accountMemberId, status }: Pick<AccountMember, 'accountMemberId' | 'status'>) =>
+        pipe(
+          d1
+            .prepare(
+              `
+update AccountMember set status = ?
+where accountMemberId = ?`
+            )
+            .bind(status, accountMemberId),
+          d1.run
+        ),
+
+      deleteAccountMember: ({ accountMemberId, skipIfOwner }: Pick<AccountMember, 'accountMemberId'> & { skipIfOwner?: boolean }) =>
+        skipIfOwner
+          ? pipe(
+              d1
+                .prepare(
+                  `
+with t as (
+	select accountMemberId
+	from AccountMember am inner join Account a on a.accountId = am.accountId
+	where am.accountMemberId = ? and a.userId <> am.userId)
+delete from AccountMember
+where accountMemberId in (select accountMemberId from t)`
+                )
+                .bind(accountMemberId),
+              d1.run
+            )
+          : pipe(d1.prepare(`delete from AccountMember where accountMemberId = ?`).bind(accountMemberId), d1.run),
+
+      identifyInvalidInviteEmails: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
+        Effect.gen(function* () {
+          const DataSchema = Schema.Struct({
+            staffers: Schema.Array(Schema.String),
+            pending: Schema.Array(Schema.String),
+            active: Schema.Array(Schema.String)
+          })
+          const emailPlaceholders = emails.map(() => `(?)`).join(',')
+          return yield* pipe(
+            d1
+              .prepare(
+                `
+with Email (email) as (values ${emailPlaceholders}),
+IneligibleEmail as (
+	select 
+		e.email,
+		case 
+			when u.userType = 'staffer' then 'staffer'
+			when am.status = 'pending' then 'pending'
+			when am.status = 'active' then 'active'
+		end as reason
+	from Email e
+		inner join User u on e.email = u.email
+		left join AccountMember am on u.userId = am.userId and am.accountId = ?
+	where u.userType = 'staffer' or am.userId is not null
+)
+select json_object(
+	'staffers', (
+		select json_group_array(email)
+		from IneligibleEmail
+		where reason = 'staffer'
+	),
+	'pending', (
+		select json_group_array(email)
+		from IneligibleEmail
+		where reason = 'pending'
+	),
+	'active', (
+		select json_group_array(email)
+		from IneligibleEmail
+		where reason = 'active'
+	)
+) as data`
+              )
+              .bind(...emails, accountId),
+            d1.first,
+            Effect.flatMap(Effect.fromNullable),
+            Effect.flatMap(Schema.decodeUnknown(DataFromResult(DataSchema)))
+          )
+        })
+    }
+  }),
+  dependencies: [D1.Default]
 }) {}
