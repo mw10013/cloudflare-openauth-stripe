@@ -35,7 +35,7 @@ type AppEnv = {
 		client: Client
 		redirectUri: string
 		activeMemberships: readonly AccountMemberWithAccount[]
-		currentAccount?: AccountMemberWithAccount
+		currentAccount?: AccountWithUser
 	}
 }
 
@@ -391,7 +391,7 @@ function createFrontend({
 			if (!currentAccount) {
 				return c.redirect('/app')
 			}
-			c.set('currentAccount', currentAccount)
+			c.set('currentAccount', currentAccount.account)
 			yield* Effect.tryPromise(() => next())
 		})
 	)
@@ -700,7 +700,7 @@ const AppLayout: FC<PropsWithChildren<{}>> = ({ children }) => {
 						<>
 							<li>
 								<a href={`/app/${c.var.currentAccount.accountId}`} className="capitalize">
-									{c.var.currentAccount.account.user.email} Home
+									{c.var.currentAccount.user.email} Home
 								</a>
 							</li>
 							<li>
