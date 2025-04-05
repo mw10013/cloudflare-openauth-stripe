@@ -866,7 +866,7 @@ const Members: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof membersL
 
 const membersLoaderData = (c: HonoContext<AppEnv>) =>
   Effect.fromNullable(c.var.account).pipe(
-    Effect.flatMap((currentAccount) => Repository.getAccountMembers({ accountId: currentAccount.accountId })),
+    Effect.flatMap((account) => IdentityMgr.getAccountMembers({ accountId: account.accountId })),
     Effect.map((members) => ({ members }))
   )
 
@@ -938,14 +938,14 @@ const Billing: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof billingL
 
 const billingLoaderData = (c: HonoContext<AppEnv>) =>
   Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
-    Effect.flatMap((user) => Repository.getRequiredAccountForUser(user)),
+    Effect.flatMap((user) => IdentityMgr.getAccountForUser(user)),
     Effect.map((account) => ({ account, sessionData: c.var.sessionData }))
   )
 
 const billingPost = handler((c) =>
   Effect.gen(function* () {
     const account = yield* Effect.fromNullable(c.var.sessionData.sessionUser).pipe(
-      Effect.flatMap((user) => Repository.getRequiredAccountForUser(user))
+      Effect.flatMap((user) => IdentityMgr.getAccountForUser(user))
     )
     if (!account.stripeCustomerId || !account.stripeProductId) {
       return c.redirect('/pricing')
