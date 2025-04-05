@@ -1,6 +1,6 @@
 import { Effect, pipe, Schema } from 'effect'
 import { D1 } from './D1'
-import { Account, AccountMember, AccountMemberWithUser, AccountWithAccountMembers, AccountWithUser, User } from './Domain'
+import { Account, AccountMember, AccountMemberWithUser, AccountWithAccountMembers, AccountWithUser, Customer, User } from './Domain'
 import { DataFromResult } from './SchemaEx'
 
 export class Repository extends Effect.Service<Repository>()('Repository', {
@@ -40,24 +40,30 @@ on conflict (userId, accountId) do nothing`
 		]
 
 		return {
-			getAccounts: () =>
+			getCustomers: () =>
 				pipe(
 					d1.prepare(
 						`
 select json_group_array(json_object(
-	'accountId', accountId, 'userId', userId, 'stripeCustomerId', stripeCustomerId, 'stripeSubscriptionId', stripeSubscriptionId, 'stripeProductId', stripeProductId, 'planName', planName, 'subscriptionStatus', subscriptionStatus,
-	'accountMembers',
-	(select json_group_array(json_object(
-		'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status,
-		'user', 
-		(select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
-			'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) from User u where u.userId = am.userId)
-	)) from AccountMember am where am.accountId = a.accountId)
-)) as data from Account a`
+	'userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
+	'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt,
+	'account',
+	(select json_object(
+			'accountId', a.accountId, 'userId', a.userId, 'stripeCustomerId', a.stripeCustomerId, 'stripeSubscriptionId', a.stripeSubscriptionId, 'stripeProductId', a.stripeProductId, 'planName', a.planName, 'subscriptionStatus', a.subscriptionStatus,
+			'accountMembers',
+			(select json_group_array(json_object(
+					'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status,
+					'user', 
+					(select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
+						'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) from User u where u.userId = am.userId)
+			)) from AccountMember am where am.accountId = a.accountId)	
+		) from Account a where a.userId = u.userId)
+)) as data from User u where userType = 'customer' order by u.email
+				`
 					),
 					d1.first,
 					Effect.flatMap(Effect.fromNullable),
-					Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(AccountWithAccountMembers))))
+					Effect.flatMap(Schema.decodeUnknown(DataFromResult(Schema.Array(Customer))))
 				),
 
 			getRequiredAccountForUser: ({ userId }: Pick<User, 'userId'>) =>

@@ -915,8 +915,8 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
 					</button>
 				</form>
 				<form action="/admin" method="post">
-					<button name="intent" value="accounts" className="btn btn-outline">
-						Accounts
+					<button name="intent" value="customers" className="btn btn-outline">
+						Customers
 					</button>
 				</form>
 				<form action="/admin" method="post">
@@ -983,7 +983,7 @@ const adminPost = handler((c) =>
 		const AdminFormDataSchema = FormDataSchema(
 			Schema.Union(
 				Schema.Struct({
-					intent: Schema.Literal('effect', 'effect_1', 'effect_2', 'accounts', 'seed')
+					intent: Schema.Literal('effect', 'effect_1', 'effect_2', 'customers', 'seed')
 				}),
 				Schema.Struct({
 					intent: Schema.Literal('sync_stripe_data', 'customer_subscription'),
@@ -1017,8 +1017,8 @@ const adminPost = handler((c) =>
 					}
 				}
 				break
-			case 'accounts':
-				actionData = { accounts: yield* Repository.getAccounts() }
+			case 'customers':
+				actionData = { customers: yield* Repository.getCustomers() }
 				break
 			case 'seed':
 				yield* Stripe.seed()
