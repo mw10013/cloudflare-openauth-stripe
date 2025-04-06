@@ -8,6 +8,7 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
+import { env } from 'cloudflare:workers'
 import { Cause, Chunk, Config, Effect, Layer, Logger, LogLevel, ManagedRuntime, Predicate, Schema } from 'effect'
 import { dual } from 'effect/Function'
 import { Handler, Hono, Context as HonoContext, Env as HonoEnv, MiddlewareHandler } from 'hono'
@@ -174,6 +175,11 @@ export default {
     const response = await app.fetch(request, env, ctx)
     ctx.waitUntil(runtime.dispose())
     return response
+  },
+  async queue(batch: MessageBatch, env: Env, ctx: ExecutionContext): Promise<void> {
+    for (const message of batch.messages) {
+      console.log('Received', message)
+    }
   }
 } satisfies ExportedHandler<Env>
 
@@ -1027,6 +1033,8 @@ const adminPost = handler((c) =>
     let actionData = {}
     switch (formData.intent) {
       case 'effect':
+        env.Q.send({ data: 'message' })
+        actionData = { message: 'Message sent' }
         break
       case 'customers':
         actionData = { customers: yield* IdentityMgr.getCustomers() }

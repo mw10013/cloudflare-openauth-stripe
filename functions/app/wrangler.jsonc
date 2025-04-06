@@ -3,132 +3,183 @@
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  */
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "cloudflare-openauth-stripe-app",
-	"main": "src/index.tsx",
-	"compatibility_date": "2025-03-20",
-	"compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
-	"assets": {
-		// https://github.com/cloudflare/workers-sdk/tree/main/packages/vite-plugin-cloudflare#create-your-worker-config-file-1
-		// https://github.com/cloudflare/workers-sdk/issues/8301
-		"not_found_handling": "none"
-	},
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cloudflare-openauth-stripe-app",
+  "main": "src/index.tsx",
+  "compatibility_date": "2025-03-20",
+  "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+  "assets": {
+    // https://github.com/cloudflare/workers-sdk/tree/main/packages/vite-plugin-cloudflare#create-your-worker-config-file-1
+    // https://github.com/cloudflare/workers-sdk/issues/8301
+    "not_found_handling": "none"
+  },
 
-	"observability": {
-		"enabled": true
-	},
-	"vars": {
-		"ENVIRONMENT": "local",
-		"LOG_LEVEL": "Debug",
-		"COMPANY_EMAIL": "motio@mail.com",
-		"STRIPE_SYNC_INTERVAL_SEC": "5",
-		"STRIPE_SYNC_BATCH_SIZE": "10",
-		"AWS_REGION": "us-east-1",
-		"AWS_ENDPOINT": "https://email.us-east-1.amazonaws.com"
-	},
-	"migrations": [
-		{
-			"new_sqlite_classes": ["StripeDurableObject"],
-			"tag": "v1"
-		}
-	],
-	"durable_objects": {
-		"bindings": [
-			{
-				"class_name": "StripeDurableObject",
-				"name": "STRIPE_DO"
-			}
-		]
-	},
-	"d1_databases": [
-		{
-			"binding": "D1",
-			"database_name": "d1-local",
-			"database_id": "d1-local"
-		}
-	],
-	"kv_namespaces": [
-		{
-			"binding": "KV",
-			"id": "kv-local"
-		}
-	],
-	"env": {
-		"staging": {
-			"vars": {
-				"ENVIRONMENT": "staging",
-				"LOG_LEVEL": "Debug",
-				"COMPANY_EMAIL": "motio@mail.com",
-				"STRIPE_SYNC_INTERVAL_SEC": "5",
-				"STRIPE_SYNC_BATCH_SIZE": "10",
-				"AWS_REGION": "us-east-1",
-				"AWS_ENDPOINT": "https://email.us-east-1.amazonaws.com"
-			},
-			"migrations": [
-				{
-					"new_sqlite_classes": ["StripeDurableObject"],
-					"tag": "v1"
-				}
-			],
-			"durable_objects": {
-				"bindings": [
-					{
-						"class_name": "StripeDurableObject",
-						"name": "STRIPE_DO"
-					}
-				]
-			},
-			"d1_databases": [
-				{
-					"binding": "D1",
-					"database_name": "cloudflare-openauth-stripe-d1-staging",
-					"database_id": "<DATABASE-ID>"
-				}
-			],
-			"kv_namespaces": [
-				{
-					"binding": "KV",
-					"id": "<KV-ID>" // cloudflare-openauth-stripe-app-kv-staging
-				}
-			]
-		},
-		"production": {
-			"vars": {
-				"ENVIRONMENT": "production",
-				"LOG_LEVEL": "Info",
-				"COMPANY_EMAIL": "motio@mail.com",
-				"STRIPE_SYNC_INTERVAL_SEC": "5",
-				"STRIPE_SYNC_BATCH_SIZE": "10",
-				"AWS_REGION": "us-east-1",
-				"AWS_ENDPOINT": "https://email.us-east-1.amazonaws.com"
-			},
-			"migrations": [
-				{
-					"new_sqlite_classes": ["StripeDurableObject"],
-					"tag": "v1"
-				}
-			],
-			"durable_objects": {
-				"bindings": [
-					{
-						"class_name": "StripeDurableObject",
-						"name": "STRIPE_DO"
-					}
-				]
-			},
-			"d1_databases": [
-				{
-					"binding": "D1",
-					"database_name": "cloudflare-openauth-stripe-d1-production",
-					"database_id": "3a0755ae-1d36-4527-bdef-043cd9415f1f"
-				}
-			],
-			"kv_namespaces": [
-				{
-					"binding": "KV",
-					"id": "6b25aa052065450cb71054f84fd0df84" // cloudflare-openauth-stripe-app-kv-production
-				}
-			]
-		}
-	}
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "ENVIRONMENT": "local",
+    "LOG_LEVEL": "Debug",
+    "COMPANY_EMAIL": "motio@mail.com",
+    "STRIPE_SYNC_INTERVAL_SEC": "5",
+    "STRIPE_SYNC_BATCH_SIZE": "10",
+    "AWS_REGION": "us-east-1",
+    "AWS_ENDPOINT": "https://email.us-east-1.amazonaws.com"
+  },
+  "migrations": [
+    {
+      "new_sqlite_classes": ["StripeDurableObject"],
+      "tag": "v1"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "StripeDurableObject",
+        "name": "STRIPE_DO"
+      }
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "D1",
+      "database_name": "d1-local",
+      "database_id": "d1-local"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "kv-local"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "queue": "q-local",
+        "binding": "Q"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "q-local",
+        "max_batch_size": 10,
+        "max_batch_timeout": 30,
+        "max_retries": 10,
+        "dead_letter_queue": "q-dlq-local"
+      }
+    ]
+  },
+  "env": {
+    "staging": {
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "LOG_LEVEL": "Debug",
+        "COMPANY_EMAIL": "motio@mail.com",
+        "STRIPE_SYNC_INTERVAL_SEC": "5",
+        "STRIPE_SYNC_BATCH_SIZE": "10",
+        "AWS_REGION": "us-east-1",
+        "AWS_ENDPOINT": "https://email.us-east-1.amazonaws.com"
+      },
+      "migrations": [
+        {
+          "new_sqlite_classes": ["StripeDurableObject"],
+          "tag": "v1"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "StripeDurableObject",
+            "name": "STRIPE_DO"
+          }
+        ]
+      },
+      "d1_databases": [
+        {
+          "binding": "D1",
+          "database_name": "cloudflare-openauth-stripe-d1-staging",
+          "database_id": "<DATABASE-ID>"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "KV",
+          "id": "<KV-ID>" // cloudflare-openauth-stripe-app-kv-staging
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "queue": "<QUEUE-ID>", // cloudflare-openauth-stripe-app-queue-staging
+            "binding": "Q"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "<QUEUE-ID>", // cloudflare-openauth-stripe-app-queue-staging
+            "max_batch_size": 10,
+            "max_batch_timeout": 30,
+            "max_retries": 10,
+            "dead_letter_queue": "<QUEUE-ID"
+          }
+        ]
+      }
+    },
+    "production": {
+      "vars": {
+        "ENVIRONMENT": "production",
+        "LOG_LEVEL": "Info",
+        "COMPANY_EMAIL": "motio@mail.com",
+        "STRIPE_SYNC_INTERVAL_SEC": "5",
+        "STRIPE_SYNC_BATCH_SIZE": "10",
+        "AWS_REGION": "us-east-1",
+        "AWS_ENDPOINT": "https://email.us-east-1.amazonaws.com"
+      },
+      "migrations": [
+        {
+          "new_sqlite_classes": ["StripeDurableObject"],
+          "tag": "v1"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "StripeDurableObject",
+            "name": "STRIPE_DO"
+          }
+        ]
+      },
+      "d1_databases": [
+        {
+          "binding": "D1",
+          "database_name": "cloudflare-openauth-stripe-d1-production",
+          "database_id": "3a0755ae-1d36-4527-bdef-043cd9415f1f"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "KV",
+          "id": "6b25aa052065450cb71054f84fd0df84" // cloudflare-openauth-stripe-app-kv-production
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "queue": "<QUEUE-ID>", // cloudflare-openauth-stripe-app-queue-production
+            "binding": "Q"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "<QUEUE-ID>", // cloudflare-openauth-stripe-app-queue-production
+            "max_batch_size": 10,
+            "max_batch_timeout": 30,
+            "max_retries": 10,
+            "dead_letter_queue": "<QUEUE-ID"
+          }
+        ]
+      }
+    }
+  }
 }
