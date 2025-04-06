@@ -15,12 +15,9 @@ import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import { PanelLeftOpen as panelLeftOpenIconNode, User as userIconNode } from 'lucide'
 import * as ConfigEx from './ConfigEx'
-import * as D1Ns from './D1'
-import { D1 } from './D1'
 import { Account, AccountWithUser, SessionData, UserSubject } from './Domain'
 import { InvariantError, InvariantResponseError } from './ErrorEx'
 import { IdentityMgr } from './IdentityMgr'
-import { Repository } from './Repository'
 import { FormDataSchema } from './SchemaEx'
 import { Ses } from './Ses'
 import { Stripe } from './Stripe'
@@ -52,8 +49,6 @@ export const makeRuntime = (env: Env) => {
   return Layer.mergeAll(
     IdentityMgr.Default,
     Stripe.Default,
-    Repository.Default,
-    D1.Default,
     Ses.Default,
     // Logger.pretty doesn't seem to work well.
     Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
@@ -968,16 +963,6 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
           </button>
         </form>
         <form action="/admin" method="post">
-          <button name="intent" value="effect_1" className="btn btn-outline">
-            Effect 1
-          </button>
-        </form>
-        <form action="/admin" method="post">
-          <button name="intent" value="effect_2" className="btn btn-outline">
-            Effect 2
-          </button>
-        </form>
-        <form action="/admin" method="post">
           <button name="intent" value="customers" className="btn btn-outline">
             Customers
           </button>
@@ -1030,7 +1015,7 @@ const adminPost = handler((c) =>
     const AdminFormDataSchema = FormDataSchema(
       Schema.Union(
         Schema.Struct({
-          intent: Schema.Literal('effect', 'effect_1', 'effect_2', 'customers', 'seed')
+          intent: Schema.Literal('effect', 'customers', 'seed')
         }),
         Schema.Struct({
           intent: Schema.Literal('sync_stripe_data', 'customer_subscription'),
@@ -1042,23 +1027,6 @@ const adminPost = handler((c) =>
     let actionData = {}
     switch (formData.intent) {
       case 'effect':
-        actionData = { data: yield* D1.prepare('insert into users (name, email) values ("joe", "u@u.com")').pipe(Effect.flatMap(D1.run)) }
-        break
-      case 'effect_1':
-        actionData = { result: yield* D1.prepare('select * from users').pipe(Effect.andThen(D1.run)) }
-        break
-      case 'effect_2':
-        {
-          const stmt = yield* D1.prepare('select * from users where userId = ?')
-          actionData = {
-            result: yield* D1.batch([
-              stmt.bind(1),
-              stmt.bind(2),
-              yield* D1.prepare('select userId, email from users where userId = ?').pipe(D1Ns.bind(3)),
-              yield* D1.prepare('select userId, email from users where userId = ?').pipe(Effect.map((stmt) => stmt.bind(4)))
-            ])
-          }
-        }
         break
       case 'customers':
         actionData = { customers: yield* IdentityMgr.getCustomers() }

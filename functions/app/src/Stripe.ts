@@ -321,7 +321,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
           // Ensure customers
           const iterable = ['motio1@mail.com', 'motio2@mail.com', 'u@u.com', 'u1@u.com'].map((email) =>
             Effect.gen(function* () {
-              const user = yield* Repository.upsertUser({ email })
+              const user = yield* repository.upsertUser({ email })
               const customer = yield* Effect.tryPromise(() =>
                 stripe.customers.list({
                   email,
@@ -365,7 +365,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
                 )
               )
               yield* Effect.log({ email, customerId: customer.id, priceId: basePrice.id })
-              yield* Repository.updateAccountStripeCustomerId({ userId: user.userId, stripeCustomerId: customer.id })
+              yield* repository.updateAccountStripeCustomerId({ userId: user.userId, stripeCustomerId: customer.id })
               yield* syncStripeData(customer.id)
             })
           )

@@ -5,6 +5,7 @@ import { DataFromResult } from './SchemaEx'
 
 export class Repository extends Effect.Service<Repository>()('Repository', {
   accessors: true,
+  dependencies: [D1.Default],
   effect: Effect.gen(function* () {
     const d1 = yield* D1
 
@@ -290,6 +291,5 @@ select json_object(
           )
         })
     }
-  }),
-  dependencies: [D1.Default]
+  })
 }) {}

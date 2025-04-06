@@ -1,16 +1,22 @@
 {
-	"github.copilot.chat.codeGeneration.instructions": [
-		{
-			"file": "./.vscode/prompt.md"
-		},
-		{
-			"file": "./.vscode/effect.md"
-		},
-		{
-			"file": "./.vscode/hono.md"
-		},
-		{
-			"file": "./.vscode/daisyui.md"
-		}
-	]
+  "github.copilot.chat.codeGeneration.instructions": [
+    {
+      "file": "./.vscode/prompt.md"
+    },
+    {
+      "file": "./.vscode/cloudflare.md"
+    },
+    {
+      "file": "./.vscode/cloudflare-queues.md"
+    },
+    {
+      "file": "./.vscode/effect.md"
+    },
+    {
+      "file": "./.vscode/hono.md"
+    },
+    {
+      "file": "./.vscode/daisyui.md"
+    }
+  ]
 }
