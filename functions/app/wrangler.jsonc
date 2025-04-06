@@ -120,7 +120,7 @@
 				{
 					"binding": "D1",
 					"database_name": "cloudflare-openauth-stripe-d1-production",
-					"database_id": "47532248-fa4d-41d4-8fb9-b2b2b4b0df2f"
+					"database_id": "3a0755ae-1d36-4527-bdef-043cd9415f1f"
 				}
 			],
 			"kv_namespaces": [

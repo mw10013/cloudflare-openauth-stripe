@@ -5,6 +5,7 @@
 - invite
 - email brand (lowercase, trimmed)
 - mail queue
+- User vs UserEx
 - rbac
 - ses: policy, docs, unenv
 - stripe do: schema for customer

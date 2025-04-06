@@ -13,8 +13,11 @@ export class Repository extends Effect.Service<Repository>()('Repository', {
       d1
         .prepare(
           `
-insert into User (email) values (?) 
-on conflict (email) do update set deletedAt = null, updatedAt = datetime('now') returning *`
+insert into User (email, userType) values (?, 'customer') 
+on conflict (email) do update set 
+  deletedAt = case when userType = 'staffer' then deletedAt else null end,
+  updatedAt = datetime('now')
+returning *`
         )
         .bind(email),
       d1

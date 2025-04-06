@@ -23,7 +23,7 @@ create table AccountMember (
 	accountMemberId integer primary key,
 	userId integer not null references User (userId),
 	accountId integer not null references Account (accountId),
-	status text not null default 'pending' references AccountMemberStatus (accountMemberStatusId),
+	status text not null references AccountMemberStatus (accountMemberStatusId),
 	unique (userId, accountId)
 );
 
@@ -51,7 +51,7 @@ create table User (
 	userId integer primary key,
 	name text not null default '',
 	email text not null unique,
-	userType text not null default 'customer' references UserType (userTypeId),
+	userType text not null references UserType (userTypeId),
 	createdAt text not null default (datetime('now')),
 	updatedAt text not null default (datetime('now')),
 	deletedAt TEXT
