@@ -178,38 +178,7 @@ export default {
     ctx.waitUntil(runtime.dispose())
     return response
   },
-  async queue(batch: MessageBatch, env: Env, ctx: ExecutionContext): Promise<void> {
-    const LogLevelLive = Config.logLevel('LOG_LEVEL').pipe(
-      Config.withDefault(LogLevel.Info),
-      Effect.map((level) => Logger.minimumLogLevel(level)),
-      Layer.unwrapEffect
-    )
-    const ConfigLive = ConfigEx.fromObject(env)
-    const runtime = Layer.mergeAll(
-      Ses.Default,
-      Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
-    ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
-    return Effect.gen(function* () {
-      for (const message of batch.messages) {
-        const payload = yield* Schema.decodeUnknown(EmailPayload)(message.body)
-        switch (payload.type) {
-          case 'email': {
-            yield* Ses.sendEmail({
-              to: payload.to,
-              from: payload.from,
-              subject: payload.subject,
-              html: payload.html,
-              text: payload.text
-            })
-            break
-          }
-          default:
-            yield* Effect.log(`Unknown payload type ${payload.type}`)
-        }
-        console.log('Received', payload)
-      }
-    }).pipe(runtime.runPromise)
-  }
+  queue: Q.queue
 } satisfies ExportedHandler<Env>
 
 function createOpenAuth({ env, runtime }: { env: Env; runtime: AppEnv['Variables']['runtime'] }) {

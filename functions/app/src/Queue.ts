@@ -1,5 +1,6 @@
-import { Config, ConfigError, Effect, Either, Schema } from 'effect'
+import { Config, ConfigError, Effect, Either, Layer, Logger, LogLevel, ManagedRuntime, Schema } from 'effect'
 import * as ConfigEx from './ConfigEx'
+import { Ses } from './Ses'
 
 export const EmailPayload = Schema.Struct({
   type: Schema.Literal('email'),
@@ -14,6 +15,40 @@ export type EmailPayload = Schema.Schema.Type<typeof EmailPayload>
 export const Payload = Schema.Union(EmailPayload)
 export type Payload = Schema.Schema.Type<typeof Payload>
 
+export const queue = (batch: MessageBatch, env: Env, ctx: ExecutionContext): Promise<void> =>{
+    const LogLevelLive = Config.logLevel('LOG_LEVEL').pipe(
+      Config.withDefault(LogLevel.Info),
+      Effect.map((level) => Logger.minimumLogLevel(level)),
+      Layer.unwrapEffect
+    )
+    const ConfigLive = ConfigEx.fromObject(env)
+    const runtime = Layer.mergeAll(
+      Ses.Default,
+      Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
+    ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
+    return Effect.gen(function* () {
+      for (const message of batch.messages) {
+        const payload = yield* Schema.decodeUnknown(EmailPayload)(message.body)
+        switch (payload.type) {
+          case 'email': {
+            yield* Ses.sendEmail({
+              to: payload.to,
+              from: payload.from,
+              subject: payload.subject,
+              html: payload.html,
+              text: payload.text
+            })
+            break
+          }
+          default:
+            yield* Effect.log(`Unknown payload type ${payload.type}`)
+        }
+        console.log('Received', payload)
+      }
+    }).pipe(runtime.runPromise)
+  }
+
+
 export class Producer extends Effect.Service<Producer>()('Producer', {
   accessors: true,
   effect: Effect.gen(function* () {
@@ -24,8 +59,6 @@ export class Producer extends Effect.Service<Producer>()('Producer', {
           : Either.left(ConfigError.InvalidData([], `Expected a Queue but received ${object}`))
       )
     )
-    // env.Q.send({ type: 'email', to: 'motio1@mail.com', from: 'motio@mail.com', subject: 'this is subject', html: 'test', text: 'this is body' })
-
     return {
       send(payload: Payload) {
         q.send(payload)
