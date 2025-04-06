@@ -18,10 +18,8 @@ import * as ConfigEx from './ConfigEx'
 import { Account, AccountWithUser, SessionData, UserSubject } from './Domain'
 import { InvariantError, InvariantResponseError } from './ErrorEx'
 import { IdentityMgr } from './IdentityMgr'
-import { EmailPayload } from './Queue'
 import * as Q from './Queue'
 import { FormDataSchema } from './SchemaEx'
-import { Ses } from './Ses'
 import { Stripe } from './Stripe'
 
 export { StripeDurableObject } from './Stripe'
@@ -52,7 +50,6 @@ export const makeRuntime = (env: Env) => {
     IdentityMgr.Default,
     Stripe.Default,
     Q.Producer.Default,
-    Ses.Default,
     // Logger.pretty doesn't seem to work well.
     Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
   ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
@@ -192,10 +189,9 @@ function createOpenAuth({ env, runtime }: { env: Env; runtime: AppEnv['Variables
         if (env.ENVIRONMENT === 'local') {
           yield* Effect.tryPromise(() => env.KV.put(`local:code`, code, { expirationTtl: 60 }))
         }
-        if (claims.email === 'a@a.com' || claims.email.startsWith('u')) return
-
         // Body MUST contain email to help identify complaints.
-        yield* Ses.sendEmail({
+        yield* Q.Producer.send({
+          type: 'email',
           to: claims.email,
           from: yield* Config.nonEmptyString('COMPANY_EMAIL'),
           subject: 'Your Login Verification Code',
