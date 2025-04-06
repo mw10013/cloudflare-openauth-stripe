@@ -22,6 +22,11 @@ export class Ses extends Effect.Service<Ses>()('Ses', {
 			sendEmail: ({ to, from, html, text, subject }: { to: string; from: string; html: string; text: string; subject: string }) =>
 				Effect.gen(function* () {
 					yield* Effect.log('Ses.sendEmail', { to, from, subject, text })
+
+					if (/@[a-z]\.com$/i.test(to)) {
+						return yield* Effect.log(`Ses.sendEmail: skipping ${to}`)
+					}
+
 					const response = yield* Effect.tryPromise(() =>
 						aws.fetch('https://email.us-east-1.amazonaws.com/v2/email/outbound-emails', {
 							method: 'POST',

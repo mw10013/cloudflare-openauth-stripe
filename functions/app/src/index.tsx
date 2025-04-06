@@ -16,7 +16,7 @@ import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import { PanelLeftOpen as panelLeftOpenIconNode, User as userIconNode } from 'lucide'
 import * as ConfigEx from './ConfigEx'
-import { Account, AccountWithUser, SessionData, UserSubject } from './Domain'
+import { Account, AccountWithUser, EmailPayload, SessionData, UserSubject } from './Domain'
 import { InvariantError, InvariantResponseError } from './ErrorEx'
 import { IdentityMgr } from './IdentityMgr'
 import { FormDataSchema } from './SchemaEx'
@@ -177,9 +177,36 @@ export default {
     return response
   },
   async queue(batch: MessageBatch, env: Env, ctx: ExecutionContext): Promise<void> {
-    for (const message of batch.messages) {
-      console.log('Received', message)
-    }
+    const LogLevelLive = Config.logLevel('LOG_LEVEL').pipe(
+      Config.withDefault(LogLevel.Info),
+      Effect.map((level) => Logger.minimumLogLevel(level)),
+      Layer.unwrapEffect
+    )
+    const ConfigLive = ConfigEx.fromObject(env)
+    const runtime = Layer.mergeAll(
+      Ses.Default,
+      Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
+    ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
+    return Effect.gen(function* () {
+      for (const message of batch.messages) {
+        const payload = yield* Schema.decodeUnknown(EmailPayload)(message.body)
+        switch (payload.type) {
+          case 'email': {
+            yield* Ses.sendEmail({
+              to: payload.to,
+              from: payload.from,
+              subject: payload.subject,
+              html: payload.html,
+              text: payload.text
+            })
+            break
+          }
+          default:
+            yield* Effect.log(`Unknown payload type ${payload.type}`)
+        }
+        console.log('Received', payload)
+      }
+    }).pipe(runtime.runPromise)
   }
 } satisfies ExportedHandler<Env>
 
@@ -1033,7 +1060,7 @@ const adminPost = handler((c) =>
     let actionData = {}
     switch (formData.intent) {
       case 'effect':
-        env.Q.send({ data: 'message' })
+        env.Q.send({ type: 'email', to: 'motio1@mail.com', from: 'motio@mail.com', subject: 'this is subject', html: 'test', text: 'this is body' })
         actionData = { message: 'Message sent' }
         break
       case 'customers':

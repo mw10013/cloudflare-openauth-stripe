@@ -64,8 +64,8 @@
       {
         "queue": "q-local",
         "max_batch_size": 10,
-        "max_batch_timeout": 30,
-        "max_retries": 10,
+        "max_batch_timeout": 3,
+        "max_retries": 2,
         "dead_letter_queue": "q-dlq-local"
       }
     ]
