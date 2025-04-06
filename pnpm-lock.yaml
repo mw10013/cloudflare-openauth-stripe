@@ -34,11 +34,11 @@ catalogs:
       specifier: 1.0.20
       version: 1.0.20
     daisyui:
-      specifier: 5.0.9
-      version: 5.0.9
+      specifier: 5.0.12
+      version: 5.0.12
     effect:
-      specifier: 3.14.2
-      version: 3.14.2
+      specifier: 3.14.6
+      version: 3.14.6
     hono:
       specifier: 4.7.5
       version: 4.7.5
@@ -103,7 +103,7 @@ importers:
         version: 1.0.20
       effect:
         specifier: 'catalog:'
-        version: 3.14.2
+        version: 3.14.6
       hono:
         specifier: 'catalog:'
         version: 4.7.5
@@ -128,7 +128,7 @@ importers:
         version: 22.13.14
       daisyui:
         specifier: 'catalog:'
-        version: 5.0.9
+        version: 5.0.12
       jsonc-parser:
         specifier: 'catalog:'
         version: 3.3.1
@@ -152,7 +152,7 @@ importers:
     dependencies:
       effect:
         specifier: 'catalog:'
-        version: 3.14.2
+        version: 3.14.6
       hono:
         specifier: 'catalog:'
         version: 4.7.5
@@ -174,7 +174,7 @@ importers:
         version: 22.13.14
       daisyui:
         specifier: 'catalog:'
-        version: 5.0.9
+        version: 5.0.12
       tailwindcss:
         specifier: 'catalog:'
         version: 4.0.17
@@ -192,7 +192,7 @@ importers:
     dependencies:
       effect:
         specifier: 'catalog:'
-        version: 3.14.2
+        version: 3.14.6
       hono:
         specifier: 'catalog:'
         version: 4.7.5
@@ -214,7 +214,7 @@ importers:
         version: 22.13.14
       daisyui:
         specifier: 'catalog:'
-        version: 5.0.9
+        version: 5.0.12
       tailwindcss:
         specifier: 'catalog:'
         version: 4.0.17
@@ -232,7 +232,7 @@ importers:
     dependencies:
       effect:
         specifier: 'catalog:'
-        version: 3.14.2
+        version: 3.14.6
       hono:
         specifier: 'catalog:'
         version: 4.7.5
@@ -251,7 +251,7 @@ importers:
         version: 22.13.14
       daisyui:
         specifier: 'catalog:'
-        version: 5.0.9
+        version: 5.0.12
       tailwindcss:
         specifier: 'catalog:'
         version: 4.0.17
@@ -297,7 +297,7 @@ importers:
         version: 0.4.3(arctic@2.3.4)(hono@4.7.5)
       effect:
         specifier: 'catalog:'
-        version: 3.14.2
+        version: 3.14.6
     devDependencies:
       typescript:
         specifier: 'catalog:'
@@ -1553,8 +1553,8 @@ packages:
     engines: {node: '>=4'}
     hasBin: true
 
-  daisyui@5.0.9:
-    resolution: {integrity: sha512-RsaehHh45f+0shWgZZaOY09/8eOae2voRsqJCD71j9yrnYgcke0Nj5ys0ZxrW4SPcc4+q96kWyJu0Z8P1zZdoA==}
+  daisyui@5.0.12:
+    resolution: {integrity: sha512-01DU0eYBcHgPtuf5fxcrkGkIN6/Uyaqmkle5Yo3ZyW9YVAu036ALZbjv2KH5euvUbeQ4r9q3gAarGcf7Tywhng==}
 
   data-uri-to-buffer@2.0.2:
     resolution: {integrity: sha512-ND9qDTLc6diwj+Xe5cdAgVTbLVdXbtxTJRXRhli8Mowuaan+0EJOtdqJ0QCHNSSPyoXGx9HX2/VMnKeC34AChA==}
@@ -1587,8 +1587,8 @@ packages:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
     engines: {node: '>= 0.4'}
 
-  effect@3.14.2:
-    resolution: {integrity: sha512-AqLlvhkcWqSgfPnfGO/JdwvEqhtzFLb4qwe43YLwrvnN5ev2dqB4ve2Bv6oq64iplRMYO9lmYRibN0Ig6fK/nQ==}
+  effect@3.14.6:
+    resolution: {integrity: sha512-/QMsBfMw2Gt10x3y2jVqDanLpKFrhc4L/3vqjrD36GWeuOcjN+1mvsvw9+RseAq9hmmkc3MFvLznfiEopqcPuw==}
 
   enhanced-resolve@5.18.1:
     resolution: {integrity: sha512-ZSW3ma5GkcQBIpwZTSRAI8N71Uuwgs93IezB7mf7R60tC8ZbJideoDNKjHn2O9KIlx6rkGTTEk1xUCK2E1Y2Yg==}
@@ -3536,7 +3536,7 @@ snapshots:
 
   cssesc@3.0.0: {}
 
-  daisyui@5.0.9: {}
+  daisyui@5.0.12: {}
 
   data-uri-to-buffer@2.0.2: {}
 
@@ -3558,7 +3558,7 @@ snapshots:
       es-errors: 1.3.0
       gopd: 1.2.0
 
-  effect@3.14.2:
+  effect@3.14.6:
     dependencies:
       '@standard-schema/spec': 1.0.0
       fast-check: 3.23.2

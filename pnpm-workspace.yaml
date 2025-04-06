@@ -11,8 +11,8 @@ catalog:
   '@tailwindcss/vite': 4.0.14
   '@types/node': 22.13.14
   aws4fetch: 1.0.20
-  daisyui: 5.0.9
-  effect: 3.14.2
+  daisyui: 5.0.12
+  effect: 3.14.6
   hono: 4.7.5
   jsonc-parser: 3.3.1
   lucide: 0.485.0
