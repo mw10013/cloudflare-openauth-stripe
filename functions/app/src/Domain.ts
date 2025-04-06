@@ -76,13 +76,3 @@ export const Customer = Schema.Struct({
   account: AccountWithAccountMembers
 })
 export type Customer = Schema.Schema.Type<typeof Customer>
-
-export const EmailPayload = Schema.Struct({
-  type: Schema.Literal('email'),
-  to: Schema.String,
-  from: Schema.String,
-  html: Schema.String,
-  text: Schema.String,
-  subject: Schema.String
-})
-export type EmailPayload = Schema.Schema.Type<typeof EmailPayload>

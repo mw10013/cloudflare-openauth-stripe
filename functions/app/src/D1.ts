@@ -10,7 +10,7 @@ export class D1Error extends Data.TaggedError('D1Error')<{
 export class D1 extends Effect.Service<D1>()('D1', {
   accessors: true,
   effect: Effect.gen(function* () {
-    const db = yield* ConfigEx.object('D1').pipe(
+    const d1 = yield* ConfigEx.object('D1').pipe(
       Config.mapOrFail((object) =>
         'prepare' in object && typeof object.prepare === 'function' && 'batch' in object && typeof object.batch === 'function'
           ? Either.right(object as D1Database)
@@ -36,8 +36,8 @@ export class D1 extends Effect.Service<D1>()('D1', {
         })
       )
     return {
-      prepare: (query: string) => db.prepare(query),
-      batch: (statements: D1PreparedStatement[]) => tryPromise(() => db.batch(statements)),
+      prepare: (query: string) => d1.prepare(query),
+      batch: (statements: D1PreparedStatement[]) => tryPromise(() => d1.batch(statements)),
       run: (statement: D1PreparedStatement) => tryPromise(() => statement.run()),
       first: <T>(statement: D1PreparedStatement) => tryPromise(() => statement.first<T>())
     }

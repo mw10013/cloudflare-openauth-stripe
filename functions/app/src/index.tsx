@@ -8,7 +8,6 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { env } from 'cloudflare:workers'
 import { Cause, Chunk, Config, Effect, Layer, Logger, LogLevel, ManagedRuntime, Predicate, Schema } from 'effect'
 import { dual } from 'effect/Function'
 import { Handler, Hono, Context as HonoContext, Env as HonoEnv, MiddlewareHandler } from 'hono'
@@ -16,9 +15,11 @@ import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import { PanelLeftOpen as panelLeftOpenIconNode, User as userIconNode } from 'lucide'
 import * as ConfigEx from './ConfigEx'
-import { Account, AccountWithUser, EmailPayload, SessionData, UserSubject } from './Domain'
+import { Account, AccountWithUser, SessionData, UserSubject } from './Domain'
 import { InvariantError, InvariantResponseError } from './ErrorEx'
 import { IdentityMgr } from './IdentityMgr'
+import { EmailPayload } from './Queue'
+import * as Q from './Queue'
 import { FormDataSchema } from './SchemaEx'
 import { Ses } from './Ses'
 import { Stripe } from './Stripe'
@@ -50,6 +51,7 @@ export const makeRuntime = (env: Env) => {
   return Layer.mergeAll(
     IdentityMgr.Default,
     Stripe.Default,
+    Q.Producer.Default,
     Ses.Default,
     // Logger.pretty doesn't seem to work well.
     Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
@@ -1060,7 +1062,14 @@ const adminPost = handler((c) =>
     let actionData = {}
     switch (formData.intent) {
       case 'effect':
-        env.Q.send({ type: 'email', to: 'motio1@mail.com', from: 'motio@mail.com', subject: 'this is subject', html: 'test', text: 'this is body' })
+        yield* Q.Producer.send({
+          type: 'email',
+          to: 'motio1@mail.com',
+          from: 'motio@mail.com',
+          subject: 'this is subject Q.Producer',
+          html: 'test',
+          text: 'this is body'
+        })
         actionData = { message: 'Message sent' }
         break
       case 'customers':
