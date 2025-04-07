@@ -59,7 +59,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
           Option.match(subscriptionOption, {
             onNone: () =>
               // Stripe test environment deletes stale subscriptions.
-              identityMgr.updateAccountStripeSubscription({
+              identityMgr.setAccountStripeSubscription({
                 stripeCustomerId: customerId,
                 stripeSubscriptionId: null,
                 stripeProductId: null,
@@ -70,7 +70,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
               const stripeProductId = subscription.items.data[0].price.product
               const planName = subscription.items.data[0].price.lookup_key
               return Predicate.isString(stripeProductId) && Predicate.isString(planName)
-                ? identityMgr.updateAccountStripeSubscription({
+                ? identityMgr.setAccountStripeSubscription({
                     stripeCustomerId: customerId,
                     stripeSubscriptionId: subscription.id,
                     stripeProductId,
@@ -139,7 +139,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
                   // metadata: { userId: userId.toString() } // DO NOT FORGET THIS
                 })
               )
-          yield* identityMgr.updateAccountStripeCustomerId({ userId, stripeCustomerId: customer.id })
+          yield* identityMgr.setAccountStripeCustomerId({ userId, stripeCustomerId: customer.id })
           return {
             stripeCustomerId: customer.id,
             stripeSubscriptionId: null
@@ -365,7 +365,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
                 )
               )
               yield* Effect.log({ email, customerId: customer.id, priceId: basePrice.id })
-              yield* identityMgr.updateAccountStripeCustomerId({ userId: user.userId, stripeCustomerId: customer.id })
+              yield* identityMgr.setAccountStripeCustomerId({ userId: user.userId, stripeCustomerId: customer.id })
               yield* syncStripeData(customer.id)
             })
           )

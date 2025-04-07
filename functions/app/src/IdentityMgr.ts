@@ -21,9 +21,9 @@ export class IdentityMgr extends Effect.Service<IdentityMgr>()('IdentityMgr', {
       getAccountForUser: ({ userId }: Pick<User, 'userId'>) => repository.getAccountForUser({ userId }),
       getAccountForMember: ({ accountId, userId }: Pick<Account, 'accountId'> & Pick<User, 'userId'>) =>
         repository.getAccountForMember({ accountId, userId }),
-      updateAccountStripeCustomerId: ({ userId, stripeCustomerId }: Pick<Account, 'userId' | 'stripeCustomerId'>) =>
+      setAccountStripeCustomerId: ({ userId, stripeCustomerId }: Pick<Account, 'userId' | 'stripeCustomerId'>) =>
         repository.updateAccountStripeCustomerId({ userId, stripeCustomerId }),
-      updateAccountStripeSubscription: ({
+      setAccountStripeSubscription: ({
         stripeCustomerId,
         stripeSubscriptionId,
         stripeProductId,

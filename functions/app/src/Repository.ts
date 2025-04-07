@@ -3,6 +3,28 @@ import { D1 } from './D1'
 import { Account, AccountMember, AccountMemberWithAccount, AccountMemberWithUser, AccountWithUser, Customer, User } from './Domain'
 import { DataFromResult } from './SchemaEx'
 
+/**
+ * Repository provides data access methods for the application's domain entities.
+ * 
+ * Naming Conventions:
+ * - `get*`: SELECT operations that retrieve entities
+ * - `update*`: UPDATE operations that modify existing entities
+ * - `upsert*`: INSERT OR UPDATE operations for creating or updating entities
+ * - `create*`: INSERT operations for creating new entities
+ * - `delete*`/`softDelete*`: DELETE operations (either physical or logical)
+ * 
+ * @example
+ * ```ts
+ * import { Repository } from './Repository'
+ * 
+ * // Within an Effect context
+ * const program = Effect.gen(function*() {
+ *   const repo = yield* Repository
+ *   const customers = yield* repo.getCustomers()
+ *   // ...
+ * })
+ * ```
+ */
 export class Repository extends Effect.Service<Repository>()('Repository', {
   accessors: true,
   dependencies: [D1.Default],
@@ -243,6 +265,13 @@ where accountMemberId in (select accountMemberId from t)`
             )
           : pipe(d1.prepare(`delete from AccountMember where accountMemberId = ?`).bind(accountMemberId), d1.run),
 
+      /**
+       * Identifies emails that cannot be invited to an account for various reasons.
+       * Returns categorized lists of ineligible emails:
+       * - staffers: emails that belong to staff members (who cannot be invited)
+       * - pending: emails that already have a pending invitation
+       * - active: emails that already have active membership
+       */
       identifyInvalidInviteEmails: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
         Effect.gen(function* () {
           const DataSchema = Schema.Struct({
