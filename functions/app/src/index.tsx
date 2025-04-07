@@ -40,20 +40,25 @@ export const subjects = createSubjects({
 })
 
 export const makeRuntime = (env: Env) => {
-  const LogLevelLive = Config.logLevel('LOG_LEVEL').pipe(
-    Config.withDefault(LogLevel.Info),
-    Effect.map((level) => Logger.minimumLogLevel(level)),
-    Layer.unwrapEffect
-  )
   const ConfigLive = ConfigEx.fromObject(env)
-  return Layer.mergeAll(
-    IdentityMgr.Default,
-    Stripe.Default,
-    Q.Producer.Default,
-    // Logger.pretty doesn't seem to work well.
-    Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
-  ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
+  return Layer.mergeAll(IdentityMgr.Default, Stripe.Default, Q.Producer.Default).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
 }
+
+// export const makeRuntime = (env: Env) => {
+//   const LogLevelLive = Config.logLevel('LOG_LEVEL').pipe(
+//     Config.withDefault(LogLevel.Info),
+//     Effect.map((level) => Logger.minimumLogLevel(level)),
+//     Layer.unwrapEffect
+//   )
+//   const ConfigLive = ConfigEx.fromObject(env)
+//   return Layer.mergeAll(
+//     IdentityMgr.Default,
+//     Stripe.Default,
+//     Q.Producer.Default,
+//     // Logger.pretty doesn't seem to work well.
+//     Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
+//   ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
+// }
 
 export const handler =
   <A, E>(

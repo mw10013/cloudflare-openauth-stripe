@@ -2,6 +2,8 @@ import { Cause, Config, ConfigError, Console, Data, Effect, Either, Predicate, S
 import { dual } from 'effect/Function'
 import * as ConfigEx from './ConfigEx'
 
+// https://gist.github.com/rxliuli/be31cbded41ef7eac6ae0da9070c8ef8
+
 export class D1Error extends Data.TaggedError('D1Error')<{
   message: string
   cause: Error
