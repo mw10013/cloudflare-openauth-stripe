@@ -4,18 +4,18 @@ import { Cause, Config, ConfigError, Effect, Either, Layer, Logger, LogLevel, Ma
 import { Stripe as StripeClass } from 'stripe'
 import * as ConfigEx from './ConfigEx'
 import { InvariantResponseError } from './ErrorEx'
-import { Repository } from './Repository'
+import { IdentityMgr } from './IdentityMgr'
 
 export class Stripe extends Effect.Service<Stripe>()('Stripe', {
   accessors: true,
-  dependencies: [Repository.Default],
+  dependencies: [IdentityMgr.Default],
   effect: Effect.gen(function* () {
     const STRIPE_SECRET_KEY = yield* Config.redacted('STRIPE_SECRET_KEY')
     // When you specify an apiVersion that conflicts with the stripe package version, Stripe recommends you @ts-ignore.
     // See the doc string for apiVersion.
     // // @ts-expect-error: API version difffers from LatestApiVersion
     const stripe = new StripeClass(Redacted.value(STRIPE_SECRET_KEY), { apiVersion: '2025-02-24.acacia' })
-    const repository = yield* Repository
+    const identityMgr = yield* IdentityMgr
     const allowedEvents: StripeType.Event.Type[] = [
       'checkout.session.completed',
       'customer.subscription.created',
@@ -59,7 +59,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
           Option.match(subscriptionOption, {
             onNone: () =>
               // Stripe test environment deletes stale subscriptions.
-              repository.updateAccountStripeSubscription({
+              identityMgr.updateAccountStripeSubscription({
                 stripeCustomerId: customerId,
                 stripeSubscriptionId: null,
                 stripeProductId: null,
@@ -70,7 +70,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
               const stripeProductId = subscription.items.data[0].price.product
               const planName = subscription.items.data[0].price.lookup_key
               return Predicate.isString(stripeProductId) && Predicate.isString(planName)
-                ? repository.updateAccountStripeSubscription({
+                ? identityMgr.updateAccountStripeSubscription({
                     stripeCustomerId: customerId,
                     stripeSubscriptionId: subscription.id,
                     stripeProductId,
@@ -116,7 +116,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
       // https://github.com/t3dotgg/stripe-recommendations?tab=readme-ov-file#checkout-flow
       ensureStripeCustomerId: ({ userId, email }: { userId: number; email: string }) =>
         Effect.gen(function* () {
-          const account = yield* repository.getAccountForUser({ userId })
+          const account = yield* identityMgr.getAccountForUser({ userId })
           if (account.stripeCustomerId)
             return {
               stripeCustomerId: account.stripeCustomerId,
@@ -139,7 +139,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
                   // metadata: { userId: userId.toString() } // DO NOT FORGET THIS
                 })
               )
-          yield* repository.updateAccountStripeCustomerId({ userId, stripeCustomerId: customer.id })
+          yield* identityMgr.updateAccountStripeCustomerId({ userId, stripeCustomerId: customer.id })
           return {
             stripeCustomerId: customer.id,
             stripeSubscriptionId: null
@@ -321,7 +321,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
           // Ensure customers
           const iterable = ['motio1@mail.com', 'motio2@mail.com', 'u@u.com', 'u1@u.com'].map((email) =>
             Effect.gen(function* () {
-              const user = yield* repository.upsertUser({ email })
+              const user = yield* identityMgr.provisionUser({ email })
               const customer = yield* Effect.tryPromise(() =>
                 stripe.customers.list({
                   email,
@@ -365,7 +365,7 @@ export class Stripe extends Effect.Service<Stripe>()('Stripe', {
                 )
               )
               yield* Effect.log({ email, customerId: customer.id, priceId: basePrice.id })
-              yield* repository.updateAccountStripeCustomerId({ userId: user.userId, stripeCustomerId: customer.id })
+              yield* identityMgr.updateAccountStripeCustomerId({ userId: user.userId, stripeCustomerId: customer.id })
               yield* syncStripeData(customer.id)
             })
           )

@@ -1,8 +1,8 @@
 import { Config, Effect } from 'effect'
-import { Account, AccountMember, User } from './Domain'
-import { Repository } from './Repository'
-import * as Q from './Queue'
 import * as ConfigEx from './ConfigEx'
+import { Account, AccountMember, User } from './Domain'
+import * as Q from './Queue'
+import { Repository } from './Repository'
 
 export const IdentityMgrLimits = Object.freeze({
   maxAccountMembers: 5
@@ -21,6 +21,24 @@ export class IdentityMgr extends Effect.Service<IdentityMgr>()('IdentityMgr', {
       getAccountForUser: ({ userId }: Pick<User, 'userId'>) => repository.getAccountForUser({ userId }),
       getAccountForMember: ({ accountId, userId }: Pick<Account, 'accountId'> & Pick<User, 'userId'>) =>
         repository.getAccountForMember({ accountId, userId }),
+      updateAccountStripeCustomerId: ({ userId, stripeCustomerId }: Pick<Account, 'userId' | 'stripeCustomerId'>) =>
+        repository.updateAccountStripeCustomerId({ userId, stripeCustomerId }),
+      updateAccountStripeSubscription: ({
+        stripeCustomerId,
+        stripeSubscriptionId,
+        stripeProductId,
+        planName,
+        subscriptionStatus
+      }: Pick<Account, 'stripeSubscriptionId' | 'stripeProductId' | 'planName' | 'subscriptionStatus'> & {
+        stripeCustomerId: NonNullable<Account['stripeCustomerId']>
+      }) =>
+        repository.updateAccountStripeSubscription({
+          stripeCustomerId,
+          stripeSubscriptionId,
+          stripeProductId,
+          planName,
+          subscriptionStatus
+        }),
 
       getAccounts: ({ userId }: Pick<User, 'userId'>) =>
         repository
@@ -71,7 +89,7 @@ export class IdentityMgr extends Effect.Service<IdentityMgr>()('IdentityMgr', {
             from,
             subject: 'Invite',
             html: `Hey ${email},<br><br>You are invited to the account of ${accountEmail}<br><br>Thanks, Team.`,
-            text: `Hey ${email},<br><br>You are invited to the account of ${accountEmail}<br><br>Thanks, Team.`,
+            text: `Hey ${email},<br><br>You are invited to the account of ${accountEmail}<br><br>Thanks, Team.`
           }))
           yield* Q.Producer.sendBatch(payloads)
         })
