@@ -891,7 +891,9 @@ const membersPost = handler((c) =>
           formData,
           invite: yield* IdentityMgr.invite({
             emails: formData.emails,
-            accountId: yield* Effect.fromNullable(c.var.account).pipe(Effect.map((currentAccount) => currentAccount.accountId))
+            ...(yield* Effect.fromNullable(c.var.account).pipe(
+              Effect.map((account) => ({ accountId: account.accountId, accountEmail: account.user.email }))
+            ))
           })
         }
         break

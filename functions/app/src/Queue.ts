@@ -15,39 +15,41 @@ export type EmailPayload = Schema.Schema.Type<typeof EmailPayload>
 export const Payload = Schema.Union(EmailPayload)
 export type Payload = Schema.Schema.Type<typeof Payload>
 
-export const queue = (batch: MessageBatch, env: Env, ctx: ExecutionContext): Promise<void> =>{
-    const LogLevelLive = Config.logLevel('LOG_LEVEL').pipe(
-      Config.withDefault(LogLevel.Info),
-      Effect.map((level) => Logger.minimumLogLevel(level)),
-      Layer.unwrapEffect
-    )
-    const ConfigLive = ConfigEx.fromObject(env)
-    const runtime = Layer.mergeAll(
-      Ses.Default,
-      Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
-    ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
-    return Effect.gen(function* () {
-      for (const message of batch.messages) {
-        const payload = yield* Schema.decodeUnknown(EmailPayload)(message.body)
-        switch (payload.type) {
-          case 'email': {
-            yield* Ses.sendEmail({
-              to: payload.to,
-              from: payload.from,
-              subject: payload.subject,
-              html: payload.html,
-              text: payload.text
-            })
-            break
-          }
-          default:
-            yield* Effect.log(`Unknown payload type ${payload.type}`)
+export const queue = (batch: MessageBatch, env: Env, ctx: ExecutionContext): Promise<void> => {
+  const LogLevelLive = Config.logLevel('LOG_LEVEL').pipe(
+    Config.withDefault(LogLevel.Info),
+    Effect.map((level) => Logger.minimumLogLevel(level)),
+    Layer.unwrapEffect
+  )
+  const ConfigLive = ConfigEx.fromObject(env)
+  const runtime = Layer.mergeAll(
+    Ses.Default,
+    Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
+  ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
+  return Effect.gen(function* () {
+    for (const message of batch.messages) {
+      const payload = yield* Schema.decodeUnknown(EmailPayload)(message.body)
+      switch (payload.type) {
+        case 'email': {
+          yield* Ses.sendEmail({
+            to: payload.to,
+            from: payload.from, 
+            subject: payload.subject,
+            html: payload.html,
+            text: payload.text
+          }).pipe(
+            Effect.map(() => message.ack()),
+            Effect.orElse(() => Effect.sync(() => message.retry()))
+          )
+          break
         }
-        console.log('Received', payload)
+        default:
+          yield* Effect.log(`Unknown payload type ${payload.type}`)
       }
-    }).pipe(runtime.runPromise)
-  }
-
+      // console.log('Received', payload)
+    }
+  }).pipe(runtime.runPromise)
+}
 
 export class Producer extends Effect.Service<Producer>()('Producer', {
   accessors: true,
@@ -60,9 +62,8 @@ export class Producer extends Effect.Service<Producer>()('Producer', {
       )
     )
     return {
-      send(payload: Payload) {
-        q.send(payload)
-      }
+      send: (payload: Payload) => Effect.tryPromise(() => q.send(payload)),
+      sendBatch: (payloads: Payload[]) => Effect.tryPromise(() => q.sendBatch(payloads.map((payload) => ({ body: payload }))))
     }
   })
 }) {}

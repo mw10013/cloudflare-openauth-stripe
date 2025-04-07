@@ -1,6 +1,8 @@
-import { Effect } from 'effect'
+import { Config, Effect } from 'effect'
 import { Account, AccountMember, User } from './Domain'
 import { Repository } from './Repository'
+import * as Q from './Queue'
+import * as ConfigEx from './ConfigEx'
 
 export const IdentityMgrLimits = Object.freeze({
   maxAccountMembers: 5
@@ -34,7 +36,11 @@ export class IdentityMgr extends Effect.Service<IdentityMgr>()('IdentityMgr', {
 
       getAccountMembers: ({ accountId }: Pick<Account, 'accountId'>) => repository.getAccountMembers({ accountId }),
 
-      invite: ({ emails, accountId }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][] }) =>
+      invite: ({
+        emails,
+        accountId,
+        accountEmail
+      }: Pick<Account, 'accountId'> & { readonly emails: readonly User['email'][]; readonly accountEmail: User['email'] }) =>
         Effect.gen(function* () {
           yield* Effect.log('AccountManager: invite', { emails })
           const accountMemberCount = yield* repository.getAccountMemberCount({ accountId })
@@ -57,7 +63,17 @@ export class IdentityMgr extends Effect.Service<IdentityMgr>()('IdentityMgr', {
             }
             return yield* Effect.fail(new Error(`Invalid invite emails: ${details.join(', ')}`))
           }
-          return yield* repository.createAccountMembers({ emails, accountId })
+          yield* repository.createAccountMembers({ emails, accountId })
+          const from = yield* Config.nonEmptyString('COMPANY_EMAIL')
+          const payloads = emails.map((email) => ({
+            type: 'email' as const,
+            to: email,
+            from,
+            subject: 'Invite',
+            html: `Hey ${email},<br><br>You are invited to the account of ${accountEmail}<br><br>Thanks, Team.`,
+            text: `Hey ${email},<br><br>You are invited to the account of ${accountEmail}<br><br>Thanks, Team.`,
+          }))
+          yield* Q.Producer.sendBatch(payloads)
         })
     }
   })
