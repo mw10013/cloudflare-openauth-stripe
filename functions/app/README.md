@@ -7,6 +7,7 @@
 - mail queue
 - User vs UserEx
 - rbac
+  - https://lucas-barake.github.io/building-a-composable-policy-system/
 - ses: policy, docs, unenv
 - stripe do: schema for customer
 - string split regex
@@ -20,8 +21,9 @@
 
 ## Deploy
 
-- pnpm wrangler kv namespace create cloudflare-openauth-stripe-app-kv-production
-- Update wrangler.jsonc production kv_namespaces
+- pnpm -F app exec wrangler kv namespace create cloudflare-openauth-stripe-app-kv-production
+- pnpm -F app exec wrangler queues create cloudflare-openauth-stripe-app-q-production
+- Update wrangler.jsonc production kv_namespaces and queues
 - pnpm -F app d1:reset:PRODUCTION
 - CLOUDFLARE_ENV=production pnpm -F app build
 - pnpm -F app exec wrangler deploy

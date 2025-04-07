@@ -166,17 +166,17 @@
       "queues": {
         "producers": [
           {
-            "queue": "<QUEUE-ID>", // cloudflare-openauth-stripe-app-queue-production
+            "queue": "cloudflare-openauth-stripe-app-q-production", // cloudflare-openauth-stripe-app-queue-production
             "binding": "Q"
           }
         ],
         "consumers": [
           {
-            "queue": "<QUEUE-ID>", // cloudflare-openauth-stripe-app-queue-production
+            "queue": "cloudflare-openauth-stripe-app-q-production", // cloudflare-openauth-stripe-app-queue-production
             "max_batch_size": 10,
             "max_batch_timeout": 30,
-            "max_retries": 10,
-            "dead_letter_queue": "<QUEUE-ID"
+            "max_retries": 10
+            // "dead_letter_queue": "<QUEUE-ID"
           }
         ]
       }
