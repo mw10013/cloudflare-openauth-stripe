@@ -1049,9 +1049,11 @@ const adminPost = handler((c) =>
         actionData = { message: 'Message sent' }
         break
       case 'effect_1':
-        yield* Effect.log({user_id: 123, user_email: "a@example.com",  msg: 'Effect'})
-        yield* Console.log({user_id: 123, user_email: "a@example.com",  msg: 'Console'})
-        console.log({user_id: 123, user_email: "a@example.com",  msg: 'console'})
+        yield* Effect.log({ user_id: 123, user_email: 'a@example.com', message: 'Effect' })
+        yield* Effect.log({ user_id: 123, user_email: 'a@example.com', message: 'logFmt' }).pipe(Effect.provide(Logger.logFmt))
+        yield* Effect.log({ user_id: 123, user_email: 'a@example.com', message: 'structured' }).pipe(Effect.provide(Logger.structured))
+        yield* Console.log({ user_id: 123, user_email: 'a@example.com', message: 'Console' })
+        console.log({ user_id: 123, user_email: 'a@example.com', message: 'console' })
         actionData = { message: 'Effect 1' }
         break
       case 'customers':
