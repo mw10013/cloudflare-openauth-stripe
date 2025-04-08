@@ -8,12 +8,6 @@
   "main": "src/index.tsx",
   "compatibility_date": "2025-03-20",
   "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
-  "assets": {
-    // https://github.com/cloudflare/workers-sdk/tree/main/packages/vite-plugin-cloudflare#create-your-worker-config-file-1
-    // https://github.com/cloudflare/workers-sdk/issues/8301
-    "not_found_handling": "none"
-  },
-
   "observability": {
     "enabled": true
   },
@@ -72,6 +66,9 @@
   },
   "env": {
     "staging": {
+      "observability": {
+        "enabled": true
+      },
       "vars": {
         "ENVIRONMENT": "staging",
         "LOG_LEVEL": "Debug",
@@ -127,6 +124,9 @@
       }
     },
     "production": {
+      "observability": {
+        "enabled": true
+      },
       "vars": {
         "ENVIRONMENT": "production",
         "LOG_LEVEL": "Info",
