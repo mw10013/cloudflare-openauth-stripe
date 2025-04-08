@@ -56,7 +56,7 @@ export const makeRuntime = (env: Env) => {
     Stripe.Default,
     Q.Producer.Default
     // Logger.pretty doesn't seem to work well. json and structured don't seem to work in cloudflare
-  ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
+  ).pipe(Layer.provide(Logger.structured), Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
 }
 
 export const handler =
