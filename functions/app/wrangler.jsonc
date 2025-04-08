@@ -118,9 +118,9 @@
         "consumers": [
           {
             "queue": "<QUEUE-ID>", // cloudflare-openauth-stripe-app-queue-staging
-            "max_batch_size": 10,
-            "max_batch_timeout": 30,
-            "max_retries": 10,
+            "max_batch_size": 3,
+            "max_batch_timeout": 3,
+            "max_retries": 1,
             "dead_letter_queue": "<QUEUE-ID"
           }
         ]
@@ -173,9 +173,9 @@
         "consumers": [
           {
             "queue": "cloudflare-openauth-stripe-app-q-production", // cloudflare-openauth-stripe-app-queue-production
-            "max_batch_size": 10,
-            "max_batch_timeout": 30,
-            "max_retries": 10
+            "max_batch_size": 3,
+            "max_batch_timeout": 3,
+            "max_retries": 1
             // "dead_letter_queue": "<QUEUE-ID"
           }
         ]

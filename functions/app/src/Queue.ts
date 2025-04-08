@@ -27,13 +27,15 @@ export const queue = (batch: MessageBatch, env: Env, ctx: ExecutionContext): Pro
     Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
   ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
   return Effect.gen(function* () {
+    yield* Effect.log(`Queue started with ${batch.messages.length} messages`)
     for (const message of batch.messages) {
       const payload = yield* Schema.decodeUnknown(EmailPayload)(message.body)
+      yield* Effect.log(`Processing message ${message.id}`, payload, message.body)
       switch (payload.type) {
         case 'email': {
           yield* Ses.sendEmail({
             to: payload.to,
-            from: payload.from, 
+            from: payload.from,
             subject: payload.subject,
             html: payload.html,
             text: payload.text
