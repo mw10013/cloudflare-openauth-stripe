@@ -14,7 +14,7 @@ import { Handler, Hono, Context as HonoContext, Env as HonoEnv, MiddlewareHandle
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsxRenderer, useRequestContext } from 'hono/jsx-renderer'
 import { PanelLeftOpen as panelLeftOpenIconNode, User as userIconNode } from 'lucide'
-import * as ConfigEx from './ConfigEx'
+import * as CloudflareEx from './CloudflareEx'
 import { Account, AccountWithUser, SessionData, UserSubject } from './Domain'
 import { InvariantError, InvariantResponseError } from './ErrorEx'
 import { IdentityMgr } from './IdentityMgr'
@@ -39,24 +39,11 @@ export const subjects = createSubjects({
   user: Schema.standardSchemaV1(UserSubject)
 })
 
-// export const makeRuntime = (env: Env) => {
-//   const ConfigLive = ConfigEx.fromObject(env)
-//   return Layer.mergeAll(IdentityMgr.Default, Stripe.Default, Q.Producer.Default).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
-// }
-
 export const makeRuntime = (env: Env) => {
-  const LogLevelLive = Config.logLevel('LOG_LEVEL').pipe(
-    Config.withDefault(LogLevel.Info),
-    Effect.map((level) => Logger.minimumLogLevel(level)),
-    Layer.unwrapEffect
+  return Layer.mergeAll(IdentityMgr.Default, Stripe.Default, Q.Producer.Default).pipe(
+    CloudflareEx.provideLoggingAndConfig,
+    ManagedRuntime.make
   )
-  const ConfigLive = ConfigEx.fromObject(env)
-  return Layer.mergeAll(
-    IdentityMgr.Default,
-    Stripe.Default,
-    Q.Producer.Default
-    // Logger.pretty doesn't seem to work well. json and structured don't seem to work in cloudflare
-  ).pipe(Layer.provide(Logger.structured), Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
 }
 
 export const handler =
@@ -1049,11 +1036,7 @@ const adminPost = handler((c) =>
         actionData = { message: 'Message sent' }
         break
       case 'effect_1':
-        yield* Effect.log({ user_id: 123, user_email: 'a@example.com', message: 'Effect: v0.3' })
-        yield* Effect.log({ user_id: 123, user_email: 'a@example.com', message: 'logFmt' }).pipe(Effect.provide(Logger.logFmt))
-        yield* Effect.log({ user_id: 123, user_email: 'a@example.com', message: 'structured' }).pipe(Effect.provide(Logger.structured))
-        yield* Console.log({ user_id: 123, user_email: 'a@example.com', message: 'Console' })
-        console.log({ user_id: 123, user_email: 'a@example.com', message: 'console' })
+        yield* Effect.log({ user_id: 123, user_email: 'a@example.com', message: 'Effect: v0.5' })
         actionData = { message: 'Effect 1' }
         break
       case 'customers':

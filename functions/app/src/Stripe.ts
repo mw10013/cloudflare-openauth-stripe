@@ -2,6 +2,7 @@ import type { Stripe as StripeType } from 'stripe'
 import { DurableObject } from 'cloudflare:workers'
 import { Cause, Config, ConfigError, Effect, Either, Layer, Logger, LogLevel, ManagedRuntime, Option, Predicate, Redacted } from 'effect'
 import { Stripe as StripeClass } from 'stripe'
+import * as CloudflareEx from './CloudflareEx'
 import * as ConfigEx from './ConfigEx'
 import { InvariantResponseError } from './ErrorEx'
 import { IdentityMgr } from './IdentityMgr'
@@ -382,10 +383,7 @@ const makeRuntime = (env: Env) => {
     Layer.unwrapEffect
   )
   const ConfigLive = ConfigEx.fromObject(env)
-  return Layer.mergeAll(
-    Stripe.Default,
-    Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
-  ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
+  return Layer.mergeAll(Stripe.Default).pipe(CloudflareEx.provideLoggingAndConfig, ManagedRuntime.make)
 }
 
 export class StripeDurableObject extends DurableObject<Env> {

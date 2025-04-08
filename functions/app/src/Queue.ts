@@ -1,4 +1,5 @@
 import { Config, ConfigError, Effect, Either, Layer, Logger, LogLevel, ManagedRuntime, Schema } from 'effect'
+import * as CloudflareEx from './CloudflareEx'
 import * as ConfigEx from './ConfigEx'
 import { Ses } from './Ses'
 
@@ -16,18 +17,7 @@ export const Payload = Schema.Union(EmailPayload)
 export type Payload = Schema.Schema.Type<typeof Payload>
 
 export const queue = (batch: MessageBatch, env: Env, ctx: ExecutionContext): Promise<void> => {
-  const LogLevelLive = Config.logLevel('LOG_LEVEL').pipe(
-    Config.withDefault(LogLevel.Info),
-    Effect.map((level) => Logger.minimumLogLevel(level)),
-    Layer.unwrapEffect
-  )
-  const ConfigLive = ConfigEx.fromObject(env)
-  const runtime = Layer.mergeAll(Ses.Default).pipe(
-    Layer.provide(Logger.structured),
-    Layer.provide(LogLevelLive),
-    Layer.provide(ConfigLive),
-    ManagedRuntime.make
-  )
+  const runtime = Layer.mergeAll(Ses.Default).pipe(CloudflareEx.provideLoggingAndConfig, ManagedRuntime.make)
   return Effect.gen(function* () {
     yield* Effect.log(`Queue started with ${batch.messages.length} messages`)
     for (const message of batch.messages) {
