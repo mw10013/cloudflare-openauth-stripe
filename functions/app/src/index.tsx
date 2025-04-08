@@ -342,7 +342,7 @@ function createFrontend({
     const kvSessionData = (await env.KV.get(sessionId, { type: 'json' })) || {}
     const sessionData = Schema.decodeUnknownSync(SessionData)(kvSessionData)
     c.set('sessionData', sessionData)
-    console.log({ sessionData })
+    // console.log({ sessionData })
 
     c.set('runtime', runtime)
 
@@ -1050,7 +1050,7 @@ const adminPost = handler((c) =>
         break
       case 'effect_1':
         yield* Effect.log({user_id: 123, user_email: "a@example.com",  msg: 'Effect'})
-        Console.log({user_id: 123, user_email: "a@example.com",  msg: 'Console'})
+        yield* Console.log({user_id: 123, user_email: "a@example.com",  msg: 'Console'})
         console.log({user_id: 123, user_email: "a@example.com",  msg: 'console'})
         actionData = { message: 'Effect 1' }
         break
