@@ -1049,7 +1049,7 @@ const adminPost = handler((c) =>
         actionData = { message: 'Message sent' }
         break
       case 'effect_1':
-        yield* Effect.log({ user_id: 123, user_email: 'a@example.com', message: 'Effect' })
+        yield* Effect.log({ user_id: 123, user_email: 'a@example.com', message: 'Effect: v0.1' })
         yield* Effect.log({ user_id: 123, user_email: 'a@example.com', message: 'logFmt' }).pipe(Effect.provide(Logger.logFmt))
         yield* Effect.log({ user_id: 123, user_email: 'a@example.com', message: 'structured' }).pipe(Effect.provide(Logger.structured))
         yield* Console.log({ user_id: 123, user_email: 'a@example.com', message: 'Console' })
