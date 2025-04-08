@@ -55,8 +55,7 @@ export const makeRuntime = (env: Env) => {
     IdentityMgr.Default,
     Stripe.Default,
     Q.Producer.Default
-    // Logger.pretty doesn't seem to work well.
-    // Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
+    // Logger.pretty doesn't seem to work well. json and structured don't seem to work in cloudflare
   ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
 }
 

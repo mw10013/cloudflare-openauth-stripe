@@ -22,11 +22,7 @@ export const queue = (batch: MessageBatch, env: Env, ctx: ExecutionContext): Pro
     Layer.unwrapEffect
   )
   const ConfigLive = ConfigEx.fromObject(env)
-  const runtime = Layer.mergeAll(
-    Ses.Default,
-    Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.structuredLogger)
-    // Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
-  ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
+  const runtime = Layer.mergeAll(Ses.Default).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
   return Effect.gen(function* () {
     yield* Effect.log(`Queue started with ${batch.messages.length} messages`)
     for (const message of batch.messages) {
