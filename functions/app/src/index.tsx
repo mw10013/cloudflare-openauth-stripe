@@ -8,7 +8,7 @@ import { Layout as OpenAuthLayout } from '@openauthjs/openauth/ui/base'
 import { CodeUI } from '@openauthjs/openauth/ui/code'
 import { FormAlert } from '@openauthjs/openauth/ui/form'
 import { createId } from '@paralleldrive/cuid2'
-import { Cause, Chunk, Config, Effect, Layer, Logger, LogLevel, ManagedRuntime, Predicate, Schema } from 'effect'
+import { Cause, Chunk, Config, Console, Effect, Layer, Logger, LogLevel, ManagedRuntime, Predicate, Schema } from 'effect'
 import { dual } from 'effect/Function'
 import { Handler, Hono, Context as HonoContext, Env as HonoEnv, MiddlewareHandler } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
@@ -969,6 +969,11 @@ const Admin: FC<{ actionData?: any }> = async ({ actionData }) => {
           </button>
         </form>
         <form action="/admin" method="post">
+          <button name="intent" value="effect_1" className="btn btn-outline">
+            Effect 1
+          </button>
+        </form>
+        <form action="/admin" method="post">
           <button name="intent" value="customers" className="btn btn-outline">
             Customers
           </button>
@@ -1021,7 +1026,7 @@ const adminPost = handler((c) =>
     const AdminFormDataSchema = FormDataSchema(
       Schema.Union(
         Schema.Struct({
-          intent: Schema.Literal('effect', 'customers', 'seed')
+          intent: Schema.Literal('effect', 'effect_1', 'customers', 'seed')
         }),
         Schema.Struct({
           intent: Schema.Literal('sync_stripe_data', 'customer_subscription'),
@@ -1042,6 +1047,12 @@ const adminPost = handler((c) =>
           text: 'this is body'
         })
         actionData = { message: 'Message sent' }
+        break
+      case 'effect_1':
+        yield* Effect.log({user_id: 123, user_email: "a@example.com",  msg: 'Effect'})
+        Console.log({user_id: 123, user_email: "a@example.com",  msg: 'Console'})
+        console.log({user_id: 123, user_email: "a@example.com",  msg: 'console'})
+        actionData = { message: 'Effect 1' }
         break
       case 'customers':
         actionData = { customers: yield* IdentityMgr.getCustomers() }
