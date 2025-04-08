@@ -1,4 +1,4 @@
-import { Config, ConfigError, Effect, Either, Layer, Logger, LogLevel, ManagedRuntime, Schema } from 'effect'
+import { Config, ConfigError, Console, Effect, Either, Layer, Logger, LogLevel, ManagedRuntime, Schema } from 'effect'
 import * as ConfigEx from './ConfigEx'
 import { Ses } from './Ses'
 
@@ -29,9 +29,11 @@ export const queue = (batch: MessageBatch, env: Env, ctx: ExecutionContext): Pro
   ).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
   return Effect.gen(function* () {
     yield* Effect.log(`Queue started with ${batch.messages.length} messages`)
+    yield* Console.log(`Console: Queue started with ${batch.messages.length} messages`)
     for (const message of batch.messages) {
       const payload = yield* Schema.decodeUnknown(EmailPayload)(message.body)
       yield* Effect.log(`Processing message ${message.id}`, payload, message.body)
+      yield* Console.log(`Console: Processing message ${message.id}`, payload, message.body)
       switch (payload.type) {
         case 'email': {
           yield* Ses.sendEmail({
