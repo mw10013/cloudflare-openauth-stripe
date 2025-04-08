@@ -26,7 +26,6 @@ export const queue = (batch: MessageBatch, env: Env, ctx: ExecutionContext): Pro
     Ses.Default,
     // Logger.replace(Logger.defaultLogger, env.ENVIRONMENT === 'local' ? Logger.defaultLogger : Logger.jsonLogger)
     ).pipe(Layer.provide(LogLevelLive), Layer.provide(ConfigLive), ManagedRuntime.make)
-  // ).pipe(Layer.provide(ConfigLive), ManagedRuntime.make)
   return Effect.gen(function* () {
     yield* Effect.log(`Queue started with ${batch.messages.length} messages`)
     yield* Console.log(`Console: Queue started with ${batch.messages.length} messages`)
