@@ -17,12 +17,11 @@ export const Payload = Schema.Union(EmailPayload)
 export type Payload = Schema.Schema.Type<typeof Payload>
 
 export const queue = (batch: MessageBatch, env: Env, ctx: ExecutionContext): Promise<void> => {
-  const runtime = Layer.mergeAll(Ses.Default).pipe(CloudflareEx.provideLoggingAndConfig, ManagedRuntime.make)
+  const runtime = Layer.mergeAll(Ses.Default).pipe(CloudflareEx.provideLoggerAndConfig, ManagedRuntime.make)
   return Effect.gen(function* () {
-    yield* Effect.log(`Queue started with ${batch.messages.length} messages`)
     for (const message of batch.messages) {
       const payload = yield* Schema.decodeUnknown(EmailPayload)(message.body)
-      yield* Effect.log(`Processing message ${message.id}`, payload, message.body)
+      yield* Effect.log({ message: `Queue: processing message: ${message.id}`, payload })
       switch (payload.type) {
         case 'email': {
           yield* Ses.sendEmail({
@@ -40,7 +39,6 @@ export const queue = (batch: MessageBatch, env: Env, ctx: ExecutionContext): Pro
         default:
           yield* Effect.log(`Unknown payload type ${payload.type}`)
       }
-      // console.log('Received', payload)
     }
   }).pipe(runtime.runPromise)
 }

@@ -41,7 +41,7 @@ export const subjects = createSubjects({
 
 export const makeRuntime = (env: Env) => {
   return Layer.mergeAll(IdentityMgr.Default, Stripe.Default, Q.Producer.Default).pipe(
-    CloudflareEx.provideLoggingAndConfig,
+    CloudflareEx.provideLoggerAndConfig,
     ManagedRuntime.make
   )
 }
@@ -329,8 +329,6 @@ function createFrontend({
     const kvSessionData = (await env.KV.get(sessionId, { type: 'json' })) || {}
     const sessionData = Schema.decodeUnknownSync(SessionData)(kvSessionData)
     c.set('sessionData', sessionData)
-    // console.log({ sessionData })
-
     c.set('runtime', runtime)
 
     const { origin } = new URL(c.req.url)
@@ -345,7 +343,6 @@ function createFrontend({
     c.set('redirectUri', `${origin}/callback`)
     await next()
     if (c.var.sessionData !== sessionData) {
-      console.log({ changedSessionData: c.var.sessionData })
       await env.KV.put(sessionId, JSON.stringify(c.var.sessionData), { expirationTtl: 60 * 60 })
     }
   })
@@ -534,7 +531,7 @@ const Layout: FC<PropsWithChildren<{}>> = ({ children }) => {
         <div className="navbar bg-base-100 shadow-sm">
           <div className="navbar-start">
             <a href="/" className="btn btn-ghost text-xl">
-              COS v0.5
+              COS v0.6
             </a>
           </div>
           <div className="navbar-end gap-2">

@@ -383,7 +383,7 @@ const makeRuntime = (env: Env) => {
     Layer.unwrapEffect
   )
   const ConfigLive = ConfigEx.fromObject(env)
-  return Layer.mergeAll(Stripe.Default).pipe(CloudflareEx.provideLoggingAndConfig, ManagedRuntime.make)
+  return Layer.mergeAll(Stripe.Default).pipe(CloudflareEx.provideLoggerAndConfig, ManagedRuntime.make)
 }
 
 export class StripeDurableObject extends DurableObject<Env> {

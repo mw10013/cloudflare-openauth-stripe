@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers'
 import { Config, Effect, Layer, Logger, LogLevel } from 'effect'
 import * as ConfigEx from './ConfigEx'
 
-export const provideLoggingAndConfig = <ROut, E, RIn>(self: Layer.Layer<ROut, E, RIn>) => {
+export const provideLoggerAndConfig = <ROut, E, RIn>(self: Layer.Layer<ROut, E, RIn>) => {
   const ConfigLive = ConfigEx.fromObject(env)
   const LogLevelLive = Config.logLevel('LOG_LEVEL').pipe(
     Config.withDefault(LogLevel.Info),
