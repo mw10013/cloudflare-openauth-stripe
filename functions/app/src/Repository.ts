@@ -192,18 +192,33 @@ where a.accountId = ?1 and am.userId = ?2 and am.status = 'active'`
             .prepare(
               `
 select json_group_array(json_object(
-	'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status, 'role', am.role,
-	'account',
-	(select json_object(
-		'accountId', a.accountId, 'userId', a.userId, 'stripeCustomerId', a.stripeCustomerId, 'stripeSubscriptionId', a.stripeSubscriptionId, 'stripeProductId', a.stripeProductId, 'planName', a.planName, 'subscriptionStatus', a.subscriptionStatus,
-		'user',
-		(select json_object(
-			'userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
-			'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt
-		) from User u where u.userId = a.userId)
-	) from Account a where a.accountId = am.accountId)
-)) as data from AccountMember am where am.userId = ? and am.status = ?					
-					`
+	'accountMemberId', am.accountMemberId, 
+  'userId', am.userId, 
+  'accountId', am.accountId, 
+  'status', am.status, 
+  'role', am.role,
+	'account', json_object(
+		'accountId', a.accountId, 
+    'userId', a.userId, 
+    'stripeCustomerId', a.stripeCustomerId, 
+    'stripeSubscriptionId', a.stripeSubscriptionId, 
+    'stripeProductId', a.stripeProductId, 
+    'planName', a.planName, 
+    'subscriptionStatus', a.subscriptionStatus,
+		'user', json_object(
+			'userId', u.userId, 
+      'name', u.name, 
+      'email', u.email, 
+      'userType', u.userType, 
+      'createdAt', u.createdAt, 
+      'updatedAt', u.updatedAt, 
+      'deletedAt', u.deletedAt
+		)
+  )
+)) as data from AccountMember am
+inner join Account a on a.accountId = am.accountId
+inner join User u on u.userId = a.userId 
+where am.userId = ? and am.status = ?`
             )
             .bind(userId, status),
           d1.first,
@@ -217,11 +232,21 @@ select json_group_array(json_object(
             .prepare(
               `
 select json_group_array(json_object(
-	'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status, 'role', am.role,
-	'user',
-	(select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
-		'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) from User u where u.userId = am.userId))) as data
-from AccountMember am where accountId = ?`
+	'accountMemberId', am.accountMemberId, 
+  'userId', am.userId, 
+  'accountId', am.accountId, 
+  'status', am.status, 
+  'role', am.role,
+	'user', json_object(
+    'userId', u.userId, 
+    'name', u.name, 
+    'email', u.email, 
+    'userType', u.userType, 
+    'createdAt', u.createdAt, 
+    'updatedAt', u.updatedAt, 
+    'deletedAt', u.deletedAt 
+  )
+)) as data from AccountMember am inner join User u on u.userId = am.userId where am.accountId = ?`
             )
             .bind(accountId),
           d1.first,
