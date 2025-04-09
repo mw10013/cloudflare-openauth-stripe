@@ -32,6 +32,7 @@ export const queue = (batch: MessageBatch, env: Env, ctx: ExecutionContext): Pro
             text: payload.text
           }).pipe(
             Effect.map(() => message.ack()),
+            Effect.tapError((e) => Effect.logError({ message: `Queue: error processing message: ${message.id}: ${e.message}`, payload })),
             Effect.orElse(() => Effect.sync(() => message.retry()))
           )
           break
