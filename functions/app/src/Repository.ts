@@ -58,8 +58,8 @@ on conflict (userId) do nothing`
 with c as (select u.userId, a.accountId
   from User u inner join Account a on a.userId = u.userId
   where u.email = ?1 and u.userType = 'customer')
-insert into AccountMember (userId, accountId, status)
-select userId, accountId, 'active' from c where true
+insert into AccountMember (userId, accountId, status, role)
+select userId, accountId, 'active', 'admin' from c where true
 on conflict (userId, accountId) do nothing`
         )
         .bind(email)
@@ -78,7 +78,7 @@ select json_group_array(json_object(
 			'accountId', a.accountId, 'userId', a.userId, 'stripeCustomerId', a.stripeCustomerId, 'stripeSubscriptionId', a.stripeSubscriptionId, 'stripeProductId', a.stripeProductId, 'planName', a.planName, 'subscriptionStatus', a.subscriptionStatus,
 			'accountMembers',
 			(select json_group_array(json_object(
-					'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status,
+					'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status, 'role', am.role,
 					'user', 
 					(select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
 						'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) from User u where u.userId = am.userId)
@@ -173,7 +173,7 @@ where a.accountId = ?1 and am.userId = ?2 and am.status = 'active'`
             .prepare(
               `
 select json_group_array(json_object(
-	'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status,
+	'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status, 'role', am.role,
 	'account',
 	(select json_object(
 		'accountId', a.accountId, 'userId', a.userId, 'stripeCustomerId', a.stripeCustomerId, 'stripeSubscriptionId', a.stripeSubscriptionId, 'stripeProductId', a.stripeProductId, 'planName', a.planName, 'subscriptionStatus', a.subscriptionStatus,
@@ -198,7 +198,7 @@ select json_group_array(json_object(
             .prepare(
               `
 select json_group_array(json_object(
-	'accountMemberId', accountMemberId, 'userId', userId, 'accountId', accountId, 'status', status,
+	'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status, 'role', am.role,
 	'user',
 	(select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
 		'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) from User u where u.userId = am.userId))) as data
@@ -226,8 +226,8 @@ from AccountMember am where accountId = ?`
             d1
               .prepare(
                 `
-insert into AccountMember (userId, accountId, status) 
-values ((select userId from User where email = ?), ?, 'pending') returning *							
+insert into AccountMember (userId, accountId, status, role) 
+values ((select userId from User where email = ?), ?, 'pending', 'editor') returning *							
 							`
               )
               .bind(email, accountId)
