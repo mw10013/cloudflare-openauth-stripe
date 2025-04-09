@@ -58,7 +58,8 @@ export class Ses extends Effect.Service<Ses>()('Ses', {
           )
           if (!response.ok) {
             return yield* Effect.tryPromise(() => response.text()).pipe(
-              Effect.flatMap((text) => Effect.fail(new Error(`Error sending email: ${response.status} ${response.statusText} ${text}`)))
+              Effect.flatMap((text) => Effect.fail(new Error(`Error sending email: ${response.status} ${response.statusText} ${text}`))),
+              Effect.tapError((e) => Effect.logError(`Ses: sendEmail: error: ${e.message}`))
             )
           }
         })
