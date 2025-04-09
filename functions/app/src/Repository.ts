@@ -5,18 +5,18 @@ import { DataFromResult } from './SchemaEx'
 
 /**
  * Repository provides data access methods for the application's domain entities.
- * 
+ *
  * Naming Conventions:
  * - `get*`: SELECT operations that retrieve entities
  * - `update*`: UPDATE operations that modify existing entities
  * - `upsert*`: INSERT OR UPDATE operations for creating or updating entities
  * - `create*`: INSERT operations for creating new entities
  * - `delete*`/`softDelete*`: DELETE operations (either physical or logical)
- * 
+ *
  * @example
  * ```ts
  * import { Repository } from './Repository'
- * 
+ *
  * // Within an Effect context
  * const program = Effect.gen(function*() {
  *   const repo = yield* Repository
@@ -71,20 +71,39 @@ on conflict (userId, accountId) do nothing`
           d1.prepare(
             `
 select json_group_array(json_object(
-	'userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
-	'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt,
-	'account',
-	(select json_object(
-			'accountId', a.accountId, 'userId', a.userId, 'stripeCustomerId', a.stripeCustomerId, 'stripeSubscriptionId', a.stripeSubscriptionId, 'stripeProductId', a.stripeProductId, 'planName', a.planName, 'subscriptionStatus', a.subscriptionStatus,
-			'accountMembers',
-			(select json_group_array(json_object(
-					'accountMemberId', am.accountMemberId, 'userId', am.userId, 'accountId', am.accountId, 'status', am.status, 'role', am.role,
-					'user', 
-					(select json_object('userId', u.userId, 'name', u.name, 'email', u.email, 'userType', u.userType, 
-						'createdAt', u.createdAt, 'updatedAt', u.updatedAt, 'deletedAt', u.deletedAt) from User u where u.userId = am.userId)
-			)) from AccountMember am where am.accountId = a.accountId)	
-		) from Account a where a.userId = u.userId)
-)) as data from User u where userType = 'customer' order by u.email
+	'userId', u.userId, 
+  'name', u.name, 
+  'email', u.email, 
+  'userType', u.userType, 
+	'createdAt', u.createdAt, 
+  'updatedAt', u.updatedAt, 
+  'deletedAt', u.deletedAt,
+	'account', json_object(
+		'accountId', a.accountId, 
+    'userId', a.userId, 
+    'stripeCustomerId', a.stripeCustomerId, 
+    'stripeSubscriptionId', a.stripeSubscriptionId, 
+    'stripeProductId', a.stripeProductId, 
+    'planName', a.planName, 
+    'subscriptionStatus', a.subscriptionStatus,
+		'accountMembers', (select json_group_array(json_object(
+			'accountMemberId', am.accountMemberId, 
+      'userId', am.userId, 
+      'accountId', am.accountId, 
+      'status', am.status, 
+      'role', am.role,
+			'user', json_object(
+        'userId', u1.userId, 
+        'name', u1.name, 
+        'email', u1.email, 
+        'userType', u1.userType, 
+        'createdAt', u1.createdAt, 
+        'updatedAt', u1.updatedAt, 
+        'deletedAt', u1.deletedAt
+      )
+		)) from AccountMember am inner join User u1 on u1.userId = am.userId where am.accountId = a.accountId)
+  )
+)) as data from User u inner join Account a on a.userId = u.userId where userType = 'customer' order by u.email
 				`
           ),
           d1.first,
