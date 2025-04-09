@@ -52,6 +52,25 @@
   - Members can leave an account (hard deletes the membership record)
   - Owners can invite a previously removed member again (creates a new membership record)
 
+## Role-Based Access Control
+
+- Account members are assigned one of the following roles:
+  - admin - Can manage account settings, billing, and members; full access to all account resources
+  - editor - Can create and modify content but cannot manage account settings or members
+  - viewer - Read-only access to account resources
+
+- Access scope:
+  - All roles are scoped to the entire account
+  - Fine-grained resource-level permissions deferred for future implementation
+
+- Authorization checks:
+  - API endpoints should verify member role before allowing actions
+  - UI should conditionally render elements based on user's role
+  - Basic actions mapping:
+    - admin: all actions permitted
+    - editor: create/edit/view content, no account management
+    - viewer: view-only operations
+
 ## User Deletion Strategy
 
 - Users must be soft-deleted rather than hard-deleted due to Stripe integration requirements
