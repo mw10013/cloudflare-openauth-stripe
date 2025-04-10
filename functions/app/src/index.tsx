@@ -799,6 +799,30 @@ const AccountHome: FC = () => {
   )
 }
 
+export type PermissionAction = "read" | "manage" | "delete";
+export type PermissionConfig = Record<string, ReadonlyArray<PermissionAction>>;
+
+export type InferPermissions<T extends PermissionConfig> = {
+  [K in keyof T]: T[K][number] extends PermissionAction ? `${K & string}:${T[K][number]}` : never;
+}[keyof T];
+
+export const makePermissions = <T extends PermissionConfig>(
+  config: T,
+): Array<InferPermissions<T>> => {
+  return Object.entries(config).flatMap(([domain, actions]) =>
+    actions.map((action) => `${domain}:${action}` as InferPermissions<T>),
+  );
+};
+
+const Permissions = makePermissions({
+  members: ["read", "manage", "delete"],
+} as const);
+
+export const Permission = Schema.Literal(...Permissions).annotations({
+  identifier: "Permission",
+});
+export type Permission = typeof Permission.Type;
+
 const Members: FC<{ loaderData: Effect.Effect.Success<ReturnType<typeof membersLoaderData>>; actionData?: any }> = async ({
   loaderData,
   actionData
